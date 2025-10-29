@@ -215,6 +215,15 @@ logs/
 .streamlit/secrets.toml
 cached_results/
 
+# Evaluation history backups (comment out to include specific backups in git)
+evaluation_history/
+
+# Utilities folder with analysis scripts and tools
+utilities/
+
+# Archive folder for deprecated code
+.archive/
+
 # macOS system files
 .DS_Store
 .DS_Store?

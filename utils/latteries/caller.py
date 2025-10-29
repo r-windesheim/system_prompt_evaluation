@@ -6,7 +6,10 @@ try:
     from tinker.types.model_input import ModelInput
 except ImportError:
     ModelInput = None
-import anthropic
+try:
+    import anthropic
+except ImportError:
+    anthropic = None  # type: ignore
 from datetime import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -15,7 +18,13 @@ from typing import Any, Generic, Mapping, Optional, Sequence, Type, TypeVar, TYP
 if TYPE_CHECKING:
     import tinker
     import transformers
-from anthropic.types.message import Message
+    if anthropic:
+        from anthropic.types.message import Message
+    else:
+        Message = None  # type: ignore
+
+if anthropic:
+    from anthropic.types.message import Message
 from anyio import Path as AnyioPath
 
 import anyio
@@ -732,9 +741,11 @@ class AnthropicCaller(Caller):
     def __init__(
         self,
         cache_path: Path | str | CallerCache,
-        anthropic_client: anthropic.AsyncAnthropic | None = None,
+        anthropic_client: "anthropic.AsyncAnthropic | None" = None,  # type: ignore
         api_key: str | None = None,
     ):
+        if anthropic is None:
+            raise ImportError("anthropic package is required for AnthropicCaller. Install it with: pip install anthropic")
         if anthropic_client is not None:
             self.client = anthropic_client
         else:
@@ -742,7 +753,7 @@ class AnthropicCaller(Caller):
                 env_key = os.getenv("ANTHROPIC_API_KEY")
                 assert env_key is not None, "Please provide an Anthropic API Key"
                 api_key = env_key
-            self.client = anthropic.AsyncAnthropic(api_key=api_key)
+            self.client = anthropic.AsyncAnthropic(api_key=api_key)  # type: ignore
         self.cache_by_model = CallerCache(Path(cache_path)) if not isinstance(cache_path, CallerCache) else cache_path
 
     async def flush(self) -> None:
@@ -757,7 +768,7 @@ class AnthropicCaller(Caller):
     @retry(
         stop=(stop_after_attempt(5)),
         wait=(wait_fixed(5)),
-        retry=(retry_if_exception_type((ValidationError, anthropic.InternalServerError))),
+        retry=(retry_if_exception_type((ValidationError, anthropic.InternalServerError if anthropic else Exception))),  # type: ignore
         reraise=True,
     )
     async def call(
@@ -777,15 +788,15 @@ class AnthropicCaller(Caller):
         if system.length >= 2:
             raise ValueError("Anthropic does not support multiple system messages")
         system_message: ChatMessage | None = system.first_option
-        to_pass_sys = system_message.content if system_message is not None else anthropic.NOT_GIVEN
+        to_pass_sys = system_message.content if system_message is not None else anthropic.NOT_GIVEN  # type: ignore
 
         assert config.max_tokens is not None, "Anthropic requires max_tokens"
-        response: Message = await self.client.messages.create(
+        response: "Message" = await self.client.messages.create(  # type: ignore
             model=config.model,
             messages=anthropic_messages,  # type: ignore
             max_tokens=config.max_tokens,
-            temperature=config.temperature if config.temperature is not None else anthropic.NOT_GIVEN,
-            top_p=config.top_p if config.top_p is not None else anthropic.NOT_GIVEN,
+            temperature=config.temperature if config.temperature is not None else anthropic.NOT_GIVEN,  # type: ignore
+            top_p=config.top_p if config.top_p is not None else anthropic.NOT_GIVEN,  # type: ignore
             system=to_pass_sys,
         )
         # convert
@@ -1260,7 +1271,7 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         The response content as a string
 
     Raises:
-        Exception: If API call fails or returns empty response
+        Exception: If API call fails or returns empty response after retries
     """
     global _global_caller
 
@@ -1274,7 +1285,8 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         # Create OpenAICaller with OpenRouter base URL
         openrouter_client = AsyncOpenAI(
             api_key=api_key,
-            base_url="https://openrouter.ai/api/v1"
+            base_url="https://openrouter.ai/api/v1",
+            timeout=300.0  # 300 second timeout (5 minutes)
         )
         _global_caller = OpenAICaller(
             cache_path="cached_results/llm_cache",
@@ -1287,22 +1299,45 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         chat_messages.append(ChatMessage(role=msg["role"], content=msg["content"]))
     chat_history = ChatHistory(messages=chat_messages)
 
-    # Create inference config
-    config = InferenceConfig(
-        model=model_name,
-        temperature=1.0,
-        max_tokens=4096
-    )
+    # Retry logic for empty responses with exponential backoff
+    max_retries = 3
+    for attempt in range(max_retries):
+        # Create inference config
+        config = InferenceConfig(
+            model=model_name,
+            temperature=1.0,
+            max_tokens=16384  # Increased for long prompt decomposition outputs
+        )
 
-    # Make the call
-    response = await _global_caller.call(chat_history, config)
+        # Make the call using OpenAICaller with full caching support
+        # nest_asyncio in app.py allows this to work without deadlocking
+        response = await _global_caller.call(chat_history, config)
 
-    # Extract and return the response content
-    content = response.first_response
-    if not content or content.strip() == "":
-        raise Exception("Empty response from API")
+        # Check for content filter
+        if response.hit_content_filter:
+            raise Exception(f"Response blocked by content filter for model {model_name}")
 
-    return content.strip()
+        # Extract content from response
+        try:
+            content = response.first_response
+            if content and content.strip() != "":
+                return content.strip()
+        except (KeyError, IndexError, ValueError) as e:
+            # Response structure is invalid
+            if attempt == max_retries - 1:
+                raise Exception(f"Invalid response structure from API: {e}")
+
+        # Empty response - retry with exponential backoff
+        if attempt < max_retries - 1:
+            wait_time = 2 ** attempt  # 1s, 2s, 4s
+            print(f"Warning: Empty response from API (attempt {attempt + 1}/{max_retries}), retrying in {wait_time}s...")
+            await anyio.sleep(wait_time)
+        else:
+            # Final attempt failed
+            raise Exception(f"Empty response from API after {max_retries} attempts. Model: {model_name}")
+
+    # Fallback (should never reach here due to raise above, but for type safety)
+    raise Exception("Unexpected error in llm_call")
 
 
 if __name__ == "__main__":
