@@ -15,6 +15,10 @@ from utils.ui_helpers import (
     extract_question_asking_metrics, create_question_asking_chart,
     create_section_impact_heatmap
 )
+from utils.theme_engine import inject_theme
+from utils.recipe_cards import generate_recipe_card, generate_prompt_personality
+from utils.report_generator import generate_html_report, save_report
+from utils.prompt_surgery import render_prompt_surgery, predict_section_impact
 from config import (
     DEFAULT_MODEL, DEFAULT_MAX_CONCURRENT,
     DEFAULT_PROMPT_SECTIONS, EVALUATION_DIMENSIONS,
@@ -241,6 +245,11 @@ def render_metric_card(dimension: str, score: float):
 def main():
     """Main Streamlit application"""
     st.title("Prompt Testing Tool")
+
+    # Apply selected theme
+    theme = st.session_state.get('theme_selector', 'Dark')
+    animations = st.session_state.get('animations', True)
+    st.markdown(inject_theme(theme, animations), unsafe_allow_html=True)
     
     # Determine which dataset to load based on whether we have custom sections
     if 'custom_sections' not in st.session_state:
@@ -281,12 +290,30 @@ def main():
             <h2 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #fafafa;">Prompt Builder</h2>
         </div>
         """, unsafe_allow_html=True)
-        
+
+        # Theme Selector
+        st.markdown("---")
+        st.markdown("**🎨 THEME**")
+        theme = st.selectbox(
+            "Choose your theme",
+            ["Dark", "Light", "Cyberpunk", "Neon", "Nature"],
+            key="theme_selector",
+            label_visibility="collapsed"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            animations_enabled = st.checkbox("✨ Animations", value=True, key="animations")
+        with col2:
+            sound_effects = st.checkbox("🔊 Sounds", value=False, key="sounds")
+
+        st.markdown("---")
+
         # Simple toggle with tabs approach
         st.markdown("**MODE**")
         
-        # Create two columns for toggle buttons
-        col1, col2 = st.columns(2)
+        # Create three columns for toggle buttons
+        col1, col2, col3 = st.columns(3)
         
         # Initialize mode if not set
         if 'interface_mode' not in st.session_state:
@@ -340,14 +367,24 @@ def main():
         
         with col2:
             if st.button(
-                "Custom Analyzer", 
+                "Custom Analyzer",
                 key="btn_custom",
                 use_container_width=True,
                 type="primary" if st.session_state.interface_mode == "Custom Prompt Analyzer" else "secondary"
             ):
                 st.session_state.interface_mode = "Custom Prompt Analyzer"
                 st.rerun()
-        
+
+        with col3:
+            if st.button(
+                "🔬 Prompt Surgery",
+                key="btn_surgery",
+                use_container_width=True,
+                type="primary" if st.session_state.interface_mode == "Prompt Surgery" else "secondary"
+            ):
+                st.session_state.interface_mode = "Prompt Surgery"
+                st.rerun()
+
         mode = st.session_state.interface_mode
         
         st.markdown("<hr style='border: 1px solid #27272a; margin: 16px 0;'>", unsafe_allow_html=True)
@@ -542,9 +579,70 @@ def main():
             # Set variables for main interface
             selected_sections = st.session_state.custom_sections if st.session_state.use_custom_sections else []
             current_combination = '\n\n'.join(selected_sections) if selected_sections else None
-        
+
+        elif mode == "Prompt Surgery":
+            # Prompt Surgery interface
+            st.markdown("**🔬 Interactive Prompt Surgery:**")
+            st.markdown("Drag and drop sections to reorder them, edit inline, or delete unwanted sections. See live impact predictions as you modify the prompt structure.")
+
+            # Get sections to work with
+            sections_to_edit = []
+            if st.session_state.custom_sections:
+                sections_to_edit = st.session_state.custom_sections.copy()
+            elif 'use_default_sections' in st.session_state and st.session_state.use_default_sections:
+                sections_to_edit = DEFAULT_PROMPT_SECTIONS.copy()
+            else:
+                # Try to use the current combination
+                if current_combination:
+                    sections_to_edit = [current_combination]
+                else:
+                    sections_to_edit = DEFAULT_PROMPT_SECTIONS.copy()
+
+            if sections_to_edit:
+                # Render the surgery interface
+                updated_sections, changed = render_prompt_surgery(sections_to_edit, results_df)
+
+                if changed:
+                    st.session_state.custom_sections = updated_sections
+                    st.rerun()
+
+                # Action buttons
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    if st.button("💾 Save Configuration", type="primary"):
+                        st.session_state.custom_sections = updated_sections
+                        st.success("Configuration saved!")
+
+                with col2:
+                    if st.button("▶️ Run Evaluation"):
+                        st.session_state.custom_sections = updated_sections
+                        st.session_state.show_eval_config = True
+                        st.rerun()
+
+                with col3:
+                    if st.button("📊 Generate Report"):
+                        # Generate visual report
+                        scores = extract_dimension_scores(results_df, "\n\n".join(updated_sections))
+                        quirks = []  # Would need quirk analysis
+
+                        card, img_base64 = generate_recipe_card(
+                            prompt_config=f"Custom-{len(updated_sections)}",
+                            scores=scores,
+                            quirks=quirks,
+                            section_count=len(updated_sections),
+                            test_query_count=len(results_df['test_query'].unique()) if 'test_query' in results_df.columns else 0,
+                            theme="blue",
+                            size="square"
+                        )
+
+                        st.image(card, caption="Prompt Recipe Card", use_column_width=True)
+                        st.markdown(f'<a href="data:image/png;base64,{img_base64}" download="prompt_recipe.png">Download Recipe Card</a>', unsafe_allow_html=True)
+            else:
+                st.info("No sections available for surgery. Please analyze a prompt first or use the default sections.")
+
         st.markdown("<hr style='border: 1px solid #27272a; margin: 24px 0;'>", unsafe_allow_html=True)
-        
+
         # Options
         st.markdown("""
         <div style="margin-top: 24px;">
@@ -554,7 +652,7 @@ def main():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         show_raw_data = st.checkbox("Show Raw Data", value=False)
         
         # Status
