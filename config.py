@@ -10,7 +10,7 @@ from typing import List, Dict
 # Model Configuration
 # ============================================================================
 
-DEFAULT_MODEL = "openai/gpt-5-nano-2025-08-07"  # For generating responses
+DEFAULT_MODEL = "openai/gpt-4o-mini"  # For generating responses (more reliable than gpt-5-nano)
 EVALUATION_MODEL = "openai/gpt-4o-mini"  # For evaluating responses (more accurate)
 FALLBACK_MODEL = "anthropic/claude-3-haiku"
 
@@ -27,7 +27,7 @@ PRICING_AVG_OUTPUT_FACTOR = 0.1  # Average output token usage factor
 # Batch Processing Configuration
 # ============================================================================
 
-DEFAULT_MAX_CONCURRENT = 100  # Maximum throughput - nest_asyncio fixes allow this
+DEFAULT_MAX_CONCURRENT = 10  # Reduced from 100 to prevent rate limiting
 HIGH_THROUGHPUT_THRESHOLD = 500
 EXPERIMENTAL_THRESHOLD = 1000
 

@@ -20,6 +20,7 @@ import textstat
 
 from utils.latteries.caller import llm_call
 from utils.question_asking_analyzer import analyze_question_asking
+from utils.rate_limiter import openrouter_limiter
 from config import (
     SCORE_YES, SCORE_NO, SCORE_AMBIGUOUS, SCORE_DEFAULT,
     SCORE_MIN, SCORE_MAX,
@@ -292,6 +293,8 @@ AI RESPONSE TO EVALUATE:
             eval_messages = [{"role": "user", "content": eval_prompt}]
 
             # Get evaluation from LLM (using potentially better eval model)
+            # Apply rate limiting to prevent API overload
+            await openrouter_limiter.acquire()
             evaluation_result = await llm_call(self.eval_model, eval_messages, call_type="evaluation")
             evaluation_result_clean = evaluation_result.strip().upper()
 
@@ -369,6 +372,8 @@ AI RESPONSE TO EVALUATE:
                 {"role": "user", "content": test_query}
             ]
 
+            # Apply rate limiting to prevent API overload
+            await openrouter_limiter.acquire()
             response = await llm_call(self.model_name, messages, call_type="main_response")
             logger.info(f"MAIN_RESPONSE | ID: {eval_id} | {response}")
 

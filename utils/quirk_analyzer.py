@@ -25,6 +25,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import DEFAULT_MODEL
 from utils.latteries.caller import llm_call
+from utils.quirk_dimensions import (
+    generate_auto_summary,
+    get_top_3_changes,
+    aggregate_quirks_by_dimension
+)
 
 # Import quirk detection from analysis folder
 try:
@@ -470,14 +475,14 @@ async def generate_responses_for_quirk_analysis(
 
     tasks = [make_call_with_semaphore(i) for i in range(n)]
 
-    # Run all with 10-minute timeout
+    # Run all with 30-minute timeout (needed for 30 responses with rate limiting)
     try:
         responses = await asyncio.wait_for(
             asyncio.gather(*tasks, return_exceptions=True),
-            timeout=600.0  # 10 minutes
+            timeout=1800.0  # 30 minutes
         )
     except asyncio.TimeoutError:
-        print(f"Warning: Timeout after 10 minutes - some responses may be missing")
+        print(f"Warning: Timeout after 30 minutes - some responses may be missing")
         return []
 
     # Filter out exceptions
@@ -725,9 +730,9 @@ async def analyze_prompt_quirks(
     # Generate responses for each configuration with controlled concurrency
     print(f"\n🔍 Generating responses for {len(sections) + 1} configurations...")
 
-    # Create semaphore to limit concurrent API calls (max 5 at once)
-    semaphore = asyncio.Semaphore(5)
-    print(f"  ⚙️  Rate limit: 5 concurrent API calls to prevent overwhelming the API")
+    # Create semaphore to limit concurrent API calls (max 3 at once to avoid rate limits)
+    semaphore = asyncio.Semaphore(3)
+    print(f"  ⚙️  Rate limit: 3 concurrent API calls to prevent overwhelming the API")
 
     # Create all tasks at once
     config_tasks = {}
@@ -946,13 +951,19 @@ async def analyze_prompt_quirks(
 
 def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Format quirk analysis results for UI display
+    Format quirk analysis results for UI display with dimensional grouping
 
     Args:
         analysis_results: Results from analyze_prompt_quirks
 
     Returns:
-        Formatted dictionary for UI consumption
+        Formatted dictionary for UI consumption with:
+        - quirks: List of individual quirks (legacy format)
+        - total_quirks_detected: Count of detected quirks
+        - full_prompt_rates: Quirk rates for full prompt
+        - top_3_changes: Top 3 auto-detected behavioral changes (NEW)
+        - auto_summary: One-sentence summary of changes (NEW)
+        - dimensions: Grouped quirks by behavioral dimension (NEW)
     """
     detected_quirks = analysis_results.get('detected_quirks', [])
 
@@ -966,9 +977,16 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
 
         formatted_quirk = {
             'name': quirk_display_name,
+            'quirk_type': quirk_name,  # Add for dimensional functions
             'technical_name': quirk_name,
             'mean_rate': quirk['full_rate'],
+            'full_prompt_rate': quirk['full_rate'],  # Add for dimensional functions
+            'without_section_rate': top_impact['without_section'],  # Add for dimensional functions
             'spike_ratio': quirk.get('spike_ratio', 1.0),
+            'impact': top_impact['impact'],  # Add for dimensional functions
+            'p_value': quirk.get('p_value', 1.0),  # Add for dimensional functions
+            'effect_size': quirk.get('effect_size', 0),  # Add for dimensional functions
+            'direction': 'increases' if top_impact['impact'] > 0 else 'decreases',  # Add for dimensional functions
             'example_snippets': quirk.get('example_snippets', {}),  # Smart snippets showing the quirk
             'attribution': {
                 'section_index': top_impact['section_index'],
@@ -981,10 +999,19 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
 
         formatted_quirks.append(formatted_quirk)
 
+    # Generate dimensional enhancements
+    top_3_changes = get_top_3_changes(formatted_quirks)
+    auto_summary = generate_auto_summary(formatted_quirks)
+    dimensions = aggregate_quirks_by_dimension(formatted_quirks)
+
     return {
         'quirks': formatted_quirks,
         'total_quirks_detected': len(formatted_quirks),
-        'full_prompt_rates': analysis_results.get('full_prompt_rates', {})
+        'full_prompt_rates': analysis_results.get('full_prompt_rates', {}),
+        # NEW FIELDS FOR DIMENSIONAL ANALYSIS
+        'top_3_changes': top_3_changes,
+        'auto_summary': auto_summary,
+        'dimensions': dimensions
     }
 
 

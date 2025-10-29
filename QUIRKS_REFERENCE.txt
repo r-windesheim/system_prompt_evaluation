@@ -1,0 +1,363 @@
+================================================================================
+BEHAVIORAL QUIRKS REFERENCE
+System Prompt Evaluation Tool - Complete Quirk Catalog
+================================================================================
+
+This document lists all 35 behavioral quirks detected by the quirk analyzer.
+All rates are measured as occurrences per 100 words unless otherwise noted.
+
+================================================================================
+ORIGINAL QUIRK SET (11 quirks)
+================================================================================
+
+1. PARENTHESES_RATE
+   Description: Parenthetical statements, asides, and clarifications
+   Detection: Counts opening parentheses "(" in text
+   Examples: "This is important (and relevant) for understanding."
+   Trigger words: clarify, explain, detail, specify, elaborate
+
+2. APOLOGY_RATE
+   Description: Apologetic language and expressions of regret
+   Detection: sorry, apologize, apologies, apology
+   Examples: "I'm sorry for the confusion", "I apologize for any inconvenience"
+
+3. QUESTION_RATE
+   Description: Question marks indicating interrogative statements
+   Detection: Counts "?" in text
+   Examples: "Does this make sense?", "What do you think?"
+
+4. ENUMERATION_RATE
+   Description: Numbered/bulleted lists and structured enumerations
+   Detection: Bullet points (-, •, *) and numbered lists (1., 2.), etc.
+   Examples: "1. First step", "• Key point", "- Important item"
+   Trigger words: list, enumerate, organize, structure, steps, items
+
+5. HEDGE_RATE
+   Description: Hedging words expressing uncertainty or qualification
+   Detection: might, possibly, perhaps, could be, may, potentially, arguably, seems like
+   Examples: "This might work", "It's possibly related to"
+   Trigger words: might, perhaps, possibly, uncertain, unclear, ambiguous
+
+6. CERTAINTY_RATE
+   Description: Certainty markers expressing confidence
+   Detection: definitely, absolutely, clearly, obviously, certainly, undoubtedly, always, never
+   Examples: "This is definitely correct", "Clearly, the answer is"
+   Trigger words: definitely, absolutely, clearly, obviously, certain, confident
+
+7. METACOMMENTARY_RATE
+   Description: Commentary about the response itself
+   Detection: let me explain, I'll structure, to answer, to address, first let me, my approach
+   Examples: "Let me explain my reasoning", "I'll structure this as follows"
+   Trigger words: explain my approach, structure, organize, let me, I will
+
+8. ACKNOWLEDGMENT_RATE
+   Description: Acknowledgment phrases validating the user
+   Detection: great question, good point, I understand, that's interesting, excellent
+   Examples: "Great question!", "I understand your concern"
+
+9. EXAMPLE_RATE
+   Description: Phrases introducing examples
+   Detection: for example, for instance, e.g., such as, like
+   Examples: "For example, consider this case", "Such as Python or JavaScript"
+   Trigger words: example, instance, illustrate, demonstrate, such as
+
+10. ACTION_RATE
+    Description: Action-oriented language and next steps
+    Detection: next steps, here's what to do, action items, to get started, step \d+
+    Examples: "Here's what to do next", "Action items for today"
+
+11. CAVEAT_RATE
+    Description: Caveats, qualifications, and contrasts
+    Detection: however, but, although, though, nevertheless, nonetheless, yet
+    Examples: "However, there's a catch", "Although this works, but consider"
+
+================================================================================
+EXTENDED QUIRK SET (14 additional quirks)
+================================================================================
+
+12. PASSIVE_VOICE_RATE
+    Description: Passive voice constructions
+    Detection: (was|were|been|being|is|are|am) + past participle (-ed, -en endings)
+    Examples: "It was done", "The code is being written", "Results were obtained"
+    Trigger words: is done, was made, be performed, are handled, been completed
+
+13. TECHNICAL_JARGON_RATE
+    Description: Technical terminology and specialized vocabulary
+    Detection: algorithm, framework, implementation, architecture, methodology, paradigm,
+               infrastructure, protocol, interface, component, module, integration,
+               optimization, configuration
+    Examples: "The algorithm implements", "Framework architecture design"
+    Trigger words: algorithm, framework, implementation, architecture, protocol
+
+14. EMOTIONAL_LANGUAGE_RATE
+    Description: Emotional words and affective language
+    Detection: feel, felt, feeling, happy, sad, angry, excited, worried, concerned,
+               love, hate, fear, hope, wish, want, need, desire
+    Examples: "I feel this is important", "You might be worried about"
+
+15. TRANSITION_RATE
+    Description: Transition words connecting ideas
+    Detection: furthermore, moreover, additionally, consequently, therefore, thus,
+               hence, accordingly, meanwhile, subsequently, initially, finally
+    Examples: "Furthermore, consider this", "Therefore, we conclude"
+
+16. SPECIFICATION_RATE
+    Description: Specification and precision phrases
+    Detection: specifically, precisely, exactly, particularly, especially, notably,
+               namely, that is, i.e., in particular
+    Examples: "Specifically, this means", "Precisely speaking"
+
+17. DISCLAIMER_RATE
+    Description: Disclaimers, warnings, and caveats
+    Detection: disclaimer, note that, please note, important to note, keep in mind,
+               be aware, caveat, warning, caution
+    Examples: "Please note that results may vary", "Disclaimer: This is not advice"
+
+18. ELABORATION_RATE
+    Description: Elaboration and clarification patterns
+    Detection: in other words, to clarify, to elaborate, let me explain,
+               put differently, to be clear, that means, which means
+    Examples: "In other words, this is", "To clarify what I meant"
+
+19. QUANTIFIER_RATE
+    Description: Quantifiers and amount indicators
+    Detection: all, every, none, some, many, few, several, most, any, much, little,
+               various, numerous, countless
+    Examples: "All solutions work", "Many approaches exist"
+
+20. COMPARISON_RATE
+    Description: Comparison language and relative terms
+    Detection: better, worse, more, less, greater, smaller, higher, lower, similar,
+               different, compared to, versus, rather than, instead of
+    Examples: "Better than the alternative", "Compared to other methods"
+
+21. SELF_REFERENCE_RATE
+    Description: Self-referential language about own response
+    Detection: I'm, I am, I've, I have, I'll, I will, I'd, I would,
+               my response, my answer, my explanation
+    Examples: "I'm going to explain", "In my response above"
+
+22. FUTURE_TENSE_RATE
+    Description: Future tense markers
+    Detection: will, shall, going to, about to, plan to, intend to, expect to, hope to
+    Examples: "I will explain", "We're going to discuss"
+
+23. PAST_TENSE_RATE
+    Description: Past tense usage
+    Detection: -ed word endings, was, were, had, did, went, came, saw, took, made, got
+    Examples: "I explained earlier", "This was discussed"
+
+24. INSTRUCTION_DENSITY
+    Description: Commands per sentence (percentage)
+    Unit: Commands per sentence × 100
+    Detection: Sentences starting with: Please, You should, You must, You can, Try to,
+               Make sure, Ensure, Consider, Remember, Don't, Do not, Avoid
+    Examples: "Please follow these steps", "Make sure to validate"
+
+25. REPETITION_RATE
+    Description: Repeated 3-word phrases
+    Detection: Identifies 3-word phrases that appear more than once
+    Examples: "as you can see" repeated multiple times
+
+================================================================================
+PRONOUN DENSITY (3 quirks)
+================================================================================
+
+26. FIRST_PERSON_RATE
+    Description: First-person pronouns
+    Detection: I, me, my, mine, myself
+    Examples: "I think", "In my opinion", "Let me help"
+
+27. SECOND_PERSON_RATE
+    Description: Second-person pronouns
+    Detection: you, your, yours, yourself
+    Examples: "You can try", "Your code should", "Help yourself"
+
+28. THIRD_PERSON_RATE
+    Description: Third-person pronouns
+    Detection: he, she, they, it, him, her, them, his, hers, their, theirs
+    Examples: "They work well", "It depends on", "His approach"
+
+================================================================================
+LINGUISTIC PATTERNS (3 quirks)
+================================================================================
+
+29. CONDITIONAL_RATE
+    Description: Conditional language and hypothetical statements
+    Detection: if, when, unless, provided that, assuming, suppose
+    Examples: "If you need help", "When this happens", "Assuming that's correct"
+
+30. MODAL_VERB_RATE
+    Description: Modal verbs expressing possibility, permission, ability
+    Detection: can, could, may, might, must, should, would, will, shall
+    Examples: "You can use", "This might work", "We should consider"
+
+31. IMPERATIVE_RATE
+    Description: Imperative/command forms
+    Detection: do, don't, make sure, ensure, avoid, remember, consider, try
+    Examples: "Don't forget", "Make sure to check", "Try this approach"
+
+================================================================================
+COMPUTED METRICS (2 quirks)
+================================================================================
+
+32. FORMALITY_SCORE
+    Description: Overall formality level
+    Calculation: (average_word_length × 10) - (contraction_rate × 5)
+    Unit: Composite score (higher = more formal)
+    Factors: Long words increase score, contractions decrease score
+    Examples: High formality: academic writing, technical docs
+              Low formality: casual conversation, informal emails
+
+33. CONTRACTION_RATE
+    Description: Use of contractions
+    Detection: Words with apostrophes (don't, can't, it's, I'm, you're, etc.)
+    Examples: "Don't worry", "It's working", "We'll help"
+
+================================================================================
+NLP-BASED QUIRKS (2 quirks - requires TextBlob library)
+================================================================================
+
+34. SENTIMENT_POLARITY
+    Description: Sentiment polarity (emotional valence)
+    Unit: 0-100 scale (0 = very negative, 50 = neutral, 100 = very positive)
+    Source: TextBlob sentiment analysis
+    Examples: High: "Excellent work, great results!"
+              Low: "Unfortunately, this failed badly"
+              Neutral: "The function returns a boolean value"
+
+35. SENTIMENT_SUBJECTIVITY
+    Description: Subjectivity level
+    Unit: 0-100 scale (0 = objective/factual, 100 = subjective/opinion)
+    Source: TextBlob sentiment analysis
+    Examples: High: "I personally believe this is the best approach"
+              Low: "The function has three parameters"
+
+================================================================================
+MEASUREMENT DETAILS
+================================================================================
+
+Rate Calculation:
+- Most quirks: (count / word_count) × 100
+- Result: Occurrences per 100 words
+- Example: 5 hedge words in 200-word response = 2.5 hedge_rate
+
+Special Cases:
+- instruction_density: (instruction_count / sentence_count) × 100
+- formality_score: Composite calculation (not per 100 words)
+- sentiment_polarity: Scaled 0-100 (not per 100 words)
+- sentiment_subjectivity: Scaled 0-100 (not per 100 words)
+
+Minimum Detection Threshold:
+- By default, quirks with full_rate < 1.0 per 100 words are filtered out
+- Adjustable via min_impact parameter in analyze_prompt_quirks()
+- Lower thresholds show more subtle effects
+
+Statistical Significance:
+- Requires n ≥ 2 responses per configuration for t-tests
+- With n=1: p-value always 1.0 (not statistically testable)
+- Recommended n ≥ 10 for reliable significance testing
+
+================================================================================
+USAGE IN ANALYSIS
+================================================================================
+
+Leave-One-Out Testing:
+1. Generate responses with full prompt (baseline)
+2. Generate responses without each section (N comparisons)
+3. Calculate quirk rates for each configuration
+4. Identify which section causes which quirk
+
+Attribution Logic:
+- Impact = rate_with_section - rate_without_section
+- Positive impact = section CAUSES the quirk
+- Negative impact = section REDUCES the quirk
+- Section with largest absolute impact is attributed as cause
+
+Example:
+Full prompt: hedge_rate = 5.2 per 100 words
+Without section 3: hedge_rate = 1.8 per 100 words
+Impact: +3.4 per 100 words
+Conclusion: Section 3 causes hedging behavior
+
+================================================================================
+CAUSAL EXPLANATIONS
+================================================================================
+
+The analyzer provides automatic causal explanations for 8 key quirks:
+
+1. hedge_rate → "Section contains uncertainty language which promotes hedging"
+2. parentheses_rate → "Section instructs to clarify which leads to parenthetical clarifications"
+3. enumeration_rate → "Section requires organization which results in bulleted lists"
+4. certainty_rate → "Section emphasizes confidence which increases certainty markers"
+5. example_rate → "Section mentions examples which prompts example generation"
+6. metacommentary_rate → "Section models structure which encourages meta-commentary"
+7. passive_voice_rate → "Section uses passive voice which propagates this pattern"
+8. technical_jargon_rate → "Section contains technical terms which encourages jargon"
+
+For other quirks, generic explanation:
+"Section's language style influences [quirk_name] usage in responses"
+
+================================================================================
+ADDING NEW QUIRKS
+================================================================================
+
+To add a new quirk to detect_quirks() function:
+
+1. Define regex pattern or calculation
+2. Add to quirks dictionary with descriptive key ending in _rate or _score
+3. Calculate as (count / word_count) × 100 for consistency
+4. Add extraction logic to extract_quirk_examples() for UI display
+5. Optionally add causal explanation to generate_causal_explanation()
+
+Example template:
+```python
+# NEW_QUIRK_RATE
+new_pattern = r'\b(keyword1|keyword2|keyword3)\b'
+quirks['new_quirk_rate'] = (len(re.findall(new_pattern, text.lower())) / word_count) * 100
+```
+
+================================================================================
+LIMITATIONS & CONSIDERATIONS
+================================================================================
+
+1. Regex Limitations:
+   - Simple pattern matching may have false positives
+   - Context not considered (sarcasm, negation, etc.)
+   - Language-specific (English only)
+
+2. Statistical Limitations:
+   - Small sample sizes (n=1) cannot test significance
+   - Natural variation in LLM outputs affects reliability
+   - Effect sizes may be small for subtle quirks
+
+3. Causality Assumptions:
+   - Leave-one-out assumes sections act independently
+   - Interaction effects between sections not captured
+   - Attribution goes to section with largest impact only
+
+4. Measurement Granularity:
+   - Per-100-words normalization may amplify small counts in short responses
+   - Sentence-level detection (enumeration, instructions) sensitive to formatting
+   - Word-based counting ignores semantic meaning
+
+5. Model Variability:
+   - Different models may exhibit different base rates
+   - Temperature and sampling affect quirk consistency
+   - Caching can reduce natural variation
+
+================================================================================
+BEST PRACTICES
+================================================================================
+
+1. Use n ≥ 10 responses per config for statistical significance
+2. Lower min_impact threshold (0.3-0.5) to detect subtle effects
+3. Use diverse test queries to avoid query-specific quirks
+4. Compare multiple models to identify model-specific patterns
+5. Validate findings with qualitative review of examples
+6. Consider interaction effects when interpreting results
+7. Use multiple runs to assess stability of detected quirks
+
+================================================================================
+END OF QUIRKS REFERENCE
+================================================================================

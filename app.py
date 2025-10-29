@@ -15,10 +15,6 @@ from utils.ui_helpers import (
     extract_question_asking_metrics, create_question_asking_chart,
     create_section_impact_heatmap
 )
-from utils.theme_engine import inject_theme
-from utils.recipe_cards import generate_recipe_card, generate_prompt_personality
-from utils.report_generator import generate_html_report, save_report
-from utils.prompt_surgery import render_prompt_surgery, predict_section_impact
 from config import (
     DEFAULT_MODEL, DEFAULT_MAX_CONCURRENT,
     DEFAULT_PROMPT_SECTIONS, EVALUATION_DIMENSIONS,
@@ -245,11 +241,6 @@ def render_metric_card(dimension: str, score: float):
 def main():
     """Main Streamlit application"""
     st.title("Prompt Testing Tool")
-
-    # Apply selected theme
-    theme = st.session_state.get('theme_selector', 'Dark')
-    animations = st.session_state.get('animations', True)
-    st.markdown(inject_theme(theme, animations), unsafe_allow_html=True)
     
     # Determine which dataset to load based on whether we have custom sections
     if 'custom_sections' not in st.session_state:
@@ -290,30 +281,12 @@ def main():
             <h2 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #fafafa;">Prompt Builder</h2>
         </div>
         """, unsafe_allow_html=True)
-
-        # Theme Selector
-        st.markdown("---")
-        st.markdown("**🎨 THEME**")
-        theme = st.selectbox(
-            "Choose your theme",
-            ["Dark", "Light", "Cyberpunk", "Neon", "Nature"],
-            key="theme_selector",
-            label_visibility="collapsed"
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            animations_enabled = st.checkbox("✨ Animations", value=True, key="animations")
-        with col2:
-            sound_effects = st.checkbox("🔊 Sounds", value=False, key="sounds")
-
-        st.markdown("---")
-
+        
         # Simple toggle with tabs approach
         st.markdown("**MODE**")
         
-        # Create three columns for toggle buttons
-        col1, col2, col3 = st.columns(3)
+        # Create two columns for toggle buttons
+        col1, col2 = st.columns(2)
         
         # Initialize mode if not set
         if 'interface_mode' not in st.session_state:
@@ -367,24 +340,14 @@ def main():
         
         with col2:
             if st.button(
-                "Custom Analyzer",
+                "Custom Analyzer", 
                 key="btn_custom",
                 use_container_width=True,
                 type="primary" if st.session_state.interface_mode == "Custom Prompt Analyzer" else "secondary"
             ):
                 st.session_state.interface_mode = "Custom Prompt Analyzer"
                 st.rerun()
-
-        with col3:
-            if st.button(
-                "🔬 Prompt Surgery",
-                key="btn_surgery",
-                use_container_width=True,
-                type="primary" if st.session_state.interface_mode == "Prompt Surgery" else "secondary"
-            ):
-                st.session_state.interface_mode = "Prompt Surgery"
-                st.rerun()
-
+        
         mode = st.session_state.interface_mode
         
         st.markdown("<hr style='border: 1px solid #27272a; margin: 16px 0;'>", unsafe_allow_html=True)
@@ -579,70 +542,9 @@ def main():
             # Set variables for main interface
             selected_sections = st.session_state.custom_sections if st.session_state.use_custom_sections else []
             current_combination = '\n\n'.join(selected_sections) if selected_sections else None
-
-        elif mode == "Prompt Surgery":
-            # Prompt Surgery interface
-            st.markdown("**🔬 Interactive Prompt Surgery:**")
-            st.markdown("Drag and drop sections to reorder them, edit inline, or delete unwanted sections. See live impact predictions as you modify the prompt structure.")
-
-            # Get sections to work with
-            sections_to_edit = []
-            if st.session_state.custom_sections:
-                sections_to_edit = st.session_state.custom_sections.copy()
-            elif 'use_default_sections' in st.session_state and st.session_state.use_default_sections:
-                sections_to_edit = DEFAULT_PROMPT_SECTIONS.copy()
-            else:
-                # Try to use the current combination
-                if current_combination:
-                    sections_to_edit = [current_combination]
-                else:
-                    sections_to_edit = DEFAULT_PROMPT_SECTIONS.copy()
-
-            if sections_to_edit:
-                # Render the surgery interface
-                updated_sections, changed = render_prompt_surgery(sections_to_edit, results_df)
-
-                if changed:
-                    st.session_state.custom_sections = updated_sections
-                    st.rerun()
-
-                # Action buttons
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    if st.button("💾 Save Configuration", type="primary"):
-                        st.session_state.custom_sections = updated_sections
-                        st.success("Configuration saved!")
-
-                with col2:
-                    if st.button("▶️ Run Evaluation"):
-                        st.session_state.custom_sections = updated_sections
-                        st.session_state.show_eval_config = True
-                        st.rerun()
-
-                with col3:
-                    if st.button("📊 Generate Report"):
-                        # Generate visual report
-                        scores = extract_dimension_scores(results_df, "\n\n".join(updated_sections))
-                        quirks = []  # Would need quirk analysis
-
-                        card, img_base64 = generate_recipe_card(
-                            prompt_config=f"Custom-{len(updated_sections)}",
-                            scores=scores,
-                            quirks=quirks,
-                            section_count=len(updated_sections),
-                            test_query_count=len(results_df['test_query'].unique()) if 'test_query' in results_df.columns else 0,
-                            theme="blue",
-                            size="square"
-                        )
-
-                        st.image(card, caption="Prompt Recipe Card", use_column_width=True)
-                        st.markdown(f'<a href="data:image/png;base64,{img_base64}" download="prompt_recipe.png">Download Recipe Card</a>', unsafe_allow_html=True)
-            else:
-                st.info("No sections available for surgery. Please analyze a prompt first or use the default sections.")
-
+        
         st.markdown("<hr style='border: 1px solid #27272a; margin: 24px 0;'>", unsafe_allow_html=True)
-
+        
         # Options
         st.markdown("""
         <div style="margin-top: 24px;">
@@ -652,7 +554,7 @@ def main():
             </div>
         </div>
         """, unsafe_allow_html=True)
-
+        
         show_raw_data = st.checkbox("Show Raw Data", value=False)
         
         # Status
@@ -1209,7 +1111,7 @@ if st.session_state.show_quirk_config:
 
         test_queries = [test_query]
 
-        st.info("ℹ️ **How it works:**\n\nGenerates 1 response for each configuration:\n- Full prompt (all sections)\n- Without section 1\n- Without section 2\n- etc.\n\nCompares with vs without each section to detect which causes which quirk.")
+        st.info("ℹ️ **How it works:**\n\nGenerates 30 responses for each configuration:\n- Full prompt (all sections)\n- Without section 1\n- Without section 2\n- etc.\n\nCompares with vs without each section to detect which causes which quirk.\n\n**Statistical testing:** With 30 responses per config, you'll get reliable p-values and effect sizes!")
 
     with col2:
         st.markdown("**Cost Estimation:**")
@@ -1222,18 +1124,18 @@ if st.session_state.show_quirk_config:
 
             cost_estimate = estimate_quirk_analysis_cost(
                 n_sections=n_sections,
-                n_responses_per_config=1
+                n_responses_per_config=30
             )
 
-            # Single query analysis
+            # Single query analysis with 30 responses per config
             total_cost = cost_estimate['total_cost']
             total_responses = cost_estimate['total_responses']
 
             st.metric("Total Cost", f"${total_cost:.4f}")
             st.caption(f"📈 {total_responses} total responses")
-            st.caption(f"🔧 {cost_estimate['total_configs']} configs × 1 response each")
+            st.caption(f"🔧 {cost_estimate['total_configs']} configs × 30 responses each")
 
-            st.info(f"**Breakdown:**\n- {n_sections + 1} configs × 1 response per config\n- ~${cost_estimate['cost_per_response']:.4f} per response")
+            st.info(f"**Breakdown:**\n- {n_sections + 1} configs × 30 responses per config\n- ~${cost_estimate['cost_per_response']:.4f} per response")
 
         except Exception as e:
             st.warning(f"Could not estimate cost: {e}")
@@ -1316,7 +1218,7 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
         analysis_results = asyncio.run(analyze_prompt_quirks(
             sections=sections,
             test_query=test_query,
-            n=1,
+            n=30,
             model=DEFAULT_MODEL,
             min_impact=min_impact
         ))
@@ -1410,281 +1312,459 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                         st.caption(f"Section: {st.session_state.custom_sections[i][:100]}...")
                         st.text(all_responses[config_key][0])
     else:
-        st.markdown(f"**Found {results['total_quirks_detected']} significant quirk(s):**")
+        # =================================================================
+        # LEVEL 1: EXECUTIVE SUMMARY (Always Visible)
+        # =================================================================
+        st.markdown("### 📊 Executive Summary")
+
+        # Auto-generated one-sentence summary
+        auto_summary = results.get('auto_summary', 'Behavioral changes detected.')
+        st.info(f"**{auto_summary}**")
+
+        # Top 3 auto-detected changes
+        top_3_changes = results.get('top_3_changes', [])
+        if top_3_changes:
+            st.markdown("**🔝 Top 3 Behavioral Changes:**")
+
+            for rank, change in enumerate(top_3_changes, 1):
+                quirk_name = change.get('name', 'Unknown')
+                impact = change.get('impact', 0)
+                spike_ratio = change.get('spike_ratio', 1.0)
+                p_value = change.get('p_value', 1.0)
+
+                # Format impact display
+                if spike_ratio >= 2.0:
+                    impact_display = f"{spike_ratio:.1f}× increase"
+                elif spike_ratio < 0.5 and spike_ratio > 0:
+                    reduction = 1 / spike_ratio
+                    impact_display = f"{reduction:.1f}× decrease"
+                else:
+                    impact_display = f"{abs(impact):.1f} per 100 words change"
+
+                # Significance badge
+                if p_value < 0.01:
+                    sig_badge = "✨ Highly Significant"
+                elif p_value < 0.05:
+                    sig_badge = "📊 Significant"
+                else:
+                    sig_badge = "📈 Detected"
+
+                st.markdown(f"**{rank}. {quirk_name}**: {impact_display} ({sig_badge})")
+
         st.markdown("")
 
-        # Comprehensive quirk descriptions
-        quirk_descriptions = {
-            'parentheses_rate': 'Usage of parenthetical statements (asides, clarifications)',
-            'apology_rate': 'Apologetic language ("sorry", "apologies")',
-            'question_rate': 'Question marks (asking questions)',
-            'enumeration_rate': 'Numbered/bulleted lists and structured enumerations',
-            'hedge_rate': 'Hedging words ("might", "perhaps", "possibly", "somewhat")',
-            'certainty_rate': 'Certainty markers ("definitely", "certainly", "clearly")',
-            'metacommentary_rate': 'Meta-commentary about the response itself',
-            'acknowledgment_rate': 'Acknowledgment phrases ("I understand", "I see")',
-            'example_rate': '"For example" and similar example-introducing phrases',
-            'action_rate': 'Action-oriented language ("should", "must", "need to")',
-            'caveat_rate': 'Caveats and qualifications ("however", "although", "but")',
-            'first_person_rate': 'First-person pronouns ("I", "me", "my", "we", "our")',
-            'second_person_rate': 'Second-person pronouns ("you", "your", "yourself")',
-            'third_person_rate': 'Third-person pronouns ("he", "she", "they", "it", "them")',
-            'conditional_rate': 'Conditional language ("if", "when", "unless", "provided")',
-            'modal_verb_rate': 'Modal verbs ("can", "could", "may", "might", "would")',
-            'imperative_rate': 'Imperative/command forms (direct instructions)',
-            'formality_score': 'Overall formality (word length, academic tone, lack of contractions)',
-            'contraction_rate': 'Contractions ("don\'t", "can\'t", "it\'s")',
-            'sentiment_polarity': 'Sentiment polarity (-1 negative to +1 positive)',
-            'sentiment_subjectivity': 'Subjectivity score (0 objective to 1 subjective)',
-            'passive_voice_rate': 'Passive voice constructions ("was done", "is made")',
-            'technical_jargon_rate': 'Technical terminology and jargon',
-            'emotional_language_rate': 'Emotional words ("feel", "love", "hate", "hope")',
-            'transition_rate': 'Transition words ("furthermore", "moreover", "consequently")',
-            'specification_rate': 'Specification phrases ("specifically", "precisely", "exactly")',
-            'disclaimer_rate': 'Disclaimers and warnings ("note that", "be aware", "caution")',
-            'elaboration_rate': 'Elaboration patterns ("in other words", "to clarify")',
-            'quantifier_rate': 'Quantifiers ("all", "some", "many", "few", "several")',
-            'comparison_rate': 'Comparison language ("better", "worse", "similar", "different")',
-            'self_reference_rate': 'Self-referential language ("I\'m", "my response", "I will")',
-            'future_tense_rate': 'Future tense markers ("will", "shall", "going to")',
-            'past_tense_rate': 'Past tense usage (past actions and events)',
-            'instruction_density': 'Commands per sentence (instructional density)',
-            'repetition_rate': 'Repeated phrases (3+ word phrase repetitions)'
-        }
+        # =================================================================
+        # LEVEL 2: DIMENSIONAL VIEW (Expandable)
+        # =================================================================
 
-        # Short quirk names for display
-        quirk_short_names = {
-            'Parentheses': 'Parentheses',
-            'Apology': 'Apologies',
-            'Question': 'Questions',
-            'Enumeration': 'Lists',
-            'Hedge': 'Hedging',
-            'Certainty': 'Certainty',
-            'Metacommentary': 'Meta-commentary',
-            'Acknowledgment': 'Acknowledgments',
-            'Example': 'Examples',
-            'Action': 'Action items',
-            'Caveat': 'Caveats',
-            'First Person': '"I/me/my"',
-            'Second Person': '"You/your"',
-            'Third Person': '"He/she/they"',
-            'Conditional': '"If/when"',
-            'Modal Verb': '"Can/could/may"',
-            'Imperative': 'Commands',
-            'Formality Score': 'Formality',
-            'Contraction': 'Contractions',
-            'Sentiment Polarity': 'Sentiment',
-            'Sentiment Subjectivity': 'Subjectivity',
-            'Passive Voice': 'Passive Voice',
-            'Technical Jargon': 'Technical Terms',
-            'Emotional Language': 'Emotions',
-            'Transition': 'Transitions',
-            'Specification': 'Specifics',
-            'Disclaimer': 'Disclaimers',
-            'Elaboration': 'Elaborations',
-            'Quantifier': 'Quantifiers',
-            'Comparison': 'Comparisons',
-            'Self Reference': 'Self-reference',
-            'Future Tense': 'Future Tense',
-            'Past Tense': 'Past Tense',
-            'Instruction Density': 'Instructions',
-            'Repetition': 'Repetitions'
-        }
+        # Initialize session state for toggles
+        if 'show_dimensions' not in st.session_state:
+            st.session_state.show_dimensions = False
+        if 'show_all_quirks' not in st.session_state:
+            st.session_state.show_all_quirks = False
 
-        # Display each quirk with full information
-        for i, quirk in enumerate(results['quirks'], 1):
-            attr = quirk['attribution']
-            short_name = quirk_short_names.get(quirk['name'], quirk['name'])
+        # Toggle button for dimensional view
+        if st.button(
+            "🎨 Show Dimensional Analysis" if not st.session_state.show_dimensions else "🎨 Hide Dimensional Analysis",
+            key="toggle_dimensions",
+            help="Group quirks into 7 behavioral dimensions"
+        ):
+            st.session_state.show_dimensions = not st.session_state.show_dimensions
 
-            # Get full quirk data from analysis results
-            analysis_results = st.session_state.get('quirk_analysis_results', {})
+        if st.session_state.show_dimensions:
+            st.markdown("---")
+            st.markdown("### 🎨 Dimensional View")
+            st.caption(f"35 individual quirks grouped into 7 coherent behavioral dimensions")
 
-            # Calculate before/after and percentage
-            with_section = attr.get('with_section', 0)
-            without_section = attr.get('without_section', 0)
-            impact = attr['impact']
+            dimensions_data = results.get('dimensions', {})
 
-            # Calculate percentage increase
-            if without_section > 0:
-                pct_change = (impact / without_section) * 100
-                spike_ratio = with_section / without_section if without_section > 0 else 1.0
+            if dimensions_data:
+                # Display each dimension
+                for dim_name, dim_data in dimensions_data.items():
+                    icon = dim_data.get('icon', '📊')
+                    description = dim_data.get('description', '')
+                    dimension_score = dim_data.get('dimension_score', 1.0)
+                    quirks_in_dim = dim_data.get('quirks', [])
+                    visual_type = dim_data.get('visual_type', 'slider')
+
+                    if not quirks_in_dim:
+                        continue  # Skip dimensions with no detected quirks
+
+                    with st.expander(f"{icon} **{dim_name}** ({len(quirks_in_dim)} quirks detected)", expanded=False):
+                        st.markdown(f"*{description}*")
+                        st.markdown("")
+
+                        # Visual encoding based on dimension type
+                        if visual_type == 'slider':
+                            # Horizontal slider for spectrum dimensions
+                            low_label = dim_data.get('low_label', 'Low')
+                            high_label = dim_data.get('high_label', 'High')
+
+                            # Calculate slider position (0-100)
+                            if dimension_score < 1.0:
+                                position = dimension_score * 50  # 0.0-1.0 → 0-50
+                            else:
+                                position = 50 + min((dimension_score - 1.0) * 50, 50)  # 1.0-2.0+ → 50-100
+
+                            position = int(position)
+
+                            # CSS slider with position indicator
+                            st.markdown(f"""
+                            <div style="margin: 20px 0;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-size: 0.875rem; color: #a1a1aa;">{low_label}</span>
+                                    <span style="font-size: 0.875rem; color: #a1a1aa;">{high_label}</span>
+                                </div>
+                                <div style="position: relative; width: 100%; height: 12px; background: linear-gradient(to right, #3b82f6, #8b5cf6); border-radius: 6px;">
+                                    <div style="position: absolute; left: {position}%; top: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border: 3px solid #fbbf24; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
+                                </div>
+                                <div style="text-align: center; margin-top: 8px;">
+                                    <span style="font-size: 0.75rem; color: #71717a;">Score: {dimension_score:.2f}x</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        elif visual_type == 'gauge':
+                            # Gauge visualization
+                            gauge_pct = min(dimension_score * 50, 100)
+
+                            st.markdown(f"""
+                            <div style="margin: 20px 0;">
+                                <div style="width: 100%; height: 24px; background: #27272a; border-radius: 12px; overflow: hidden;">
+                                    <div style="width: {gauge_pct}%; height: 100%; background: linear-gradient(to right, #22c55e, #eab308); transition: width 0.5s ease;"></div>
+                                </div>
+                                <div style="text-align: center; margin-top: 8px;">
+                                    <span style="font-size: 0.875rem; color: #d4d4d8;">{gauge_pct:.0f}% of maximum</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        elif visual_type == 'icon_grid':
+                            # Icon grid for Structure & Organization
+                            components = dim_data.get('components', {})
+
+                            st.markdown("**Components:**")
+                            for quirk in quirks_in_dim:
+                                quirk_type = quirk.get('quirk_type', '')
+                                if quirk_type in components:
+                                    comp = components[quirk_type]
+                                    label = comp.get('label', quirk_type)
+                                    icon_char = comp.get('icon', '•')
+                                    rate = quirk.get('full_prompt_rate', 0)
+
+                                    # Create filled/unfilled bars based on rate
+                                    max_bars = 6
+                                    filled_bars = min(int(rate / 2), max_bars)  # 2 per 100 words = 1 bar
+                                    empty_bars = max_bars - filled_bars
+
+                                    bars = "█" * filled_bars + "░" * empty_bars
+
+                                    st.markdown(f"{icon_char} **{label}**: {bars} ({rate:.1f} per 100 words)")
+
+                        # List quirks in this dimension
+                        st.markdown("")
+                        st.markdown("**Individual quirks in this dimension:**")
+                        for quirk in quirks_in_dim:
+                            name = quirk.get('name', 'Unknown')
+                            impact = quirk.get('impact', 0)
+                            st.markdown(f"• {name}: {impact:+.2f} per 100 words")
             else:
-                pct_change = float('inf') if impact > 0 else 0
-                spike_ratio = float('inf') if with_section > 0 else 1.0
+                st.warning("Dimensional analysis data not available")
 
-            # Format percentage display
-            if pct_change == float('inf'):
-                pct_display = "∞% (appeared from nothing)"
-            elif spike_ratio >= 2.0:
-                pct_display = f"{spike_ratio:.1f}× increase"
-            else:
-                pct_display = f"{pct_change:.1f}% increase"
+        # =================================================================
+        # LEVEL 3: ALL INDIVIDUAL QUIRKS (Advanced View)
+        # =================================================================
 
-            # Get quirk description
-            quirk_key = quirk['name'].lower().replace(' ', '_').replace('"', '').replace('/', '_')
-            description = quirk_descriptions.get(quirk_key, 'Behavioral pattern detected')
+        st.markdown("")
 
-            # Display quirk header with description
-            st.markdown(f"""
+        # Toggle button for full quirk details
+        if st.button(
+            "🔬 Show All Individual Quirks (Advanced)" if not st.session_state.show_all_quirks else "🔬 Hide Individual Quirks",
+            key="toggle_all_quirks",
+            help=f"View all {results['total_quirks_detected']} quirks with full statistical details"
+        ):
+            st.session_state.show_all_quirks = not st.session_state.show_all_quirks
+
+        if st.session_state.show_all_quirks:
+            st.markdown("---")
+            st.markdown(f"### 🔬 All Individual Quirks ({results['total_quirks_detected']} detected)")
+            st.caption("Detailed analysis of each behavioral quirk with statistical significance testing")
+            st.markdown("")
+
+            # Comprehensive quirk descriptions
+            quirk_descriptions = {
+                'parentheses_rate': 'Usage of parenthetical statements (asides, clarifications)',
+                'apology_rate': 'Apologetic language ("sorry", "apologies")',
+                'question_rate': 'Question marks (asking questions)',
+                'enumeration_rate': 'Numbered/bulleted lists and structured enumerations',
+                'hedge_rate': 'Hedging words ("might", "perhaps", "possibly", "somewhat")',
+                'certainty_rate': 'Certainty markers ("definitely", "certainly", "clearly")',
+                'metacommentary_rate': 'Meta-commentary about the response itself',
+                'acknowledgment_rate': 'Acknowledgment phrases ("I understand", "I see")',
+                'example_rate': '"For example" and similar example-introducing phrases',
+                'action_rate': 'Action-oriented language ("should", "must", "need to")',
+                'caveat_rate': 'Caveats and qualifications ("however", "although", "but")',
+                'first_person_rate': 'First-person pronouns ("I", "me", "my", "we", "our")',
+                'second_person_rate': 'Second-person pronouns ("you", "your", "yourself")',
+                'third_person_rate': 'Third-person pronouns ("he", "she", "they", "it", "them")',
+                'conditional_rate': 'Conditional language ("if", "when", "unless", "provided")',
+                'modal_verb_rate': 'Modal verbs ("can", "could", "may", "might", "would")',
+                'imperative_rate': 'Imperative/command forms (direct instructions)',
+                'formality_score': 'Overall formality (word length, academic tone, lack of contractions)',
+                'contraction_rate': 'Contractions ("don\'t", "can\'t", "it\'s")',
+                'sentiment_polarity': 'Sentiment polarity (-1 negative to +1 positive)',
+                'sentiment_subjectivity': 'Subjectivity score (0 objective to 1 subjective)',
+                'passive_voice_rate': 'Passive voice constructions ("was done", "is made")',
+                'technical_jargon_rate': 'Technical terminology and jargon',
+                'emotional_language_rate': 'Emotional words ("feel", "love", "hate", "hope")',
+                'transition_rate': 'Transition words ("furthermore", "moreover", "consequently")',
+                'specification_rate': 'Specification phrases ("specifically", "precisely", "exactly")',
+                'disclaimer_rate': 'Disclaimers and warnings ("note that", "be aware", "caution")',
+                'elaboration_rate': 'Elaboration patterns ("in other words", "to clarify")',
+                'quantifier_rate': 'Quantifiers ("all", "some", "many", "few", "several")',
+                'comparison_rate': 'Comparison language ("better", "worse", "similar", "different")',
+                'self_reference_rate': 'Self-referential language ("I\'m", "my response", "I will")',
+                'future_tense_rate': 'Future tense markers ("will", "shall", "going to")',
+                'past_tense_rate': 'Past tense usage (past actions and events)',
+                'instruction_density': 'Commands per sentence (instructional density)',
+                'repetition_rate': 'Repeated phrases (3+ word phrase repetitions)'
+            }
+
+            # Short quirk names for display
+            quirk_short_names = {
+                'Parentheses': 'Parentheses',
+                'Apology': 'Apologies',
+                'Question': 'Questions',
+                'Enumeration': 'Lists',
+                'Hedge': 'Hedging',
+                'Certainty': 'Certainty',
+                'Metacommentary': 'Meta-commentary',
+                'Acknowledgment': 'Acknowledgments',
+                'Example': 'Examples',
+                'Action': 'Action items',
+                'Caveat': 'Caveats',
+                'First Person': '"I/me/my"',
+                'Second Person': '"You/your"',
+                'Third Person': '"He/she/they"',
+                'Conditional': '"If/when"',
+                'Modal Verb': '"Can/could/may"',
+                'Imperative': 'Commands',
+                'Formality Score': 'Formality',
+                'Contraction': 'Contractions',
+                'Sentiment Polarity': 'Sentiment',
+                'Sentiment Subjectivity': 'Subjectivity',
+                'Passive Voice': 'Passive Voice',
+                'Technical Jargon': 'Technical Terms',
+                'Emotional Language': 'Emotions',
+                'Transition': 'Transitions',
+                'Specification': 'Specifics',
+                'Disclaimer': 'Disclaimers',
+                'Elaboration': 'Elaborations',
+                'Quantifier': 'Quantifiers',
+                'Comparison': 'Comparisons',
+                'Self Reference': 'Self-reference',
+                'Future Tense': 'Future Tense',
+                'Past Tense': 'Past Tense',
+                'Instruction Density': 'Instructions',
+                'Repetition': 'Repetitions'
+            }
+
+            # Display each quirk with full information
+            for i, quirk in enumerate(results['quirks'], 1):
+                attr = quirk['attribution']
+                short_name = quirk_short_names.get(quirk['name'], quirk['name'])
+
+                # Get full quirk data from analysis results
+                analysis_results = st.session_state.get('quirk_analysis_results', {})
+
+                # Calculate before/after and percentage
+                with_section = attr.get('with_section', 0)
+                without_section = attr.get('without_section', 0)
+                impact = attr['impact']
+
+                # Calculate percentage increase
+                if without_section > 0:
+                    pct_change = (impact / without_section) * 100
+                    spike_ratio = with_section / without_section if without_section > 0 else 1.0
+                else:
+                    pct_change = float('inf') if impact > 0 else 0
+                    spike_ratio = float('inf') if with_section > 0 else 1.0
+
+                # Format percentage display
+                if pct_change == float('inf'):
+                    pct_display = "∞% (appeared from nothing)"
+                elif spike_ratio >= 2.0:
+                    pct_display = f"{spike_ratio:.1f}× increase"
+                else:
+                    pct_display = f"{pct_change:.1f}% increase"
+
+                # Get quirk description
+                quirk_key = quirk['name'].lower().replace(' ', '_').replace('"', '').replace('/', '_')
+                description = quirk_descriptions.get(quirk_key, 'Behavioral pattern detected')
+
+                # Display quirk header with description
+                st.markdown(f"""
 ### {i}. {short_name}
 **{description}**
-            """)
+                """)
 
-            # Add statistical significance badge
-            p_value = quirk.get('p_value', 1.0)
-            effect_interpretation = quirk.get('effect_interpretation', 'unknown')
+                # Add statistical significance badge
+                p_value = quirk.get('p_value', 1.0)
+                effect_interpretation = quirk.get('effect_interpretation', 'unknown')
 
-            if p_value < 0.001:
-                st.success(f"✨ **Highly Significant** (p < 0.001, effect size: {effect_interpretation})")
-            elif p_value < 0.01:
-                st.info(f"📊 **Significant** (p < 0.01, effect size: {effect_interpretation})")
-            elif p_value < 0.05:
-                st.warning(f"📈 **Marginally Significant** (p < 0.05, effect size: {effect_interpretation})")
-            else:
-                st.error(f"❌ **Not Statistically Significant** (p = {p_value:.3f})")
+                if p_value < 0.001:
+                    st.success(f"✨ **Highly Significant** (p < 0.001, effect size: {effect_interpretation})")
+                elif p_value < 0.01:
+                    st.info(f"📊 **Significant** (p < 0.01, effect size: {effect_interpretation})")
+                elif p_value < 0.05:
+                    st.warning(f"📈 **Marginally Significant** (p < 0.05, effect size: {effect_interpretation})")
+                else:
+                    st.error(f"❌ **Not Statistically Significant** (p = {p_value:.3f})")
 
-            # Side-by-side comparison
-            col1, col2 = st.columns(2)
+                # Side-by-side comparison
+                col1, col2 = st.columns(2)
 
-            with col1:
-                st.markdown("#### ✅ WITH Section")
-                st.metric(
-                    "Quirk Rate",
-                    f"{with_section:.2f} per 100 words",
-                    delta=f"+{impact:.2f}",
-                    delta_color="normal"
-                )
-                st.caption(f"Section {attr['section_index'] + 1} is present")
+                with col1:
+                    st.markdown("#### ✅ WITH Section")
+                    st.metric(
+                        "Quirk Rate",
+                        f"{with_section:.2f} per 100 words",
+                        delta=f"+{impact:.2f}",
+                        delta_color="normal"
+                    )
+                    st.caption(f"Section {attr['section_index'] + 1} is present")
 
-            with col2:
-                st.markdown("#### ❌ WITHOUT Section")
-                st.metric(
-                    "Quirk Rate",
-                    f"{without_section:.2f} per 100 words"
-                )
-                st.caption(f"Section {attr['section_index'] + 1} is removed")
+                with col2:
+                    st.markdown("#### ❌ WITHOUT Section")
+                    st.metric(
+                        "Quirk Rate",
+                        f"{without_section:.2f} per 100 words"
+                    )
+                    st.caption(f"Section {attr['section_index'] + 1} is removed")
 
-            # Overall metrics
-            st.markdown(f"""
+                # Overall metrics
+                st.markdown(f"""
 **Key Metrics:**
 - **Percentage change:** {pct_display}
 - **Spike ratio:** {spike_ratio:.1f}x
 - **Effect size:** {quirk.get('effect_size', 0):.2f} ({effect_interpretation})
-            """)
+                """)
 
-            # Warning if baseline is suspiciously low
-            if without_section == 0:
-                st.warning(f"""⚠️ **Baseline may be unreliable** - Configuration without section {attr['section_index'] + 1} generated 0 valid responses, likely due to broken XML structure when this section was removed. Impact score may be artificially inflated.""")
-            elif without_section < 0.1 and with_section > 5:
-                st.info(f"""ℹ️ **Low baseline detected** - The baseline quirk rate is very low ({without_section:.2f}), which amplifies the perceived impact. Consider whether this represents a true causal effect.""")
+                # Warning if baseline is suspiciously low
+                if without_section == 0:
+                    st.warning(f"""⚠️ **Baseline may be unreliable** - Configuration without section {attr['section_index'] + 1} generated 0 valid responses, likely due to broken XML structure when this section was removed. Impact score may be artificially inflated.""")
+                elif without_section < 0.1 and with_section > 5:
+                    st.info(f"""ℹ️ **Low baseline detected** - The baseline quirk rate is very low ({without_section:.2f}), which amplifies the perceived impact. Consider whether this represents a true causal effect.""")
 
-            # Show section text that causes this quirk (auto-expanded)
-            if 'section_text' in attr and attr['section_text']:
-                # Get the full section text (not just the truncated preview)
-                section_idx = attr['section_index']
-                full_section_text = st.session_state.custom_sections[section_idx] if section_idx < len(st.session_state.custom_sections) else attr['section_text']
+                # Show section text that causes this quirk (auto-expanded)
+                if 'section_text' in attr and attr['section_text']:
+                    # Get the full section text (not just the truncated preview)
+                    section_idx = attr['section_index']
+                    full_section_text = st.session_state.custom_sections[section_idx] if section_idx < len(st.session_state.custom_sections) else attr['section_text']
 
-                # Show a better preview
-                section_preview = full_section_text[:150] + "..." if len(full_section_text) > 150 else full_section_text
+                    # Show a better preview
+                    section_preview = full_section_text[:150] + "..." if len(full_section_text) > 150 else full_section_text
 
-                with st.expander(f"📄 Section {attr['section_index'] + 1}: {section_preview}", expanded=False):
-                    st.markdown(f"```\n{full_section_text}\n```")
+                    with st.expander(f"📄 Section {attr['section_index'] + 1}: {section_preview}", expanded=False):
+                        st.markdown(f"```\n{full_section_text}\n```")
 
-            # Extract and show smart examples
-            example_snippets = quirk.get('example_snippets', {})
+                # Extract and show smart examples
+                example_snippets = quirk.get('example_snippets', {})
 
-            if example_snippets:
-                # Show explanation of why this section was chosen
-                section_explanation = example_snippets.get('section_explanation', '')
-                if section_explanation:
-                    st.info(f"ℹ️ **Why this section?** {section_explanation}")
+                if example_snippets:
+                    # Show explanation of why this section was chosen
+                    section_explanation = example_snippets.get('section_explanation', '')
+                    if section_explanation:
+                        st.info(f"ℹ️ **Why this section?** {section_explanation}")
 
-                # Get text diff if available
-                text_diff = example_snippets.get('text_diff', {})
+                    # Get text diff if available
+                    text_diff = example_snippets.get('text_diff', {})
 
-                # Get smart snippets showing specific quirk instances
-                with_snippets = example_snippets.get('with_snippets', [])
-                without_snippets = example_snippets.get('without_snippets', [])
+                    # Get smart snippets showing specific quirk instances
+                    with_snippets = example_snippets.get('with_snippets', [])
+                    without_snippets = example_snippets.get('without_snippets', [])
 
-                # Get full responses for reference
-                with_full = example_snippets.get('with_full', '')
-                without_full = example_snippets.get('without_full', '')
+                    # Get full responses for reference
+                    with_full = example_snippets.get('with_full', '')
+                    without_full = example_snippets.get('without_full', '')
 
-                if with_snippets or with_full:
-                    st.markdown("**Example comparison:**")
-                    st.caption(f"Comparing full prompt (all {len(st.session_state.custom_sections)} sections) vs. without section {attr['section_index'] + 1}")
+                    if with_snippets or with_full:
+                        st.markdown("**Example comparison:**")
+                        st.caption(f"Comparing full prompt (all {len(st.session_state.custom_sections)} sections) vs. without section {attr['section_index'] + 1}")
 
-                    # Show text diff highlighting if available
-                    if text_diff and text_diff.get('has_differences'):
-                        with st.expander("🔍 See what changed between responses", expanded=True):
-                            st.caption("Showing sentence-level differences between responses")
+                        # Show text diff highlighting if available
+                        if text_diff and text_diff.get('has_differences'):
+                            with st.expander("🔍 See what changed between responses", expanded=True):
+                                st.caption("Showing sentence-level differences between responses")
 
-                            # Show added content (present with section, absent without)
-                            added = text_diff.get('added_phrases', [])
-                            if added:
-                                st.markdown("**➕ Added when section is present:**")
-                                for i, sentence in enumerate(added, 1):
-                                    # Display each sentence in a nice format
-                                    st.markdown(f"> {sentence}")
-                                    if i < len(added):
-                                        st.markdown("")  # Add spacing between sentences
+                                # Get added and removed phrases
+                                added = text_diff.get('added_phrases', [])
+                                removed = text_diff.get('removed_phrases', [])
 
-                            # Add visual separator
-                            if added and removed:
-                                st.markdown("---")
+                                # Show added content (present with section, absent without)
+                                if added:
+                                    st.markdown("**➕ Added when section is present:**")
+                                    for i, sentence in enumerate(added, 1):
+                                        # Display each sentence in a nice format
+                                        st.markdown(f"> {sentence}")
+                                        if i < len(added):
+                                            st.markdown("")  # Add spacing between sentences
 
-                            # Show removed content (present without section, absent with)
-                            removed = text_diff.get('removed_phrases', [])
-                            if removed:
-                                st.markdown("**➖ Removed when section is absent:**")
-                                for i, sentence in enumerate(removed, 1):
-                                    st.markdown(f"> {sentence}")
-                                    if i < len(removed):
-                                        st.markdown("")  # Add spacing between sentences
+                                # Add visual separator
+                                if added and removed:
+                                    st.markdown("---")
 
-                            # Show message if no significant differences
-                            if not added and not removed:
-                                st.caption("*No major sentence-level differences detected*")
+                                # Show removed content (present without section, absent with)
+                                if removed:
+                                    st.markdown("**➖ Removed when section is absent:**")
+                                    for i, sentence in enumerate(removed, 1):
+                                        st.markdown(f"> {sentence}")
+                                        if i < len(removed):
+                                            st.markdown("")  # Add spacing between sentences
 
-                    # Show side-by-side snippets
-                    col1, col2 = st.columns(2)
+                                # Show message if no significant differences
+                                if not added and not removed:
+                                    st.caption("*No major sentence-level differences detected*")
 
-                    with col1:
-                        st.markdown(f"*Full prompt (with section {attr['section_index'] + 1}):*")
-                        if with_snippets:
-                            # Show smart snippets that highlight the quirk
-                            for snippet in with_snippets[:2]:  # Max 2 snippets
-                                st.markdown(f"• {snippet}")
-                        elif with_full:
-                            # Fallback to truncated full response
-                            snippet_with = with_full[:250] + "..." if len(with_full) > 250 else with_full
-                            st.caption(snippet_with)
+                        # Show side-by-side snippets
+                        col1, col2 = st.columns(2)
 
-                    with col2:
-                        st.markdown(f"*Without section {attr['section_index'] + 1} (baseline):*")
-                        if without_snippets:
-                            # Show baseline snippets if available
-                            for snippet in without_snippets[:2]:  # Max 2 snippets
-                                st.markdown(f"• {snippet}")
-                        elif without_full:
-                            # Fallback to truncated full response
-                            snippet_without = without_full[:250] + "..." if len(without_full) > 250 else without_full
-                            st.caption(snippet_without)
-                        else:
-                            st.caption("*No baseline examples showing this quirk*")
+                        with col1:
+                            st.markdown(f"*Full prompt (with section {attr['section_index'] + 1}):*")
+                            if with_snippets:
+                                # Show smart snippets that highlight the quirk
+                                for snippet in with_snippets[:2]:  # Max 2 snippets
+                                    st.markdown(f"• {snippet}")
+                            elif with_full:
+                                # Fallback to truncated full response
+                                snippet_with = with_full[:250] + "..." if len(with_full) > 250 else with_full
+                                st.caption(snippet_with)
 
-                    # Show full responses in collapsible sections
-                    if with_full or without_full:
-                        with st.expander("📄 View full example responses"):
-                            if with_full:
-                                st.markdown(f"**Full prompt response (shows {quirk['name'].lower()}):**")
-                                st.text(with_full)
-                                st.markdown("")
-                            if without_full:
-                                st.markdown(f"**Without section {attr['section_index'] + 1} (baseline):**")
-                                st.text(without_full)
+                        with col2:
+                            st.markdown(f"*Without section {attr['section_index'] + 1} (baseline):*")
+                            if without_snippets:
+                                # Show baseline snippets if available
+                                for snippet in without_snippets[:2]:  # Max 2 snippets
+                                    st.markdown(f"• {snippet}")
+                            elif without_full:
+                                # Fallback to truncated full response
+                                snippet_without = without_full[:250] + "..." if len(without_full) > 250 else without_full
+                                st.caption(snippet_without)
+                            else:
+                                st.caption("*No baseline examples showing this quirk*")
 
-            st.markdown("---")
+                        # Show full responses in collapsible sections
+                        if with_full or without_full:
+                            with st.expander("📄 View full example responses"):
+                                if with_full:
+                                    st.markdown(f"**Full prompt response (shows {quirk['name'].lower()}):**")
+                                    st.text(with_full)
+                                    st.markdown("")
+                                if without_full:
+                                    st.markdown(f"**Without section {attr['section_index'] + 1} (baseline):**")
+                                    st.text(without_full)
+
+                st.markdown("---")
 
 
 if __name__ == "__main__":

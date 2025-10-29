@@ -584,15 +584,14 @@ class OpenAICaller(Caller):
         return self.cache_by_model.get_log_probs_cache(model)
 
     @retry(
-        stop=(stop_after_attempt(5)),
-        wait=(wait_fixed(5)),
-        retry=(retry_if_exception_type((ValidationError, JSONDecodeError, InternalServerError))),
-        reraise=True,
-    )
-    @retry(
-        stop=(stop_after_attempt(10)),
-        wait=(wait_fixed(30)),  # for rate limits, wait longer
-        retry=(retry_if_exception_type((openai.RateLimitError))),
+        stop=(stop_after_attempt(3)),
+        wait=(wait_fixed(2)),  # Start with 2 second wait
+        retry=(retry_if_exception_type((
+            ValidationError,
+            JSONDecodeError,
+            InternalServerError,
+            openai.RateLimitError
+        ))),
         reraise=True,
     )
     async def call(
@@ -1286,7 +1285,7 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         openrouter_client = AsyncOpenAI(
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
-            timeout=300.0  # 300 second timeout (5 minutes)
+            timeout=60.0  # 60 second timeout (reduced from 5 minutes)
         )
         _global_caller = OpenAICaller(
             cache_path="cached_results/llm_cache",
@@ -1299,8 +1298,8 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         chat_messages.append(ChatMessage(role=msg["role"], content=msg["content"]))
     chat_history = ChatHistory(messages=chat_messages)
 
-    # Retry logic for empty responses with exponential backoff
-    max_retries = 3
+    # Retry logic for empty responses - reduced from 3 to 2
+    max_retries = 2
     for attempt in range(max_retries):
         # Create inference config
         config = InferenceConfig(
