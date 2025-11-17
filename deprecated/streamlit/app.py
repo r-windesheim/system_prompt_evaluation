@@ -51,7 +51,7 @@ except ImportError:
 
 st.set_page_config(
     page_title="Prompt Testing Tool",
-    page_icon="🔬",
+    page_icon="P",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -458,17 +458,17 @@ def main():
                     if 'config_name' in results_df.columns and results_df['config_name'].notna().any():
                         matching_configs = results_df[results_df['system_prompt'] == current_prompt_text]['config_name'].unique()
                         if len(matching_configs) > 0 and matching_configs[0]:
-                            st.caption(f"✓ Tested config: **{matching_configs[0]}**")
+                            st.caption(f"Tested config: **{matching_configs[0]}**")
                         else:
-                            st.caption("⚠️ No exact match in tested configs")
+                            st.caption("No exact match in tested configs")
 
                         # Show collapsible list of all tested configurations
-                        with st.expander("📋 View All Tested Configs", expanded=False):
+                        with st.expander("View All Tested Configs", expanded=False):
                             unique_configs = sorted([c for c in results_df['config_name'].unique() if c])
                             st.caption(f"Total configurations tested: {len(unique_configs)}")
                             for config in unique_configs:
                                 count = len(results_df[results_df['config_name'] == config])
-                                st.text(f"  {config} ({count} evaluations)")
+                                st.text(f"{config} ({count} evaluations)")
                 else:
                     current_combination = None
             else:
@@ -536,7 +536,7 @@ def main():
 
                 # Quirk analysis button
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("🔍 Analyze Behavioral Quirks", help="Detect emergent behavioral patterns in responses"):
+                if st.button("Analyze Behavioral Quirks", help="Detect emergent behavioral patterns in responses"):
                     st.session_state.show_quirk_config = True
 
             # Set variables for main interface
@@ -595,9 +595,8 @@ def main():
     
     # Main content
     if results_df.empty:
-        st.info("""
-        **No evaluation results found.**
-        
+        st.info("""**No evaluation results found.**
+
         To get started:
         1. Set up your `.env` file with `OPENROUTER_API_KEY`
         2. Run a batch evaluation using `evaluation.py`
@@ -667,7 +666,7 @@ def main():
                     <span style="font-size: 0.875rem; font-weight: 500; color: #d4d4d8;">Chart Type</span>
                 </div>
                 """, unsafe_allow_html=True)
-                chart_type = st.selectbox("", ["Bar Chart", "Radar Chart", "Section Impact Heatmap"], key="chart_type", label_visibility="collapsed")
+                chart_type = st.selectbox("Chart Type", ["Bar Chart", "Radar Chart", "Section Impact Heatmap"], key="chart_type", label_visibility="collapsed")
 
             # Get full prompt comparison data if available (for charts)
             full_avg_scores = None
@@ -893,7 +892,7 @@ if st.session_state.show_eval_config:
         )
 
         # Show concurrency info
-        st.info(f"ℹ️ Concurrency: {DEFAULT_MAX_CONCURRENT} simultaneous API requests")
+        st.info(f"Concurrency: {DEFAULT_MAX_CONCURRENT} simultaneous API requests")
 
         # Cost estimation
         if st.session_state.custom_sections:
@@ -952,7 +951,7 @@ if st.session_state.eval_running and not st.session_state.get('evaluation_comple
     # Add cancel button
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("❌ Cancel Evaluation", key="cancel_running_eval", type="secondary"):
+        if st.button("Cancel Evaluation", key="cancel_running_eval", type="secondary"):
             # Clear evaluation state
             st.session_state.eval_running = False
             if 'eval_config' in st.session_state:
@@ -1039,7 +1038,7 @@ if st.session_state.eval_running and not st.session_state.get('evaluation_comple
         
         if result['success']:
             st.success(f"""Evaluation completed successfully!
-            
+
 **Results:**
 - Total evaluations: {result['total_evaluations']}
 - Successful: {result['successful_evaluations']}
@@ -1081,14 +1080,26 @@ if st.session_state.show_quirk_config:
     with col1:
         st.markdown("**Analysis Settings:**")
 
-        # Simple query input - single query only
-        test_query = st.text_area(
-            "Enter your test query:",
-            value="I'm not sure what to do. Can you help?",
-            height=100,
-            help="Tip: Use ambiguous or open-ended queries for more quirks",
-            key="quirk_test_query"
+        # Use predefined controversial queries
+        from config import QUIRK_ANALYSIS_QUERIES
+        test_queries = QUIRK_ANALYSIS_QUERIES
+
+        st.markdown("**Test Queries (5 predefined):**")
+        st.caption("Using 5 controversial/ambiguous queries to ensure robust results:")
+        for i, query in enumerate(test_queries, 1):
+            st.caption(f"{i}. \"{query}\"")
+
+        # Semantic analysis checkbox
+        st.markdown("**Advanced Options:**")
+        include_semantic = st.checkbox(
+            "Include semantic analysis",
+            value=False,
+            help="Add 5 semantic quirks (reasoning depth, confidence, etc.) via LLM evaluation. Doubles API cost.",
+            key="quirk_include_semantic"
         )
+
+        if include_semantic:
+            st.warning("Semantic analysis enabled - this will approximately double the cost and time.")
 
         # Sensitivity slider
         st.markdown("**Sensitivity (min impact):**")
@@ -1103,15 +1114,13 @@ if st.session_state.show_quirk_config:
         )
 
         if min_impact < 0.5:
-            st.caption("⚠️ Very sensitive - may show minor effects")
+            st.caption("Very sensitive - may show minor effects")
         elif min_impact < 1.0:
-            st.caption("✓ Moderate sensitivity - balanced view")
+            st.caption("Moderate sensitivity - balanced view")
         else:
-            st.caption("ℹ️ Low sensitivity - only major effects")
+            st.caption("Low sensitivity - only major effects")
 
-        test_queries = [test_query]
-
-        st.info("ℹ️ **How it works:**\n\nGenerates 30 responses for each configuration:\n- Full prompt (all sections)\n- Without section 1\n- Without section 2\n- etc.\n\nCompares with vs without each section to detect which causes which quirk.\n\n**Statistical testing:** With 30 responses per config, you'll get reliable p-values and effect sizes!")
+        st.info("**How it works:**\n\nGenerates 30 responses (cycling through 5 queries) for each configuration:\n- Full prompt (all sections)\n- Without section 1\n- Without section 2\n- etc.\n\nCompares with vs without each section to detect which causes which quirk.\n\n**Statistical testing:** With 30 responses per config, you'll get reliable p-values and effect sizes!")
 
     with col2:
         st.markdown("**Cost Estimation:**")
@@ -1127,15 +1136,26 @@ if st.session_state.show_quirk_config:
                 n_responses_per_config=30
             )
 
-            # Single query analysis with 30 responses per config
+            # Calculate base cost
             total_cost = cost_estimate['total_cost']
             total_responses = cost_estimate['total_responses']
 
-            st.metric("Total Cost", f"${total_cost:.4f}")
-            st.caption(f"📈 {total_responses} total responses")
-            st.caption(f"🔧 {cost_estimate['total_configs']} configs × 30 responses each")
+            # Double cost if semantic analysis is enabled
+            if include_semantic:
+                total_cost *= 2
+                st.metric("Total Cost (with semantic)", f"${total_cost:.4f}")
+                st.caption("Includes semantic analysis (2x cost)")
+            else:
+                st.metric("Total Cost", f"${total_cost:.4f}")
 
-            st.info(f"**Breakdown:**\n- {n_sections + 1} configs × 30 responses per config\n- ~${cost_estimate['cost_per_response']:.4f} per response")
+            st.caption(f"{total_responses} total responses")
+            st.caption(f"{cost_estimate['total_configs']} configs × 30 responses each")
+
+            breakdown_text = f"**Breakdown:**\n- {n_sections + 1} configs × 30 responses\n- ~${cost_estimate['cost_per_response']:.4f} per response"
+            if include_semantic:
+                breakdown_text += "\n- +100% for semantic evaluation"
+
+            st.info(breakdown_text)
 
         except Exception as e:
             st.warning(f"Could not estimate cost: {e}")
@@ -1161,8 +1181,9 @@ if st.session_state.show_quirk_config:
                 st.session_state.quirk_running = True
                 quirk_config = {
                     'sections': st.session_state.custom_sections,
-                    'test_query': test_query,
-                    'min_impact': min_impact
+                    'test_queries': test_queries,
+                    'min_impact': min_impact,
+                    'include_semantic': include_semantic
                 }
                 st.session_state.quirk_config = quirk_config
                 st.session_state.show_quirk_config = False
@@ -1185,7 +1206,7 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
     # Add cancel button
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("❌ Cancel Analysis", key="cancel_running_quirk", type="secondary"):
+        if st.button("Cancel Analysis", key="cancel_running_quirk", type="secondary"):
             st.session_state.quirk_running = False
             if 'quirk_config' in st.session_state:
                 del st.session_state['quirk_config']
@@ -1208,8 +1229,9 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
         # Get config
         config = st.session_state.quirk_config
         sections = config['sections']
-        test_query = config['test_query']
+        test_queries = config['test_queries']
         min_impact = config.get('min_impact', 1.0)  # Default to 1.0 if not set
+        include_semantic = config.get('include_semantic', False)  # Default to False if not set
 
         update_quirk_status(f"Analyzing {len(sections)} sections with leave-one-out testing...")
         progress_bar.progress(10)
@@ -1217,10 +1239,11 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
         # Run the full analysis (always does leave-one-out)
         analysis_results = asyncio.run(analyze_prompt_quirks(
             sections=sections,
-            test_query=test_query,
-            n=30,
+            test_queries=test_queries,
+            n=60,
             model=DEFAULT_MODEL,
-            min_impact=min_impact
+            min_impact=min_impact,
+            include_semantic=include_semantic
         ))
 
         update_quirk_status("Formatting results...")
@@ -1239,7 +1262,7 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
         save_info = save_quirk_analysis_results(
             analysis_results=analysis_results,
             sections=sections,
-            test_query=test_query,
+            test_queries=test_queries,
             model=DEFAULT_MODEL
         )
 
@@ -1253,7 +1276,7 @@ if st.session_state.quirk_running and not st.session_state.get('quirk_complete',
         xml_sections = analysis_results.get('xml_only_sections', [])
         failed_configs = analysis_results.get('failed_configs', [])
 
-        status_msg = f"""✅ Quirk analysis completed!
+        status_msg = f"""Quirk analysis completed!
 
 **Results:**
 - Quirks detected: {formatted_results['total_quirks_detected']}
@@ -1268,9 +1291,9 @@ Scroll down to see detailed results."""
 
         # Add warnings if needed
         if xml_sections:
-            status_msg += f"\n\n⚠️ **Note:** Skipped {len(xml_sections)} XML-only section(s) to prevent broken prompts."
+            status_msg += f"\n\n**Note:** Skipped {len(xml_sections)} XML-only section(s) to prevent broken prompts."
         if failed_configs:
-            status_msg += f"\n\n⚠️ **Warning:** {len(failed_configs)} configuration(s) failed to generate valid responses."
+            status_msg += f"\n\n**Warning:** {len(failed_configs)} configuration(s) failed to generate valid responses."
 
         st.success(status_msg)
 
@@ -1287,7 +1310,7 @@ Scroll down to see detailed results."""
 # Display Quirk Analysis Results
 if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.session_state:
     st.markdown("---")
-    st.markdown("## 🔍 Behavioral Quirk Analysis Results")
+    st.markdown("## Behavioral Quirk Analysis Results")
 
     results = st.session_state.quirk_results
 
@@ -1295,36 +1318,32 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
         st.info("No significant behavioral quirks detected. All sections have minimal impact (<1.0 per 100 words).")
 
         # Show raw responses even when no quirks detected
-        if st.checkbox("🔍 Show raw API responses (debug mode)", key="show_raw_responses"):
+        if st.checkbox("Show raw API responses (debug mode)", key="show_raw_responses"):
             st.markdown("### Raw API Responses")
 
             analysis_results = st.session_state.get('quirk_analysis_results', {})
             all_responses = analysis_results.get('all_responses', {})
 
             if 'full' in all_responses and all_responses['full']:
-                with st.expander("📄 Full prompt response", expanded=False):
+                with st.expander("Full prompt response", expanded=False):
                     st.text(all_responses['full'][0])
 
             for i in range(len(st.session_state.custom_sections)):
                 config_key = f'without_{i}'
                 if config_key in all_responses and all_responses[config_key]:
-                    with st.expander(f"📄 Without section {i}", expanded=False):
+                    with st.expander(f"Without section {i}", expanded=False):
                         st.caption(f"Section: {st.session_state.custom_sections[i][:100]}...")
                         st.text(all_responses[config_key][0])
     else:
         # =================================================================
         # LEVEL 1: EXECUTIVE SUMMARY (Always Visible)
         # =================================================================
-        st.markdown("### 📊 Executive Summary")
-
-        # Auto-generated one-sentence summary
-        auto_summary = results.get('auto_summary', 'Behavioral changes detected.')
-        st.info(f"**{auto_summary}**")
+        st.markdown("### Executive Summary")
 
         # Top 3 auto-detected changes
         top_3_changes = results.get('top_3_changes', [])
         if top_3_changes:
-            st.markdown("**🔝 Top 3 Behavioral Changes:**")
+            st.markdown("**Top 3 Behavioral Changes:**")
 
             for rank, change in enumerate(top_3_changes, 1):
                 quirk_name = change.get('name', 'Unknown')
@@ -1343,11 +1362,11 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
                 # Significance badge
                 if p_value < 0.01:
-                    sig_badge = "✨ Highly Significant"
+                    sig_badge = "Highly Significant"
                 elif p_value < 0.05:
-                    sig_badge = "📊 Significant"
+                    sig_badge = "Significant"
                 else:
-                    sig_badge = "📈 Detected"
+                    sig_badge = "Detected"
 
                 st.markdown(f"**{rank}. {quirk_name}**: {impact_display} ({sig_badge})")
 
@@ -1365,7 +1384,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
         # Toggle button for dimensional view
         if st.button(
-            "🎨 Show Dimensional Analysis" if not st.session_state.show_dimensions else "🎨 Hide Dimensional Analysis",
+            "Show Dimensional Analysis" if not st.session_state.show_dimensions else "Hide Dimensional Analysis",
             key="toggle_dimensions",
             help="Group quirks into 7 behavioral dimensions"
         ):
@@ -1373,7 +1392,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
         if st.session_state.show_dimensions:
             st.markdown("---")
-            st.markdown("### 🎨 Dimensional View")
+            st.markdown("### Dimensional View")
             st.caption(f"35 individual quirks grouped into 7 coherent behavioral dimensions")
 
             dimensions_data = results.get('dimensions', {})
@@ -1381,7 +1400,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
             if dimensions_data:
                 # Display each dimension
                 for dim_name, dim_data in dimensions_data.items():
-                    icon = dim_data.get('icon', '📊')
+                    icon = dim_data.get('icon', '')
                     description = dim_data.get('description', '')
                     dimension_score = dim_data.get('dimension_score', 1.0)
                     quirks_in_dim = dim_data.get('quirks', [])
@@ -1479,7 +1498,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
         # Toggle button for full quirk details
         if st.button(
-            "🔬 Show All Individual Quirks (Advanced)" if not st.session_state.show_all_quirks else "🔬 Hide Individual Quirks",
+            "Show All Individual Quirks (Advanced)" if not st.session_state.show_all_quirks else "Hide Individual Quirks",
             key="toggle_all_quirks",
             help=f"View all {results['total_quirks_detected']} quirks with full statistical details"
         ):
@@ -1487,8 +1506,69 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
         if st.session_state.show_all_quirks:
             st.markdown("---")
-            st.markdown(f"### 🔬 All Individual Quirks ({results['total_quirks_detected']} detected)")
+            st.markdown(f"### All Individual Quirks ({results['total_quirks_detected']} detected)")
             st.caption("Detailed analysis of each behavioral quirk with statistical significance testing")
+            st.markdown("")
+
+            # Post-analysis threshold filter
+            st.markdown("**Filter Quirks:**")
+
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                filter_metric = st.radio(
+                    "Filter by:",
+                    ["Effect Size (std devs)", "Raw Impact (per 100 words)"],
+                    horizontal=True,
+                    help="Effect Size = standardized (comparable across quirks). Raw Impact = absolute change in rate.",
+                    key="filter_metric"
+                )
+
+            if filter_metric == "Effect Size (std devs)":
+                display_threshold = st.slider(
+                    "Show quirks with effect size ≥",
+                    min_value=0.0,
+                    max_value=3.0,
+                    value=0.2,
+                    step=0.1,
+                    help="Cohen's d in standard deviations. 0.2=small, 0.5=medium, 0.8=large.",
+                    key="display_threshold_effect"
+                )
+
+                # Show interpretation
+                if display_threshold < 0.2:
+                    st.caption("⚠️ Very sensitive - includes tiny effects")
+                elif display_threshold < 0.5:
+                    st.caption("✓ Showing small+ effects (recommended)")
+                elif display_threshold < 0.8:
+                    st.caption("✓ Showing medium+ effects")
+                else:
+                    st.caption("✓ Showing only large effects")
+            else:
+                display_threshold = st.slider(
+                    "Show quirks with impact ≥",
+                    min_value=0.0,
+                    max_value=10.0,
+                    value=1.0,
+                    step=0.5,
+                    help="Absolute change in rate per 100 words. Good for semantic quirks with zero variance.",
+                    key="display_threshold_impact"
+                )
+
+            # Filter quirks based on selected metric
+            if filter_metric == "Effect Size (std devs)":
+                filtered_quirks = [q for q in results['quirks'] if abs(q['attribution'].get('effect_size', 0)) >= display_threshold]
+                filter_label = f"effect size ≥ {display_threshold}"
+            else:
+                filtered_quirks = [q for q in results['quirks'] if abs(q['attribution'].get('impact', 0)) >= display_threshold]
+                filter_label = f"impact ≥ {display_threshold}"
+
+            filtered_count = len(filtered_quirks)
+
+            if filtered_count < results['total_quirks_detected']:
+                st.caption(f"📊 Showing {filtered_count} of {results['total_quirks_detected']} quirks ({filter_label})")
+            else:
+                st.caption(f"📊 Showing all {filtered_count} quirks")
+
             st.markdown("")
 
             # Comprehensive quirk descriptions
@@ -1527,7 +1607,13 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                 'future_tense_rate': 'Future tense markers ("will", "shall", "going to")',
                 'past_tense_rate': 'Past tense usage (past actions and events)',
                 'instruction_density': 'Commands per sentence (instructional density)',
-                'repetition_rate': 'Repeated phrases (3+ word phrase repetitions)'
+                'repetition_rate': 'Repeated phrases (3+ word phrase repetitions)',
+                # Semantic quirks
+                'reasoning_depth': 'Depth of reasoning and step-by-step thinking (0=direct answer, 100=detailed breakdown)',
+                'confidence_calibration': 'Appropriateness of confidence expression (0=overconfident, 50=balanced, 100=excessive hedging)',
+                'information_density': 'Information content per word (0=verbose, 50=balanced, 100=extremely concise)',
+                'abstraction_level': 'Balance of concrete vs abstract (0=all theory, 50=balanced, 100=all examples)',
+                'argument_structure': 'Exploration of multiple viewpoints (0=single view, 50=acknowledges others, 100=explores many)'
             }
 
             # Short quirk names for display
@@ -1566,11 +1652,20 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                 'Future Tense': 'Future Tense',
                 'Past Tense': 'Past Tense',
                 'Instruction Density': 'Instructions',
-                'Repetition': 'Repetitions'
+                'Repetition': 'Repetitions',
+                # Semantic quirks
+                'Reasoning Depth': 'Reasoning',
+                'Confidence Calibration': 'Confidence',
+                'Information Density': 'Density',
+                'Abstraction Level': 'Abstraction',
+                'Argument Structure': 'Arguments'
             }
 
-            # Display each quirk with full information
-            for i, quirk in enumerate(results['quirks'], 1):
+            # Display each filtered quirk with full information
+            if filtered_count == 0:
+                st.info(f"No quirks with impact ≥ {display_threshold}. Lower the threshold to see more quirks.")
+
+            for i, quirk in enumerate(filtered_quirks, 1):
                 attr = quirk['attribution']
                 short_name = quirk_short_names.get(quirk['name'], quirk['name'])
 
@@ -1598,44 +1693,70 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                 else:
                     pct_display = f"{pct_change:.1f}% increase"
 
-                # Get quirk description
-                quirk_key = quirk['name'].lower().replace(' ', '_').replace('"', '').replace('/', '_')
-                description = quirk_descriptions.get(quirk_key, 'Behavioral pattern detected')
+                # Get quirk description using technical_name
+                technical_name = quirk.get('technical_name', '')
+                description = quirk_descriptions.get(technical_name, 'Behavioral pattern detected')
+
+                # Create user-friendly short description
+                friendly_descriptions = {
+                    'formality_score': '(word length, avoiding contractions like "I\'m")',
+                    'contraction_rate': '(using "I\'m", "you\'re", "can\'t" instead of "I am", "you are", "cannot")',
+                    'modal_verb_rate': '(using "can", "could", "may", "might", "should", "would")',
+                    'parentheses_rate': '(adding clarifications in parentheses)',
+                    'question_rate': '(asking questions with "?")',
+                    'enumeration_rate': '(using numbered/bulleted lists)',
+                    'hedge_rate': '(saying "might", "perhaps", "possibly")',
+                    'certainty_rate': '(saying "definitely", "clearly", "certainly")',
+                    'conditional_rate': '(using "if", "when", "unless")',
+                    'first_person_rate': '(using "I", "me", "my")',
+                    'second_person_rate': '(using "you", "your")',
+                    'third_person_rate': '(using "he", "she", "they")',
+                    'imperative_rate': '(giving direct commands)',
+                    'passive_voice_rate': '(saying "was done" instead of "did")',
+                }
+
+                # Get friendly short description using technical name
+                friendly_desc = friendly_descriptions.get(technical_name, '')
 
                 # Display quirk header with description
                 st.markdown(f"""
 ### {i}. {short_name}
 **{description}**
                 """)
+                if friendly_desc:
+                    st.caption(friendly_desc)
 
                 # Add statistical significance badge
                 p_value = quirk.get('p_value', 1.0)
                 effect_interpretation = quirk.get('effect_interpretation', 'unknown')
 
+                # Only show effect size if it's available and not 'unknown'
+                effect_size_str = f", effect size: {effect_interpretation}" if effect_interpretation != 'unknown' else ""
+
                 if p_value < 0.001:
-                    st.success(f"✨ **Highly Significant** (p < 0.001, effect size: {effect_interpretation})")
+                    st.success(f"**Highly Significant** (p < 0.001{effect_size_str})")
                 elif p_value < 0.01:
-                    st.info(f"📊 **Significant** (p < 0.01, effect size: {effect_interpretation})")
+                    st.info(f"**Significant** (p < 0.01{effect_size_str})")
                 elif p_value < 0.05:
-                    st.warning(f"📈 **Marginally Significant** (p < 0.05, effect size: {effect_interpretation})")
+                    st.warning(f"**Marginally Significant** (p < 0.05{effect_size_str})")
                 else:
-                    st.error(f"❌ **Not Statistically Significant** (p = {p_value:.3f})")
+                    st.error(f"**Not Statistically Significant** (p = {p_value:.3f})")
 
                 # Side-by-side comparison
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    st.markdown("#### ✅ WITH Section")
+                    st.markdown("#### WITH Section")
                     st.metric(
                         "Quirk Rate",
                         f"{with_section:.2f} per 100 words",
-                        delta=f"+{impact:.2f}",
+                        delta=f"{impact:+.2f}",
                         delta_color="normal"
                     )
                     st.caption(f"Section {attr['section_index'] + 1} is present")
 
                 with col2:
-                    st.markdown("#### ❌ WITHOUT Section")
+                    st.markdown("#### WITHOUT Section")
                     st.metric(
                         "Quirk Rate",
                         f"{without_section:.2f} per 100 words"
@@ -1643,18 +1764,21 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                     st.caption(f"Section {attr['section_index'] + 1} is removed")
 
                 # Overall metrics
+                # Only show effect size if it's available and not 'unknown'
+                effect_size_line = f"- **Effect (std devs):** {quirk.get('effect_size', 0):.2f}{f' ({effect_interpretation})' if effect_interpretation != 'unknown' else ''}"
+
                 st.markdown(f"""
 **Key Metrics:**
 - **Percentage change:** {pct_display}
 - **Spike ratio:** {spike_ratio:.1f}x
-- **Effect size:** {quirk.get('effect_size', 0):.2f} ({effect_interpretation})
+{effect_size_line}
                 """)
 
                 # Warning if baseline is suspiciously low
                 if without_section == 0:
-                    st.warning(f"""⚠️ **Baseline may be unreliable** - Configuration without section {attr['section_index'] + 1} generated 0 valid responses, likely due to broken XML structure when this section was removed. Impact score may be artificially inflated.""")
+                    st.warning(f"""**Baseline may be unreliable** - Configuration without section {attr['section_index'] + 1} generated 0 valid responses, likely due to broken XML structure when this section was removed. Impact score may be artificially inflated.""")
                 elif without_section < 0.1 and with_section > 5:
-                    st.info(f"""ℹ️ **Low baseline detected** - The baseline quirk rate is very low ({without_section:.2f}), which amplifies the perceived impact. Consider whether this represents a true causal effect.""")
+                    st.info(f"""**Low baseline detected** - The baseline quirk rate is very low ({without_section:.2f}), which amplifies the perceived impact. Consider whether this represents a true causal effect.""")
 
                 # Show section text that causes this quirk (auto-expanded)
                 if 'section_text' in attr and attr['section_text']:
@@ -1665,18 +1789,13 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                     # Show a better preview
                     section_preview = full_section_text[:150] + "..." if len(full_section_text) > 150 else full_section_text
 
-                    with st.expander(f"📄 Section {attr['section_index'] + 1}: {section_preview}", expanded=False):
+                    with st.expander(f"Section {attr['section_index'] + 1}: {section_preview}", expanded=False):
                         st.markdown(f"```\n{full_section_text}\n```")
 
                 # Extract and show smart examples
                 example_snippets = quirk.get('example_snippets', {})
 
                 if example_snippets:
-                    # Show explanation of why this section was chosen
-                    section_explanation = example_snippets.get('section_explanation', '')
-                    if section_explanation:
-                        st.info(f"ℹ️ **Why this section?** {section_explanation}")
-
                     # Get text diff if available
                     text_diff = example_snippets.get('text_diff', {})
 
@@ -1694,7 +1813,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
                         # Show text diff highlighting if available
                         if text_diff and text_diff.get('has_differences'):
-                            with st.expander("🔍 See what changed between responses", expanded=True):
+                            with st.expander("See what changed between responses", expanded=True):
                                 st.caption("Showing sentence-level differences between responses")
 
                                 # Get added and removed phrases
@@ -1703,7 +1822,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
                                 # Show added content (present with section, absent without)
                                 if added:
-                                    st.markdown("**➕ Added when section is present:**")
+                                    st.markdown("**Added when section is present:**")
                                     for i, sentence in enumerate(added, 1):
                                         # Display each sentence in a nice format
                                         st.markdown(f"> {sentence}")
@@ -1716,7 +1835,7 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
 
                                 # Show removed content (present without section, absent with)
                                 if removed:
-                                    st.markdown("**➖ Removed when section is absent:**")
+                                    st.markdown("**Removed when section is absent:**")
                                     for i, sentence in enumerate(removed, 1):
                                         st.markdown(f"> {sentence}")
                                         if i < len(removed):
@@ -1726,36 +1845,9 @@ if st.session_state.get('quirk_complete', False) and 'quirk_results' in st.sessi
                                 if not added and not removed:
                                     st.caption("*No major sentence-level differences detected*")
 
-                        # Show side-by-side snippets
-                        col1, col2 = st.columns(2)
-
-                        with col1:
-                            st.markdown(f"*Full prompt (with section {attr['section_index'] + 1}):*")
-                            if with_snippets:
-                                # Show smart snippets that highlight the quirk
-                                for snippet in with_snippets[:2]:  # Max 2 snippets
-                                    st.markdown(f"• {snippet}")
-                            elif with_full:
-                                # Fallback to truncated full response
-                                snippet_with = with_full[:250] + "..." if len(with_full) > 250 else with_full
-                                st.caption(snippet_with)
-
-                        with col2:
-                            st.markdown(f"*Without section {attr['section_index'] + 1} (baseline):*")
-                            if without_snippets:
-                                # Show baseline snippets if available
-                                for snippet in without_snippets[:2]:  # Max 2 snippets
-                                    st.markdown(f"• {snippet}")
-                            elif without_full:
-                                # Fallback to truncated full response
-                                snippet_without = without_full[:250] + "..." if len(without_full) > 250 else without_full
-                                st.caption(snippet_without)
-                            else:
-                                st.caption("*No baseline examples showing this quirk*")
-
                         # Show full responses in collapsible sections
                         if with_full or without_full:
-                            with st.expander("📄 View full example responses"):
+                            with st.expander("View full example responses"):
                                 if with_full:
                                     st.markdown(f"**Full prompt response (shows {quirk['name'].lower()}):**")
                                     st.text(with_full)

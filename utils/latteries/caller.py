@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 from json import JSONDecodeError
 import math
@@ -1256,7 +1258,12 @@ async def example_main():
 _global_caller: OpenAICaller | None = None
 
 
-async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: str = "general") -> str:
+async def llm_call(
+    model_name: str,
+    messages: list[dict[str, str]],
+    call_type: str = "general",
+    temperature: float = 1.0
+) -> str:
     """
     Compatibility wrapper for legacy llm_call interface.
     Converts old-style messages to ChatHistory and uses OpenAICaller with OpenRouter.
@@ -1265,6 +1272,7 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         model_name: The model to use (e.g., "openai/gpt-5-nano-2025-08-07")
         messages: List of message dicts with "role" and "content"
         call_type: Type of call for logging (not used in this implementation)
+        temperature: Sampling temperature (0.0 for deterministic, 1.0 for creative)
 
     Returns:
         The response content as a string
@@ -1285,7 +1293,7 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         openrouter_client = AsyncOpenAI(
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
-            timeout=60.0  # 60 second timeout (reduced from 5 minutes)
+            timeout=30.0  # 30 second timeout (reduced from 60s to fail faster on rate limits)
         )
         _global_caller = OpenAICaller(
             cache_path="cached_results/llm_cache",
@@ -1304,7 +1312,7 @@ async def llm_call(model_name: str, messages: list[dict[str, str]], call_type: s
         # Create inference config
         config = InferenceConfig(
             model=model_name,
-            temperature=1.0,
+            temperature=temperature,  # Use parameter instead of hardcoded 1.0
             max_tokens=16384  # Increased for long prompt decomposition outputs
         )
 

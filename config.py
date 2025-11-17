@@ -260,3 +260,18 @@ def get_rating_style(score: float) -> Dict[str, str]:
         'border_color': border_color,
         'shadow': f"0 4px 16px {shadow_color}"
     }
+
+
+# ============================================================================
+# Quirk Analysis Queries
+# ============================================================================
+
+# Ambiguous queries designed to trigger diverse behavioral patterns
+# Each tests different type of ambiguity to maximize quirk detection
+QUIRK_ANALYSIS_QUERIES = [
+    "Should I do this?",        # Decision-making with zero context
+    "What do you think?",       # Opinion expression with no subject
+    "This seems wrong",         # Critical feedback without specifics
+    "Can you fix it?",          # Action request with no object specified
+    "I don't understand"        # Meta-statement, no context about what
+]

@@ -43,6 +43,70 @@ except ImportError:
 # QUIRK DETECTION (from analysis/quirk_detection.py)
 # ============================================================================
 
+def extract_phrase_positions(response_text: str, quirk_type: str) -> List[Dict[str, Any]]:
+    """
+    Extract specific phrase positions where a quirk appears in the text
+
+    This is the NEW logic needed for color-coded visualization.
+    Uses the same regex patterns from detect_quirks() but returns positions.
+
+    Args:
+        response_text: The response text to analyze
+        quirk_type: The quirk to extract (e.g., 'hedge_rate', 'parentheses_rate')
+
+    Returns:
+        List of dicts with {start: int, end: int, text: str} for each occurrence
+    """
+    positions = []
+
+    # Map quirk types to their regex patterns (from detect_quirks())
+    patterns = {
+        'parentheses_rate': r'\([^)]*\)',
+        'apology_rate': r'\b(sorry|apologize|apologies|apology)\b',
+        'question_rate': r'[^.!]*\?',
+        'hedge_rate': r'\b(might|possibly|perhaps|could be|may|potentially|arguably|seems like)\b',
+        'certainty_rate': r'\b(definitely|absolutely|clearly|obviously|certainly|undoubtedly|always|never)\b',
+        'metacommentary_rate': r'\b(let me explain|I\'ll structure|to answer|to address|first, let me|my approach)\b',
+        'acknowledgment_rate': r'\b(great question|good point|I understand|that\'s interesting|excellent)\b',
+        'example_rate': r'\b(for example|for instance|e\.g\.|such as|like)\b',
+        'action_rate': r'\b(next steps|here\'s what to do|action items|to get started|step \d+)\b',
+        'caveat_rate': r'\b(however|but|although|though|nevertheless|nonetheless|yet)\b',
+        'passive_voice_rate': r'\b(was|were|been|being|is|are|am)\s+\w+ed\b|\b(was|were|been|being|is|are|am)\s+\w+en\b',
+        'technical_jargon_rate': r'\b(algorithm|framework|implementation|architecture|methodology|paradigm|infrastructure|protocol|interface|component|module|integration|optimization|configuration)\b',
+        'emotional_language_rate': r'\b(feel|felt|feeling|happy|sad|angry|excited|worried|concerned|love|hate|fear|hope|wish|want|need|desire)\b',
+        'transition_rate': r'\b(furthermore|moreover|additionally|consequently|therefore|thus|hence|accordingly|meanwhile|subsequently|initially|finally)\b',
+        'specification_rate': r'\b(specifically|precisely|exactly|particularly|especially|notably|namely|that is|i\.e\.|in particular)\b',
+        'disclaimer_rate': r'\b(disclaimer|note that|please note|important to note|keep in mind|be aware|caveat|warning|caution)\b',
+        'elaboration_rate': r'\b(in other words|to clarify|to elaborate|let me explain|put differently|to be clear|that means|which means)\b',
+        'quantifier_rate': r'\b(all|every|none|some|many|few|several|most|any|much|little|various|numerous|countless)\b',
+        'comparison_rate': r'\b(better|worse|more|less|greater|smaller|higher|lower|similar|different|compared to|versus|rather than|instead of)\b',
+        'self_reference_rate': r'\b(I\'m|I am|I\'ve|I have|I\'ll|I will|I\'d|I would|my response|my answer|my explanation)\b',
+        'future_tense_rate': r'\b(will|shall|going to|about to|plan to|intend to|expect to|hope to)\b',
+        'conditional_rate': r'\b(if|when|unless|provided that|assuming|suppose)\b',
+        'modal_verb_rate': r'\b(can|could|may|might|must|should|would|will|shall)\b',
+        'imperative_rate': r'\b(do|don\'t|make sure|ensure|avoid|remember|consider|try)\b',
+    }
+
+    # Get the pattern for this quirk type
+    pattern = patterns.get(quirk_type)
+
+    if not pattern:
+        # Unknown quirk type, return empty
+        return positions
+
+    # Find all matches with positions
+    import re
+    for match in re.finditer(pattern, response_text, re.IGNORECASE):
+        positions.append({
+            'start': match.start(),
+            'end': match.end(),
+            'text': match.group(),
+            'quirk_type': quirk_type
+        })
+
+    return positions
+
+
 def generate_causal_explanation(section_text: str, quirk_type: str) -> str:
     """
     Generate an explanation of why a section causes a specific quirk
@@ -435,23 +499,399 @@ def detect_quirks(text: str) -> Dict[str, float]:
     return quirks
 
 
+async def detect_semantic_quirks_comparative(
+    response_with: str,
+    response_without: str,
+    model: str = DEFAULT_MODEL,
+    comparison_id: int = 0
+) -> Dict[str, float]:
+    """
+    Detect semantic quirks using COMPARATIVE evaluation (reduces zero-variance problem)
+
+    Compares two responses directly rather than rating each independently.
+    This forces differentiation and creates natural variance.
+
+    Args:
+        response_with: Response WITH the section
+        response_without: Response WITHOUT the section
+        model: LLM model for evaluation
+        comparison_id: Unique ID for this comparison (bypasses cache)
+
+    Returns:
+        Dictionary with difference scores (-100 to +100) for each dimension
+    """
+    from utils.latteries.caller import llm_call
+
+    evaluation_prompt = f"""Compare these two AI responses across 5 semantic dimensions.
+[Comparison #{comparison_id}]
+
+RESPONSE A:
+{response_with[:1000]}...
+
+RESPONSE B:
+{response_without[:1000]}...
+
+For each dimension, score from -100 to +100:
+- Negative = B is higher
+- Zero = Equal
+- Positive = A is higher
+
+1. REASONING_DEPTH: Which shows more step-by-step thinking?
+   -100 (B much more detailed) to +100 (A much more detailed)
+
+2. CONFIDENCE_CALIBRATION: Which expresses appropriate uncertainty?
+   -100 (B more balanced) to +100 (A more balanced)
+
+3. INFORMATION_DENSITY: Which packs more information per word?
+   -100 (B more concise) to +100 (A more concise)
+
+4. ABSTRACTION_LEVEL: Which uses more concrete examples?
+   -100 (B more concrete) to +100 (A more concrete)
+
+5. ARGUMENT_STRUCTURE: Which explores more viewpoints?
+   -100 (B more perspectives) to +100 (A more perspectives)
+
+Respond with 5 numbers only, one per line:
+[reasoning_depth: -100 to +100]
+[confidence_calibration: -100 to +100]
+[information_density: -100 to +100]
+[abstraction_level: -100 to +100]
+[argument_structure: -100 to +100]"""
+
+    try:
+        messages = [{"role": "user", "content": evaluation_prompt}]
+        response = await llm_call(model, messages, call_type="semantic_quirk_eval_comparative", temperature=0.0)
+
+        # Parse response - expect 5 numbers between -100 and +100
+        lines = response.strip().split('\n')
+        scores = []
+        for line in lines:
+            try:
+                import re
+                # Match negative and positive numbers
+                match = re.search(r'-?\d+\.?\d*', line)
+                if match:
+                    score = float(match.group())
+                    # Clamp to -100 to +100 range
+                    score = max(-100.0, min(100.0, score))
+                    scores.append(score)
+            except:
+                continue
+
+        # Ensure we have exactly 5 scores
+        if len(scores) < 5:
+            print(f"Warning: Only got {len(scores)} comparative scores, padding with 0")
+            while len(scores) < 5:
+                scores.append(0.0)
+
+        # Convert comparative scores (-100 to +100) to absolute scores (0-100)
+        # Positive score = WITH section is higher, so convert to 50+ range
+        # Negative score = WITHOUT section is higher, so WITH section is lower
+        result = {
+            'reasoning_depth': 50 + (scores[0] / 2),  # -100→0, 0→50, +100→100
+            'confidence_calibration': 50 + (scores[1] / 2),
+            'information_density': 50 + (scores[2] / 2),
+            'abstraction_level': 50 + (scores[3] / 2),
+            'argument_structure': 50 + (scores[4] / 2)
+        }
+
+        # Removed verbose logging - only log on failure
+        return result
+
+    except Exception as e:
+        print(f"Warning: Comparative semantic quirk detection failed: {e}")
+        import traceback
+        print(traceback.format_exc())
+        # Return neutral scores on failure
+        return {
+            'reasoning_depth': 50.0,
+            'confidence_calibration': 50.0,
+            'information_density': 50.0,
+            'abstraction_level': 50.0,
+            'argument_structure': 50.0
+        }
+
+
+async def detect_semantic_quirks(text: str, model: str = DEFAULT_MODEL) -> Dict[str, float]:
+    """
+    Detect semantic behavioral quirks using LLM evaluation
+
+    These are higher-level patterns that require understanding meaning and structure,
+    not just lexical patterns.
+
+    Args:
+        text: Response text to analyze
+        model: LLM model to use for evaluation (default: gpt-4o-mini for cost efficiency)
+
+    Returns:
+        Dictionary mapping semantic quirk names to scores (0-100)
+    """
+    from utils.latteries.caller import llm_call
+
+    evaluation_prompt = f"""Analyze this AI response across 5 semantic dimensions. Rate each 0-100.
+
+RESPONSE:
+{text}
+
+Rate these dimensions (0-100):
+
+1. REASONING_DEPTH: Does it show step-by-step thinking vs. direct answers?
+   - 0 = Direct answer only
+   - 50 = Some reasoning
+   - 100 = Detailed step-by-step breakdown
+
+2. CONFIDENCE_CALIBRATION: Does it express uncertainty appropriately?
+   - 0 = Overconfident/certain about everything
+   - 50 = Balanced confidence
+   - 100 = Excessive hedging/uncertainty
+
+3. INFORMATION_DENSITY: How much substance per word?
+   - 0 = Very verbose, low information
+   - 50 = Balanced
+   - 100 = Extremely concise, high information
+
+4. ABSTRACTION_LEVEL: Concrete examples vs. abstract principles?
+   - 0 = All abstract theory
+   - 50 = Balanced mix
+   - 100 = All concrete examples
+
+5. ARGUMENT_STRUCTURE: Multiple perspectives vs. single viewpoint?
+   - 0 = Single perspective only
+   - 50 = Acknowledges other views briefly
+   - 100 = Explores multiple viewpoints in depth
+
+Respond ONLY with 5 numbers, one per line, no text:
+[reasoning_depth]
+[confidence_calibration]
+[information_density]
+[abstraction_level]
+[argument_structure]"""
+
+    try:
+        messages = [{"role": "user", "content": evaluation_prompt}]
+        response = await llm_call(model, messages, call_type="semantic_quirk_eval", temperature=0.0)
+
+        # Parse response - expect 5 numbers
+        lines = response.strip().split('\n')
+        scores = []
+        for line in lines:
+            try:
+                # Extract first number from line (more flexible parsing)
+                import re
+                # Match decimal numbers too
+                match = re.search(r'\d+\.?\d*', line)
+                if match:
+                    score = float(match.group())
+                    # Clamp to 0-100 range
+                    score = max(0.0, min(100.0, score))
+                    scores.append(score)
+            except:
+                continue
+
+        # Ensure we have exactly 5 scores
+        if len(scores) < 5:
+            # Pad with None to indicate missing data (better than 50.0 which hides variance)
+            while len(scores) < 5:
+                scores.append(None)
+
+        result = {
+            'reasoning_depth': scores[0],
+            'confidence_calibration': scores[1],
+            'information_density': scores[2],
+            'abstraction_level': scores[3],
+            'argument_structure': scores[4]
+        }
+
+        # Check if we got any None values
+        none_count = sum(1 for v in result.values() if v is None)
+        if none_count > 0:
+            # Replace None with neutral value
+            for key in result:
+                if result[key] is None:
+                    result[key] = 50.0
+
+        return result
+
+    except Exception as e:
+        print(f"Warning: Semantic quirk detection failed: {e}")
+        import traceback
+        print(traceback.format_exc())
+        # Return neutral scores on failure
+        return {
+            'reasoning_depth': 50.0,
+            'confidence_calibration': 50.0,
+            'information_density': 50.0,
+            'abstraction_level': 50.0,
+            'argument_structure': 50.0
+        }
+
+
+async def detect_semantic_quirks_from_response_pairs(
+    responses_with: List[str],
+    responses_without: List[str],
+    model: str = DEFAULT_MODEL,
+    semaphore: asyncio.Semaphore = None,
+    n_comparisons: int = 5
+) -> Dict[str, float]:
+    """
+    Detect semantic quirks using COMPARATIVE evaluation between two sets of responses
+
+    This reduces zero-variance problem by forcing differentiation.
+
+    Args:
+        responses_with: Responses WITH the section
+        responses_without: Responses WITHOUT the section
+        model: LLM model for evaluation
+        semaphore: Optional semaphore for rate limiting
+        n_comparisons: Number of random pairwise comparisons to make
+
+    Returns:
+        Dictionary with average absolute quirk scores (0-100)
+    """
+    import random
+
+    if not responses_with or not responses_without:
+        print("  Warning: No responses for comparative semantic evaluation")
+        return {
+            'reasoning_depth': 50.0,
+            'confidence_calibration': 50.0,
+            'information_density': 50.0,
+            'abstraction_level': 50.0,
+            'argument_structure': 50.0
+        }
+
+    # Limit comparisons to available pairs
+    n_comparisons = min(n_comparisons, len(responses_with), len(responses_without))
+
+    async def compare_pair(idx):
+        # Select DIFFERENT pairs each time to avoid cache collisions
+        # Use modulo to cycle through responses
+        with_idx = idx % len(responses_with)
+        without_idx = (idx + len(responses_with) // 2) % len(responses_without)  # Offset to ensure different pairs
+
+        resp_with = responses_with[with_idx]
+        resp_without = responses_without[without_idx]
+
+        if semaphore:
+            async with semaphore:
+                return await detect_semantic_quirks_comparative(resp_with, resp_without, model, comparison_id=idx)
+        else:
+            return await detect_semantic_quirks_comparative(resp_with, resp_without, model, comparison_id=idx)
+
+    # Make multiple comparisons
+    tasks = [compare_pair(i) for i in range(n_comparisons)]
+    all_comparisons = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Filter out exceptions
+    valid_comparisons = [c for c in all_comparisons if not isinstance(c, Exception)]
+
+    exception_count = sum(1 for c in all_comparisons if isinstance(c, Exception))
+    if exception_count > 0 and exception_count == len(all_comparisons):
+        print(f"  Warning: All comparative semantic evaluations failed")
+
+    if not valid_comparisons:
+        print("  Warning: All comparative evaluations failed")
+        return {
+            'reasoning_depth': 50.0,
+            'confidence_calibration': 50.0,
+            'information_density': 50.0,
+            'abstraction_level': 50.0,
+            'argument_structure': 50.0
+        }
+
+    # Average the scores
+    import pandas as pd
+    df = pd.DataFrame(valid_comparisons)
+    averages = df.mean().to_dict()
+
+    # Removed verbose logging
+    return averages
+
+
+async def detect_semantic_quirks_from_responses(
+    responses: List[str],
+    model: str = DEFAULT_MODEL,
+    semaphore: asyncio.Semaphore = None
+) -> Dict[str, float]:
+    """
+    Detect average semantic quirks across multiple responses
+
+    DEPRECATED: Use detect_semantic_quirks_from_response_pairs() for better variance.
+    This function kept for backward compatibility.
+
+    Args:
+        responses: List of response texts
+        model: LLM model for evaluation
+        semaphore: Optional semaphore for rate limiting
+
+    Returns:
+        Dictionary with average semantic quirk scores
+    """
+    if not responses:
+        return {
+            'reasoning_depth': 0.0,
+            'confidence_calibration': 0.0,
+            'information_density': 0.0,
+            'abstraction_level': 0.0,
+            'argument_structure': 0.0
+        }
+
+    async def eval_with_semaphore(response):
+        if semaphore:
+            async with semaphore:
+                return await detect_semantic_quirks(response, model)
+        else:
+            return await detect_semantic_quirks(response, model)
+
+    # Evaluate all responses
+    tasks = [eval_with_semaphore(resp) for resp in responses]
+    all_quirks = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Filter out exceptions and calculate averages
+    valid_quirks = [q for q in all_quirks if not isinstance(q, Exception)]
+
+    # Count exceptions (log only if all failed)
+    exception_count = sum(1 for q in all_quirks if isinstance(q, Exception))
+    if exception_count > 0 and exception_count == len(all_quirks):
+        print(f"  Warning: All semantic evaluations failed")
+
+    if not valid_quirks:
+        print("  Warning: No valid semantic quirk evaluations - returning zeros")
+        return {
+            'reasoning_depth': 0.0,
+            'confidence_calibration': 0.0,
+            'information_density': 0.0,
+            'abstraction_level': 0.0,
+            'argument_structure': 0.0
+        }
+
+    # Calculate average for each dimension
+    import pandas as pd
+    df = pd.DataFrame(valid_quirks)
+    averages = df.mean().to_dict()
+
+    # Removed verbose logging
+    return averages
+
+
 # ============================================================================
 # RESPONSE GENERATION
 # ============================================================================
 
 async def generate_responses_for_quirk_analysis(
     prompt: str,
-    test_query: str,
+    test_queries: List[str],
     n: int = 1,
     model: str = DEFAULT_MODEL,
     semaphore: asyncio.Semaphore = None
 ) -> List[str]:
     """
     Generate N responses with the given prompt for quirk analysis
+    Cycles through multiple test queries to ensure quirks are prompt-driven, not query-specific
 
     Args:
         prompt: Full system prompt to test
-        test_query: User query to respond to
+        test_queries: List of user queries to respond to (will cycle through)
         n: Number of responses to generate
         model: Model to use for generation
         semaphore: Optional semaphore to limit concurrent API calls
@@ -460,8 +900,13 @@ async def generate_responses_for_quirk_analysis(
         List of response strings
     """
     async def make_call_with_semaphore(i):
+        # Cycle through queries to get diverse responses
+        query_idx = i % len(test_queries)
+        test_query = test_queries[query_idx]
+
         # Add unique suffix to query to bypass cache and get fresh responses
-        unique_query = f"{test_query} [sample_{i}]"
+        # Include temperature to ensure cache separation when temperature changes
+        unique_query = f"{test_query} [sample_{i}_t0.5]"
         messages = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": unique_query}
@@ -469,9 +914,9 @@ async def generate_responses_for_quirk_analysis(
 
         if semaphore:
             async with semaphore:
-                return await llm_call(model, messages, call_type="quirk_analysis")
+                return await llm_call(model, messages, call_type="quirk_analysis", temperature=0.5)
         else:
-            return await llm_call(model, messages, call_type="quirk_analysis")
+            return await llm_call(model, messages, call_type="quirk_analysis", temperature=0.5)
 
     tasks = [make_call_with_semaphore(i) for i in range(n)]
 
@@ -542,9 +987,18 @@ def calculate_quirk_significance(with_responses: List[str], without_responses: L
     with_mean = np.mean(with_rates)
     without_mean = np.mean(without_rates)
 
+    # Check variance before running statistical tests
+    with_variance = np.var(with_rates) if len(with_rates) > 1 else 0
+    without_variance = np.var(without_rates) if len(without_rates) > 1 else 0
+
     # Perform t-test for significance
     if len(with_rates) > 1 and len(without_rates) > 1:
         t_stat, p_value = stats.ttest_ind(with_rates, without_rates)
+
+        # Handle NaN from t-test (happens when both groups have zero variance)
+        if np.isnan(p_value):
+            # This is expected for semantic quirks with low variance - don't spam warnings
+            p_value = 1.0  # No significant difference if no variance
 
         # Calculate confidence intervals
         with_ci = stats.t.interval(
@@ -561,10 +1015,18 @@ def calculate_quirk_significance(with_responses: List[str], without_responses: L
         )
 
         # Calculate Cohen's d (effect size)
-        pooled_std = np.sqrt(((len(with_rates)-1)*np.var(with_rates) +
-                              (len(without_rates)-1)*np.var(without_rates)) /
+        pooled_std = np.sqrt(((len(with_rates)-1)*with_variance +
+                              (len(without_rates)-1)*without_variance) /
                              (len(with_rates) + len(without_rates) - 2))
-        effect_size = (with_mean - without_mean) / pooled_std if pooled_std > 0 else 0
+
+        if pooled_std > 0:
+            effect_size = (with_mean - without_mean) / pooled_std
+        else:
+            effect_size = 0
+
+        # Handle NaN in effect size
+        if np.isnan(effect_size):
+            effect_size = 0  # Expected when variance is zero
     else:
         # Not enough samples for t-test
         p_value = 1.0
@@ -679,11 +1141,12 @@ def is_xml_tag_section(section: str) -> bool:
 
 async def analyze_prompt_quirks(
     sections: List[str],
-    test_query: str,
+    test_queries: List[str],
     n: int = 1,
     model: str = DEFAULT_MODEL,
     spike_threshold: float = 1.5,
-    min_impact: float = 1.0
+    min_impact: float = 1.0,
+    include_semantic: bool = False
 ) -> Dict[str, Any]:
     """
     Analyze behavioral quirks by testing each section with leave-one-out methodology
@@ -692,11 +1155,12 @@ async def analyze_prompt_quirks(
 
     Args:
         sections: List of prompt sections
-        test_query: Test query to use for generation
+        test_queries: List of test queries to use (will cycle through for diverse responses)
         n: Number of responses per configuration
         model: Model to use
         spike_threshold: Minimum ratio (with/without) to consider a quirk (1.5 = 50% increase)
         min_impact: Minimum absolute impact to report (1.0 = 1.0 per 100 words difference)
+        include_semantic: Whether to include semantic quirk analysis (doubles API cost)
 
     Returns:
         Dictionary with:
@@ -704,6 +1168,7 @@ async def analyze_prompt_quirks(
         - 'all_quirk_rates': Dict mapping config -> quirk rates
         - 'detected_quirks': List of significant quirks with attribution
         - 'full_prompt_rates': Quirk rates for full prompt
+        - 'test_queries_used': List of queries used in analysis
     """
     # Full prompt
     full_prompt = "\n\n".join(sections)
@@ -730,21 +1195,21 @@ async def analyze_prompt_quirks(
     # Generate responses for each configuration with controlled concurrency
     print(f"\n🔍 Generating responses for {len(sections) + 1} configurations...")
 
-    # Create semaphore to limit concurrent API calls (max 3 at once to avoid rate limits)
-    semaphore = asyncio.Semaphore(3)
-    print(f"  ⚙️  Rate limit: 3 concurrent API calls to prevent overwhelming the API")
+    # Create semaphore to limit concurrent API calls
+    semaphore = asyncio.Semaphore(10)
+    print(f"  ⚙️  Rate limit: 10 concurrent API calls (testing higher throughput)")
 
     # Create all tasks at once
     config_tasks = {}
 
     # Full prompt task
-    config_tasks['full'] = generate_responses_for_quirk_analysis(full_prompt, test_query, n, model, semaphore)
+    config_tasks['full'] = generate_responses_for_quirk_analysis(full_prompt, test_queries, n, model, semaphore)
 
     # Leave-one-out tasks
     for i in range(len(sections)):
         if i in leave_one_out_prompts:
             config_tasks[f'without_{i}'] = generate_responses_for_quirk_analysis(
-                leave_one_out_prompts[i], test_query, n, model, semaphore
+                leave_one_out_prompts[i], test_queries, n, model, semaphore
             )
 
     # Run all configs with rate limiting
@@ -772,7 +1237,7 @@ async def analyze_prompt_quirks(
             print(f"    - {failure['config']}: {failure['error']}")
 
     # Analyze quirks for each config and track failures
-    print(f"\n📊 Detecting quirks in each configuration...")
+    print(f"\n📊 Detecting syntactic quirks in each configuration...")
     all_configs_quirk_rates = {}
     failed_configs = []  # Track which configs had no valid responses
     for config_name, responses in all_configs_responses.items():
@@ -783,6 +1248,65 @@ async def analyze_prompt_quirks(
         if not responses or len(responses) == 0:
             failed_configs.append(config_name)
             print(f"⚠️  Warning: Configuration '{config_name}' had 0 valid responses")
+
+    # Optionally add semantic quirk analysis using COMPARATIVE evaluation
+    if include_semantic:
+        print(f"\n📊 Detecting semantic quirks (comparative evaluation)...")
+
+        # Get full prompt responses
+        full_responses = all_configs_responses.get('full', [])
+
+        if full_responses:
+            # For full config, just use independent evaluation (no comparison baseline)
+            semantic_rates = await detect_semantic_quirks_from_responses(full_responses, model, semaphore)
+            all_configs_quirk_rates['full'].update(semantic_rates)
+
+            # For each without_i config, compare against full prompt
+            for i in range(len(sections)):
+                config_key = f'without_{i}'
+                if config_key in all_configs_responses and all_configs_responses[config_key]:
+                    without_responses = all_configs_responses[config_key]
+
+                    # Compare full vs without using comparative evaluation
+                    # This creates variance by forcing differentiation
+                    comparative_rates = await detect_semantic_quirks_from_response_pairs(
+                        full_responses,
+                        without_responses,
+                        model,
+                        semaphore,
+                        n_comparisons=5  # Make 5 comparisons per section
+                    )
+
+                    # The comparative_rates give us "with section" scores
+                    # We need "without section" scores, so invert the scale
+                    inverted_rates = {}
+                    for key, val in comparative_rates.items():
+                        # If WITH section scored 60, WITHOUT section scores 40 (100-60)
+                        # But we actually want the "without" score directly, so we use it as-is
+                        # The comparative function already returns the score from perspective of responses_with
+                        inverted_rates[key] = 100 - val  # Invert: if WITH=60, then WITHOUT=40
+
+                    all_configs_quirk_rates[config_key].update(inverted_rates)
+
+            print(f"  ✓ Semantic analysis complete for {len(sections)} sections")
+
+            # Check which semantic dimensions have zero variance (for user info)
+            semantic_dims = ['reasoning_depth', 'confidence_calibration', 'information_density',
+                           'abstraction_level', 'argument_structure']
+            zero_variance_dims = []
+            for dim in semantic_dims:
+                if dim in all_configs_quirk_rates.get('full', {}):
+                    # Check if all configs have identical values
+                    values = [all_configs_quirk_rates[config].get(dim, 50)
+                             for config in all_configs_quirk_rates.keys()]
+                    if len(set(values)) == 1:
+                        zero_variance_dims.append(dim.replace('_', ' ').title())
+
+            if zero_variance_dims:
+                print(f"  ℹ️  Note: {len(zero_variance_dims)} semantic dimension(s) had no variance: {', '.join(zero_variance_dims[:3])}")
+                print(f"     These will show p=1.0 and effect_size=0.0 (responses were too similar)")
+        else:
+            print(f"  ⚠️  No full prompt responses - skipping semantic analysis")
 
     # Get full prompt rates
     full_rates = all_configs_quirk_rates['full']
@@ -941,7 +1465,8 @@ async def analyze_prompt_quirks(
         'full_prompt_rates': full_rates,
         'failed_configs': failed_configs,  # NEW: List of configs that failed
         'xml_only_sections': xml_only_sections,  # NEW: List of skipped sections
-        'skipped_sections': xml_only_sections  # For backward compatibility
+        'skipped_sections': xml_only_sections,  # For backward compatibility
+        'test_queries_used': test_queries  # Track which queries were used
     }
 
 
@@ -984,8 +1509,8 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
             'without_section_rate': top_impact['without_section'],  # Add for dimensional functions
             'spike_ratio': quirk.get('spike_ratio', 1.0),
             'impact': top_impact['impact'],  # Add for dimensional functions
-            'p_value': quirk.get('p_value', 1.0),  # Add for dimensional functions
-            'effect_size': quirk.get('effect_size', 0),  # Add for dimensional functions
+            'p_value': top_impact.get('p_value', 1.0),  # From top_impact, not quirk
+            'effect_size': top_impact.get('effect_size', 0),  # From top_impact, not quirk
             'direction': 'increases' if top_impact['impact'] > 0 else 'decreases',  # Add for dimensional functions
             'example_snippets': quirk.get('example_snippets', {}),  # Smart snippets showing the quirk
             'attribution': {
@@ -993,7 +1518,10 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
                 'section_text': top_impact['section_text'],
                 'impact': top_impact['impact'],
                 'with_section': top_impact['with_section'],
-                'without_section': top_impact['without_section']
+                'without_section': top_impact['without_section'],
+                'effect_size': top_impact.get('effect_size', 0),  # From top_impact
+                'p_value': top_impact.get('p_value', 1.0),  # From top_impact
+                'significant': top_impact.get('significant', False)  # From top_impact
             }
         }
 
@@ -1022,7 +1550,7 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
 def save_quirk_analysis_results(
     analysis_results: Dict[str, Any],
     sections: List[str],
-    test_query: str,
+    test_queries: List[str],
     model: str = DEFAULT_MODEL,
     output_dir: str = "results"
 ) -> Dict[str, str]:
@@ -1032,7 +1560,7 @@ def save_quirk_analysis_results(
     Args:
         analysis_results: Results from analyze_prompt_quirks
         sections: List of prompt sections that were tested
-        test_query: Query used for testing
+        test_queries: List of queries used for testing
         model: Model used for generation
         output_dir: Directory to save results
 
@@ -1060,7 +1588,7 @@ def save_quirk_analysis_results(
 
         row = {
             'timestamp': datetime.now().isoformat(),
-            'test_query': test_query,
+            'test_queries': ' | '.join(test_queries),
             'model': model,
             'n_sections': len(sections),
             'quirk': quirk['quirk'],
@@ -1071,6 +1599,10 @@ def save_quirk_analysis_results(
             'impact': top_impact['impact'],
             'with_section': top_impact['with_section'],
             'without_section': top_impact['without_section'],
+            'effect_size': top_impact.get('effect_size', 0),  # Cohen's d
+            'p_value': top_impact.get('p_value', 1.0),
+            'significant': top_impact.get('significant', False),
+            'effect_interpretation': top_impact.get('effect_interpretation', 'unknown'),
             'with_snippets': with_snippets_str,
             'without_snippets': without_snippets_str,
             'with_full_response': snippets.get('with_full', ''),
@@ -1082,7 +1614,7 @@ def save_quirk_analysis_results(
         # No quirks detected - save empty marker
         rows.append({
             'timestamp': datetime.now().isoformat(),
-            'test_query': test_query,
+            'test_queries': ' | '.join(test_queries),
             'model': model,
             'n_sections': len(sections),
             'quirk': 'NO_QUIRKS_DETECTED',
@@ -1093,6 +1625,10 @@ def save_quirk_analysis_results(
             'impact': 0,
             'with_section': 0,
             'without_section': 0,
+            'effect_size': 0,
+            'p_value': 1.0,
+            'significant': False,
+            'effect_interpretation': 'none',
             'with_snippets': '',
             'without_snippets': '',
             'with_full_response': '',
