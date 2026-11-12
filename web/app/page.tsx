@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { RunHeader } from "@/components/run-header";
-import { RunView } from "@/components/run-view";
+import { RunLoader } from "@/components/run-loader";
 import { fmtDelta } from "@/lib/groups";
-import { allSummaries, loadRun } from "@/lib/runs.server";
+import { allSummaries } from "@/lib/runs.server";
 
 export default function Home() {
   const runs = allSummaries();
-  const featured = runs[0] ? loadRun(runs[0].meta.id) : null;
+  const featured = runs[0] ?? null;
   return (
     <div>
       <section className="pt-10 pb-10 lg:pt-16 lg:pb-14">
@@ -22,9 +22,9 @@ export default function Home() {
 
       {featured && (
         <section aria-label="Featured run" className="border-t border-rule pt-10">
-          <RunHeader meta={featured.meta} nSections={featured.sections.length} nResponses={featured.responses.length} />
+          <RunHeader meta={featured.meta} nSections={featured.sections.length} nResponses={featured.nResponses} />
           <div className="mt-10">
-            <RunView bundle={featured} withMatrix={false} />
+            <RunLoader id={featured.meta.id} sectionLabels={featured.sections.map((s) => s.label)} withMatrix={false} />
           </div>
           <p className="mt-8 text-[14px]">
             <Link href={`/runs/${featured.meta.id}/`} className="underline decoration-rule-strong underline-offset-4 hover:decoration-ink">

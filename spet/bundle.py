@@ -124,7 +124,7 @@ def load(path: str | Path) -> RunBundle:
 
 def dump(bundle: RunBundle, path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(bundle.model_dump_json(indent=1) + "\n")
+    Path(path).write_text(bundle.model_dump_json() + "\n")
 
 
 def json_schema() -> str:

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { RunHeader } from "@/components/run-header";
-import { RunView } from "@/components/run-view";
+import { RunLoader } from "@/components/run-loader";
 import { loadRun, runIds } from "@/lib/runs.server";
 
 export const dynamicParams = false;
@@ -21,7 +21,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     <div className="pt-8">
       <RunHeader meta={b.meta} nSections={b.sections.length} nResponses={b.responses.length} />
       <div className="mt-10">
-        <RunView bundle={b} />
+        <RunLoader id={id} sectionLabels={b.sections.map((s) => s.label)} />
       </div>
     </div>
   );

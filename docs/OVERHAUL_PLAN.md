@@ -138,3 +138,10 @@ Each step lists its deliverable and the check that marks it done.
 ## Log
 - **Step 5 finding (2026-11-12).** With the legacy per-100-words rates, the planted stub test produced *spurious significant* effects. The apology section lengthened answers, which diluted the hedge rate (q = 0.003 for a section with no hedging instruction). The attribution metric is now **matches per response**. The planted test now requires the significant set to equal the planted set exactly, across 5 seeds.
 - **Step 7 decision.** No legacy-fixture bundle. The recorded CSVs hold about one with/without example per quirk, so they can't support paired effects, and a bundle built from them would show attributions the data can't back. The viewer is built against the synthetic planted-instruction demo (`examples/stub-demo.yaml` → `web/public/runs/stub-demo.json`), which is clearly badged as synthetic. Real showcase content comes from the first Modal run (Phase 6).
+- **Phase 4 checks (2026-11-12)**, against the static export served by `python -m http.server` (no compression):
+  - axe (WCAG 2.1 AA): 0 violations on /, /runs/stub-demo/ and /method/, in light and dark.
+  - Lighthouse accessibility 100, best practices 100 and SEO 100 on all pages. Performance: run page 90, method 87, home 77. The home figure is limited by the uncompressed 257 KB bundle fetch, which gzips to 22 KB on Cloudflare.
+  - Frames while toggling sections at 4× CPU throttle: p95 16.7 ms, 0 frames over 50 ms.
+  - Reduced motion: no section rows move after a toggle, and diff words don't blur. Motion's `reducedMotion` doesn't cover height or filter animations, so those use explicit instant transitions.
+  - Found and fixed: inlining the bundle into HTML made the pages 304 KB, so bundles are now fetched after first paint (HTML is 16 KB).
+  - Reproduce: `node web/scripts/audit.mjs` (axe, frames, reduced motion). Lighthouse was run through its Node API, because the CLI refuses x64 Node on Apple Silicon.

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { wordDiff } from "@/lib/diff";
 import { groupColor } from "@/lib/groups";
@@ -49,6 +49,7 @@ export function MatchedText({ run, response, focus }: { run: RunIndex; response:
 /** Word diff from the full-prompt response to the same cell without section k. */
 export function DiffText({ full, ablated }: { full: Response; ablated: Response }) {
   const ops = useMemo(() => wordDiff(full.text, ablated.text), [full.text, ablated.text]);
+  const reduce = useReducedMotion();
   let changed = 0;
   return (
     <p className="font-mono text-[13.5px] leading-[1.75] whitespace-pre-wrap">
@@ -59,9 +60,9 @@ export function DiffText({ full, ablated }: { full: Response; ablated: Response 
           <motion.span
             key={i}
             className={op.kind === "del" ? "w-del" : "w-ins"}
-            initial={{ opacity: 0, filter: "blur(3px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.28, delay }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, filter: "blur(3px)" }}
+            animate={reduce ? { opacity: 1 } : { opacity: 1, filter: "blur(0px)" }}
+            transition={reduce ? { duration: 0.15 } : { duration: 0.28, delay }}
           >
             {op.text}
           </motion.span>

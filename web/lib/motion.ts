@@ -16,3 +16,6 @@ export const ease = {
 
 /** Stagger for word-level text changes, capped so long responses don't crawl. */
 export const wordDelay = (i: number) => Math.min(i * 0.006, 0.35);
+
+/** Height/filter animations are not covered by MotionConfig's reducedMotion, so callers swap in this. */
+export const instant = { duration: 0 } as const;

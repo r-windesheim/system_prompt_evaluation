@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { fmtDelta, fmtQ, groupColor } from "@/lib/groups";
-import { spring } from "@/lib/motion";
+import { instant, spring } from "@/lib/motion";
 import type { Effect } from "@/lib/types";
 import type { RunIndex } from "@/lib/use-run";
 import { EffectBar } from "./effect-bar";
@@ -77,6 +77,7 @@ function Overview({ run, onRemove }: { run: RunIndex; onRemove: (k: number) => v
 
 function SectionEffects({ run, k, focus, onFocus }: { run: RunIndex; k: number; focus: string | null; onFocus: (d: string | null) => void }) {
   const [showAll, setShowAll] = useState(false);
+  const reduce = useReducedMotion();
   const all = (run.bySection.get(k) ?? []).filter((e) => e.full_mean > 0 || e.ablated_mean > 0);
   const sig = all.filter((e) => e.significant);
   const rest = all.filter((e) => !e.significant);
@@ -103,7 +104,7 @@ function SectionEffects({ run, k, focus, onFocus }: { run: RunIndex; k: number; 
           </button>
           <AnimatePresence initial={false}>
             {showAll && (
-              <motion.ul className="flex flex-col overflow-hidden" initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={spring.layout}>
+              <motion.ul className="flex flex-col overflow-hidden" initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={reduce ? instant : spring.layout}>
                 {rest.map((e) => (
                   <EffectRow key={e.detector} run={run} e={e} focus={focus} onFocus={onFocus} />
                 ))}

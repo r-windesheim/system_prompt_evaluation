@@ -1,8 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { groupColor } from "@/lib/groups";
-import { spring } from "@/lib/motion";
+import { instant, spring } from "@/lib/motion";
 import type { RunIndex } from "@/lib/use-run";
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 
 export function SectionStack({ run, removed, onToggle }: Props) {
   const { sections } = run.bundle;
+  const reduce = useReducedMotion();
   return (
     <div>
       <h2 className="text-[13px] text-graphite">System prompt</h2>
@@ -68,7 +69,7 @@ export function SectionStack({ run, removed, onToggle }: Props) {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={spring.layout}
+                      transition={reduce ? instant : spring.layout}
                     >
                       <span className="block pt-1.5 font-mono text-[12.5px] leading-[1.6] text-graphite max-lg:hidden">
                         {s.text}
