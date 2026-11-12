@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPET system design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one left-aligned reading column (~68ch) with diagrams and tables allowed to run wider. */
+:root {
+  --paper: #f4f5f1;
+  --sheet: #fbfbf9;
+  --ink: #16191d;
+  --graphite: #5e646c;
+  --rule: #d9dcd3;
+  --cobalt: #2a44e8;
+  --cobalt-wash: #e4e8fd;
+  --ok: #23806a;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121417; --sheet: #181b1f; --ink: #e9ebe6; --graphite: #9aa0a8;
+    --rule: #2c3036; --cobalt: #8796ff; --cobalt-wash: #1f2550; --ok: #5cc7a8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121417; --sheet: #181b1f; --ink: #e9ebe6; --graphite: #9aa0a8;
+  --rule: #2c3036; --cobalt: #8796ff; --cobalt-wash: #1f2550; --ok: #5cc7a8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 16px/1.65 var(--font-body);
+}
+main { max-width: 1040px; margin: 0 auto; padding: 48px 24px 96px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { text-wrap: balance; letter-spacing: -0.015em; line-height: 1.2; }
+h1 { font-size: clamp(30px, 4.4vw, 44px); margin: 0 0 14px; font-weight: 600; letter-spacing: -0.025em; }
+h2 { font-size: 26px; margin: 72px 0 12px; font-weight: 600; padding-top: 24px; border-top: 1px solid var(--rule); }
+h3 { font-size: 18px; margin: 36px 0 8px; font-weight: 600; }
+p { margin: 10px 0; }
+.lead { font-size: 18px; color: var(--graphite); }
+.muted { color: var(--graphite); }
+.small { font-size: 14px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+a { color: var(--cobalt); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 3px; }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 22px 0 0; font-size: 14px; }
+nav.toc a { color: var(--graphite); text-decoration: none; }
+nav.toc a:hover { color: var(--ink); }
+
+figure { margin: 28px 0; }
+figure .canvas { overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; }
+figure svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--ink); }
+figcaption { margin-top: 10px; font-size: 14px; color: var(--graphite); max-width: 75ch; }
+
+.tablewrap { overflow-x: auto; margin: 18px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-top: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--graphite); font-size: 13px; border-top: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font-size: 12.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--graphite); white-space: nowrap; }
+.pill.ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); color: var(--ok); }
+
+ul.inv { padding-left: 20px; }
+ul.inv li { margin: 6px 0; }
+
+.stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; margin: 20px 0; }
+.stat div { background: var(--sheet); padding: 14px 16px; }
+.stat b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 13px; color: var(--graphite); }
+
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 22px 0; }
+.shots figure { margin: 0; }
+.shots img { width: 100%; height: auto; display: block; border: 1px solid var(--rule); border-radius: 8px; }
+@media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
+
+pre { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font: 13px/1.6 var(--font-mono); }
+.callout { border-left: 3px solid var(--cobalt); padding: 4px 0 4px 16px; margin: 20px 0; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="col">
+    <h1>SPET system design</h1>
+    <p class="lead">SPET answers one question about a system prompt: if you take out one section and replay the same conversations, which stylistic habits change, and by how much? This page covers how the system is put together, how a quirk gets measured and attributed, and how the interface changed in the November 2026 overhaul.</p>
+    <nav class="toc" aria-label="Contents">
+      <a href="#architecture">Architecture</a>
+      <a href="#components">Components</a>
+      <a href="#contract">The run bundle</a>
+      <a href="#quirks">How quirks are analysed</a>
+      <a href="#look">Did the look change?</a>
+      <a href="#next">What's next</a>
+    </nav>
+  </div>
+
+  <!-- ===================================================== ARCHITECTURE -->
+  <h2 id="architecture">Architecture</h2>
+  <div class="col">
+    <p>Two halves meet at a single JSON file. The Python engine does the expensive work: sampling the model, detecting quirks and running the statistics. It writes everything into a <em>run bundle</em>. The web app has two modes. Run locally next to <code>spet serve</code>, it is the full tool: paste a prompt, split it, configure, run, read the results. Built as a static site with no API, it only shows recorded bundles, so it can sit on windesheim.co with no backend and no key.</p>
+  </div>
+
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1000 470" role="img" aria-label="Architecture: a run spec flows through schedule, provider, detectors and attribution into a run bundle JSON file; the static viewer is built from that bundle and fetches it in the browser.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cobalt)"/></marker>
+        </defs>
+        <g font-family="Instrument Sans, system-ui, sans-serif" fill="currentColor">
+          <!-- zone labels -->
+          <text x="20" y="24" font-size="13" font-weight="600">Engine</text>
+          <text x="66" y="24" font-size="12" fill="var(--graphite)">Python, runs offline (spet/)</text>
+          <text x="20" y="318" font-size="13" font-weight="600">Viewer</text>
+          <text x="68" y="318" font-size="12" fill="var(--graphite)">static Next.js export (web/)</text>
+          <line x1="20" y1="290" x2="980" y2="290" stroke="var(--rule)" stroke-dasharray="3 4"/>
+
+          <!-- engine row: boxes 140 wide, gap 26 -->
+          <g font-size="13">
+            <rect x="20" y="48" width="140" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="90" y="74" text-anchor="middle" font-weight="600">Run spec</text>
+            <text x="90" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">examples/*.yaml</text>
+
+            <rect x="186" y="48" width="140" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="256" y="74" text-anchor="middle" font-weight="600">Schedule</text>
+            <text x="256" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">schedule.py</text>
+
+            <rect x="352" y="48" width="140" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="422" y="74" text-anchor="middle" font-weight="600">Provider</text>
+            <text x="422" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">providers.py</text>
+
+            <rect x="518" y="48" width="140" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="588" y="74" text-anchor="middle" font-weight="600">Detectors</text>
+            <text x="588" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">detectors.py</text>
+
+            <rect x="684" y="48" width="140" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="754" y="74" text-anchor="middle" font-weight="600">Attribution</text>
+            <text x="754" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">attribution.py</text>
+
+            <rect x="850" y="48" width="130" height="62" rx="8" fill="var(--cobalt-wash)" stroke="var(--cobalt)" stroke-width="1.5"/>
+            <text x="915" y="74" text-anchor="middle" font-weight="600">Run bundle</text>
+            <text x="915" y="94" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">bundle.py → .json</text>
+          </g>
+
+          <!-- engine arrows + labels -->
+          <g stroke="currentColor" stroke-width="1.2" fill="none">
+            <line x1="160" y1="79" x2="184" y2="79" marker-end="url(#a1)"/>
+            <line x1="326" y1="79" x2="350" y2="79" marker-end="url(#a1)"/>
+            <line x1="492" y1="79" x2="516" y2="79" marker-end="url(#a1)"/>
+            <line x1="658" y1="79" x2="682" y2="79" marker-end="url(#a1)"/>
+            <line x1="824" y1="79" x2="848" y2="79" marker-end="url(#a1)"/>
+          </g>
+          <g font-size="11" fill="var(--graphite)" text-anchor="middle">
+            <text x="256" y="132">k+1 configs ×</text>
+            <text x="256" y="146">messages × samples</text>
+            <text x="422" y="132">system, user, seed</text>
+            <text x="422" y="146">→ response text</text>
+            <text x="588" y="132">spans + counts</text>
+            <text x="588" y="146">per response</text>
+            <text x="754" y="132">paired Δ, CI, p, q</text>
+            <text x="754" y="146">per quirk × section</text>
+          </g>
+
+          <!-- provider backends -->
+          <g font-size="12">
+            <line x1="422" y1="152" x2="422" y2="172" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="330" y1="172" x2="514" y2="172" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="330" y1="172" x2="330" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+            <line x1="514" y1="172" x2="514" y2="188" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+
+            <rect x="262" y="190" width="136" height="54" rx="8" fill="none" stroke="currentColor"/>
+            <text x="330" y="213" text-anchor="middle" font-weight="600">Stub model</text>
+            <text x="330" y="231" text-anchor="middle" font-size="11" fill="var(--graphite)">planted behaviours</text>
+
+            <rect x="428" y="190" width="172" height="54" rx="8" fill="none" stroke="currentColor" stroke-dasharray="5 4"/>
+            <text x="514" y="213" text-anchor="middle" font-weight="600">vLLM on Modal</text>
+            <text x="514" y="231" text-anchor="middle" font-size="11" fill="var(--graphite)">gpt-oss-20b · planned</text>
+
+            <rect x="620" y="190" width="120" height="54" rx="8" fill="none" stroke="currentColor"/>
+            <text x="680" y="213" text-anchor="middle" font-weight="600">Disk cache</text>
+            <text x="680" y="231" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">.spet_cache/</text>
+            <line x1="600" y1="217" x2="618" y2="217" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)" marker-start="url(#a1)"/>
+          </g>
+
+          <!-- local analysis server -->
+          <g font-size="12">
+            <rect x="20" y="190" width="210" height="54" rx="8" fill="none" stroke="currentColor"/>
+            <text x="125" y="213" text-anchor="middle" font-weight="600">spet serve (local API)</text>
+            <text x="125" y="231" text-anchor="middle" font-size="11" fill="var(--graphite)">split · start run · progress · list</text>
+            <line x1="90" y1="188" x2="90" y2="113" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+            <text x="98" y="160" font-size="11" fill="var(--graphite)">builds a spec</text>
+            <line x1="90" y1="352" x2="90" y2="247" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)" marker-start="url(#a1)"/>
+            <text x="98" y="272" font-size="11" fill="var(--graphite)">Analyse a prompt (local)</text>
+          </g>
+
+          <!-- bundle down to viewer -->
+          <path d="M915 110 V 352" stroke="var(--cobalt)" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+          <text x="925" y="200" font-size="11" fill="var(--cobalt)">spet validate</text>
+          <text x="925" y="214" font-size="11" fill="var(--cobalt)">then commit</text>
+
+          <!-- viewer row -->
+          <g font-size="13">
+            <rect x="850" y="354" width="130" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="915" y="380" text-anchor="middle" font-weight="600">public/runs/</text>
+            <text x="915" y="400" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="JetBrains Mono, monospace">&lt;id&gt;.json</text>
+
+            <rect x="640" y="354" width="170" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="725" y="380" text-anchor="middle" font-weight="600">next build</text>
+            <text x="725" y="400" text-anchor="middle" font-size="11" fill="var(--graphite)">static export, basePath</text>
+
+            <rect x="410" y="354" width="190" height="62" rx="8" fill="none" stroke="currentColor" stroke-dasharray="5 4"/>
+            <text x="505" y="380" text-anchor="middle" font-weight="600">Cloudflare Pages</text>
+            <text x="505" y="400" text-anchor="middle" font-size="11" fill="var(--graphite)">windesheim.co · planned</text>
+
+            <rect x="20" y="354" width="350" height="62" rx="8" fill="none" stroke="currentColor"/>
+            <text x="195" y="380" text-anchor="middle" font-weight="600">Browser</text>
+            <text x="195" y="400" text-anchor="middle" font-size="11" fill="var(--graphite)">local: full tool · hosted: recorded runs only</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1.2" fill="none">
+            <line x1="850" y1="385" x2="812" y2="385" marker-end="url(#a1)"/>
+            <line x1="640" y1="385" x2="602" y2="385" marker-end="url(#a1)"/>
+            <line x1="410" y1="385" x2="372" y2="385" marker-end="url(#a1)"/>
+          </g>
+          <g font-size="11" fill="var(--graphite)" text-anchor="middle">
+            <text x="831" y="440">read at build</text>
+            <text x="621" y="440">deploy out/</text>
+            <text x="391" y="440">serve</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Locally, the browser drives <code>spet serve</code>, which turns your prompt into a run spec and runs the engine against the model endpoint. Every run ends as one validated JSON bundle, and the hosted site is built from curated bundles only. Dashed boxes are planned: gpt-oss-20b on Modal, and the windesheim.co deployment.</figcaption>
+  </figure>
+
+  <!-- ===================================================== COMPONENTS -->
+  <h2 id="components">Components</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Part</th><th>What it does</th><th>What keeps it honest</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">schedule.py</td><td>Builds the grid of jobs: every configuration (full prompt, plus one per removed section) answers the same messages with the same sample indices and one seed per cell.</td><td>A test asserts that the user message is exactly the query, with no tags or cache-busters.</td></tr>
+        <tr><td class="mono">providers.py</td><td>Sends <code>system</code>, <code>user</code> and <code>seed</code> to any OpenAI-compatible <code>/chat/completions</code> endpoint, with retries and a disk cache keyed on the full request. The stub provider records requests for tests.</td><td>The seed is a request parameter, so vLLM can give common random numbers across configurations.</td></tr>
+        <tr><td class="mono">detectors.py</td><td>17 regex detectors in 6 groups. Each returns character spans, so the viewer can show exactly what matched.</td><td>Positive and negative examples per detector, plus a 262-hit precision audit on real responses.</td></tr>
+        <tr><td class="mono">attribution.py</td><td>Paired differences, bootstrap CIs, sign-flip permutation p-values, Benjamini–Hochberg q-values. Also contains a Shapley estimator for later subset runs.</td><td>The planted-instruction test must recover exactly the planted pairs across 5 seeds.</td></tr>
+        <tr><td class="mono">bundle.py</td><td>Pydantic schema for the run bundle, with referential checks (spans inside text, effects pointing at real sections and detectors). Exports a JSON Schema.</td><td><code>spet validate</code> runs before a bundle is committed.</td></tr>
+        <tr><td class="mono">cli.py</td><td><code>spet run spec.yaml -o bundle.json</code>, <code>spet validate</code>, <code>spet schema</code>.</td><td>End-to-end test: run the demo spec, validate, check that inert sections carry no attribution.</td></tr>
+        <tr><td class="mono">server.py</td><td>The API behind the analyse flow: split, start a run, poll progress per configuration, list runs, fetch bundles. The endpoint's API key is read from the server environment and never reaches the browser.</td><td>An end-to-end test drives split → run → results against the mock endpoint.</td></tr>
+        <tr><td class="mono">split.py</td><td>Splits a prompt into sections. The model's split is accepted only if every section is word-for-word from the prompt and together they cover it. Otherwise it splits on XML blocks, headings and paragraphs.</td><td>Tests reject a paraphrased split.</td></tr>
+        <tr><td class="mono">mock.py</td><td>A fake OpenAI-compatible endpoint backed by the stub model, for developing without a GPU.</td><td>Used by the end-to-end test.</td></tr>
+        <tr><td class="mono">web/</td><td>Next 16, React 19, Tailwind 4 and Motion. The analyse flow (prompt → sections → configure → live run), the results bench, the effect matrix and a Method page. Static export with a configurable base path.</td><td>axe (WCAG 2.1 AA), a frame-budget probe, a reduced-motion probe and screenshots, all in <code>web/scripts/</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===================================================== CONTRACT -->
+  <h2 id="contract">The run bundle</h2>
+  <div class="col">
+    <p>The bundle is the only thing the two halves share. It holds the raw material as well as the conclusions, so anyone can recheck an effect from the responses it came from.</p>
+  </div>
+<pre>{
+  "schema_version": 1,
+  "meta":      { model, provider, temperature, n_per_query, seed, queries[], fixture, notes },
+  "sections":  [{ id, label, text }],                       // full text, never truncated
+  "configs":   [{ id: "full" }, { id: "without_0", removed: 0 }, …],
+  "responses": [{ config, query_idx, sample_idx, text,
+                  spans: [{ start, end, detector }] }],     // every response, every config
+  "detectors": [{ id, label, group, precision | null }],
+  "effects":   [{ detector, section, full_mean, ablated_mean,
+                  delta, ci: [lo, hi], p, q, significant, n_pairs }]
+}</pre>
+  <div class="col">
+    <h3>Invariants</h3>
+    <ul class="inv">
+      <li><strong>Nothing but the query goes in the user message.</strong> The old tool appended <code>[sample_i_t0.5]</code> to it, and the model answered the tag.</li>
+      <li><strong>The compared quantity is matches per response.</strong> Per-word rates leak length effects from one quirk into every other (see below).</li>
+      <li><strong>The viewer never colours a phrase by section.</strong> Underlines say "this matched a detector". Only effects, with their intervals, say "this section changed that".</li>
+      <li><strong>The viewer stays static,</strong> and the base path must keep working, so the same build can live at the root or under <code>/projects/spet</code>.</li>
+    </ul>
+  </div>
+
+  <!-- ===================================================== QUIRKS -->
+  <h2 id="quirks">How quirks are analysed</h2>
+  <div class="col">
+    <p>A quirk is a stylistic habit you can point at in the text: an apology, a hedge, a bullet list, a question back to the user. SPET measures them in four steps. The numbers below come from the synthetic demo run: 7 sections, 5 messages, 8 samples each, so 40 paired conversations per comparison.</p>
+  </div>
+
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="One conversation cell is answered with and without a section; detector counts are subtracted; 40 such paired differences give a mean, bootstrap interval and permutation p-value; Benjamini-Hochberg across all 119 tests gives q; the effect is significant if q is below 0.05.">
+        <defs>
+          <marker id="b1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        </defs>
+        <g font-family="Instrument Sans, system-ui, sans-serif" fill="currentColor" font-size="13">
+          <!-- step headers -->
+          <g font-size="12" fill="var(--graphite)">
+            <text x="20" y="22">1 · Pair</text>
+            <text x="300" y="22">2 · Detect and count</text>
+            <text x="540" y="22">3 · Summarise 40 pairs</text>
+            <text x="800" y="22">4 · Correct for 119 tests</text>
+          </g>
+
+          <rect x="20" y="40" width="180" height="56" rx="8" fill="none" stroke="currentColor"/>
+          <text x="110" y="63" text-anchor="middle" font-weight="600">Message 2, sample 5</text>
+          <text x="110" y="82" text-anchor="middle" font-size="11" fill="var(--graphite)">same seed in both runs</text>
+
+          <path d="M200 68 C 230 68, 230 140, 258 140" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#b1)"/>
+          <path d="M200 68 C 230 68, 230 226, 258 226" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#b1)"/>
+
+          <rect x="260" y="112" width="240" height="56" rx="8" fill="none" stroke="currentColor"/>
+          <text x="272" y="134" font-weight="600">Full prompt</text>
+          <text x="272" y="154" font-size="12" font-family="JetBrains Mono, monospace"><tspan text-decoration="underline">Sorry</tspan> for any confusion…</text>
+          <text x="488" y="146" text-anchor="end" font-size="20" font-weight="600">1</text>
+
+          <rect x="260" y="198" width="240" height="56" rx="8" fill="none" stroke="var(--cobalt)" stroke-width="1.5"/>
+          <text x="272" y="220" font-weight="600" fill="var(--cobalt)">Without "Apology policy"</text>
+          <text x="272" y="240" font-size="12" font-family="JetBrains Mono, monospace">Test it again with…</text>
+          <text x="488" y="232" text-anchor="end" font-size="20" font-weight="600">0</text>
+
+          <path d="M500 140 C 515 140, 515 183, 528 183" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M500 226 C 515 226, 515 183, 528 183" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#b1)"/>
+          <text x="514" y="104" text-anchor="middle" font-size="11" fill="var(--graphite)">Δ = 1 − 0</text>
+
+          <!-- strip of 40 diffs -->
+          <rect x="530" y="40" width="240" height="214" rx="8" fill="none" stroke="currentColor"/>
+          <text x="542" y="62" font-size="12" fill="var(--graphite)">40 paired Δ (apology)</text>
+          <line x1="560" y1="200" x2="750" y2="200" stroke="var(--rule)"/>
+          <g font-size="10" fill="var(--graphite)" text-anchor="middle"><text x="580" y="216">0</text><text x="700" y="216">1</text></g>
+          <!-- 4 dots at 0, 36 at 1 (0.9 mean) as stacked columns -->
+          <g fill="currentColor">
+            <circle cx="580" cy="192" r="3.2"/><circle cx="580" cy="184" r="3.2"/><circle cx="580" cy="176" r="3.2"/><circle cx="580" cy="168" r="3.2"/>
+            <circle cx="692" cy="192" r="3.2"/><circle cx="700" cy="192" r="3.2"/><circle cx="708" cy="192" r="3.2"/>
+            <circle cx="692" cy="184" r="3.2"/><circle cx="700" cy="184" r="3.2"/><circle cx="708" cy="184" r="3.2"/>
+            <circle cx="692" cy="176" r="3.2"/><circle cx="700" cy="176" r="3.2"/><circle cx="708" cy="176" r="3.2"/>
+            <circle cx="692" cy="168" r="3.2"/><circle cx="700" cy="168" r="3.2"/><circle cx="708" cy="168" r="3.2"/>
+            <circle cx="692" cy="160" r="3.2"/><circle cx="700" cy="160" r="3.2"/><circle cx="708" cy="160" r="3.2"/>
+            <circle cx="692" cy="152" r="3.2"/><circle cx="700" cy="152" r="3.2"/><circle cx="708" cy="152" r="3.2"/>
+            <circle cx="692" cy="144" r="3.2"/><circle cx="700" cy="144" r="3.2"/><circle cx="708" cy="144" r="3.2"/>
+            <circle cx="692" cy="136" r="3.2"/><circle cx="700" cy="136" r="3.2"/><circle cx="708" cy="136" r="3.2"/>
+            <circle cx="692" cy="128" r="3.2"/><circle cx="700" cy="128" r="3.2"/><circle cx="708" cy="128" r="3.2"/>
+            <circle cx="692" cy="120" r="3.2"/><circle cx="700" cy="120" r="3.2"/><circle cx="708" cy="120" r="3.2"/>
+            <circle cx="692" cy="112" r="3.2"/><circle cx="700" cy="112" r="3.2"/><circle cx="708" cy="112" r="3.2"/>
+            <circle cx="692" cy="104" r="3.2"/><circle cx="700" cy="104" r="3.2"/><circle cx="708" cy="104" r="3.2"/>
+          </g>
+          <!-- mean + CI -->
+          <line x1="676" y1="236" x2="697" y2="236" stroke="var(--cobalt)" stroke-width="2.5"/>
+          <circle cx="688" cy="236" r="4.5" fill="var(--cobalt)"/>
+          <text x="542" y="240" font-size="11" fill="var(--graphite)">mean +0.90, CI [0.80, 0.98]</text>
+
+          <path d="M770 147 H 798" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#b1)"/>
+          <text x="784" y="138" text-anchor="middle" font-size="11" fill="var(--graphite)">p</text>
+
+          <rect x="800" y="40" width="180" height="214" rx="8" fill="none" stroke="currentColor"/>
+          <text x="812" y="66" font-weight="600">Benjamini–Hochberg</text>
+          <text x="812" y="86" font-size="12" fill="var(--graphite)">17 quirks × 7 sections</text>
+          <text x="812" y="104" font-size="12" fill="var(--graphite)">= 119 tests in this run</text>
+          <text x="812" y="146" font-size="12">p = 0.0001</text>
+          <text x="812" y="166" font-size="12">q = 0.0017</text>
+          <rect x="812" y="190" width="156" height="30" rx="15" fill="none" stroke="var(--ok)"/>
+          <text x="890" y="210" text-anchor="middle" font-size="12" fill="var(--ok)" font-weight="600">significant (q &lt; 0.05)</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Attributing the apology quirk to the "Apology policy" section. Every one of the 40 conversations is answered twice, once with the section and once without, and only the difference counts. The dot strip is illustrative (36 pairs at +1, 4 at 0, giving the run's mean of +0.90).</figcaption>
+  </figure>
+
+  <div class="col">
+    <h3>1. Pair</h3>
+    <p>For a prompt with <em>k</em> sections, SPET builds <em>k</em>+1 configurations. Each one answers the same grid of (message, sample) cells, and each cell has one seed shared across configurations. Comparing message 2 / sample 5 with the full prompt against message 2 / sample 5 without section 3 removes the variation that comes from the message and the sample. What's left is mostly the section.</p>
+
+    <h3>2. Detect and count</h3>
+    <p>Detectors mark spans in every response, and the quantity compared is <strong>how many matches a response has</strong>. Counting per 100 words seemed more natural, but it was wrong: a section that makes answers longer dilutes every other quirk's rate. In the planted test, the apology section appeared to <em>reduce</em> hedging (Δ −0.25, CI [−0.33, −0.17], q = 0.003), even though it never mentions hedging. Switching to counts made that false effect disappear.</p>
+
+    <h3>3. Summarise the pairs</h3>
+    <p>The effect is the mean paired difference, with the section minus without it. Positive means the section adds the quirk. The 95% interval is a bootstrap over the paired conversations. The p-value comes from a sign-flip permutation test: if the section did nothing, each difference would be equally likely to come out positive or negative. This is exact up to 16 pairs and uses 10,000 random flips above that.</p>
+
+    <h3>4. Correct for testing everything</h3>
+    <p>One run tests every quirk against every section: 119 tests in the demo. At p &lt; 0.05 you would expect about six false alarms by chance alone. Benjamini–Hochberg turns p-values into q-values that bound the false discovery rate, and an effect is called significant only at q &lt; 0.05. Every section is reported, including the ones that changed nothing. The old tool reported only the largest effect per quirk, which manufactures false discoveries.</p>
+  </div>
+
+  <div class="stat" aria-label="Demo run results">
+    <div><b>7 / 7</b><span>planted effects found</span></div>
+    <div><b>0</b><span>false attributions to inert sections</span></div>
+    <div><b>40</b><span>paired conversations per test</span></div>
+    <div><b>119</b><span>tests corrected together</span></div>
+  </div>
+
+  <div class="col">
+    <h3>The detectors</h3>
+    <p>Precision was audited on 262 hits sampled from 1,140 real gpt-4o-mini responses and labelled by a separate Claude agent that never saw the detector code. A person hasn't checked those labels yet. Revised detectors, and detectors with too few hits, are marked unmeasured until a fresh sample is labelled.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Group</th><th>Detector</th><th>Catches</th><th>Precision</th></tr></thead>
+      <tbody>
+        <tr><td>Deference</td><td>Apology</td><td>sorry, apologies, I apologize</td><td><span class="pill">no hits in sample</span></td></tr>
+        <tr><td></td><td>Flattery</td><td>great question, good point</td><td><span class="pill">revised after 0/4</span></td></tr>
+        <tr><td>Certainty</td><td>Hedging</td><td>might, perhaps, possibly, it seems</td><td><span class="pill">revised after 26/30</span></td></tr>
+        <tr><td></td><td>Certainty boost</td><td>definitely, absolutely, "it is clearly"</td><td><span class="pill">revised after 0/7</span></td></tr>
+        <tr><td>Structure</td><td>List item</td><td>bulleted or numbered lines</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td></td><td>Heading</td><td>markdown headings</td><td><span class="pill">no hits in sample</span></td></tr>
+        <tr><td></td><td>Bold emphasis</td><td>**bold** spans</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td></td><td>Parenthetical</td><td>asides in parentheses</td><td class="num"><span class="pill ok">15/15</span></td></tr>
+        <tr><td>Interaction</td><td>Question back</td><td>sentences to the user ending in "?"</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td></td><td>Clarification request</td><td>could you provide / more context</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td></td><td>Offer of more help</td><td>let me know if, happy to help</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td>Framing</td><td>Caveat</td><td>sentence-initial However, But, That said</td><td class="num"><span class="pill ok">25/25</span></td></tr>
+        <tr><td></td><td>Disclaimer</td><td>please note, consult a professional</td><td><span class="pill">no hits in sample</span></td></tr>
+        <tr><td></td><td>Metacommentary</td><td>let me explain, to answer your question</td><td><span class="pill">revised after 0/1</span></td></tr>
+        <tr><td></td><td>AI self-reference</td><td>as an AI, as a language model</td><td><span class="pill">no hits in sample</span></td></tr>
+        <tr><td>Tone</td><td>Exclamation</td><td>sentences ending in "!"</td><td class="num"><span class="pill ok">30/30</span></td></tr>
+        <tr><td></td><td>Emoji</td><td>pictographic emoji</td><td><span class="pill">no hits in sample</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p class="small muted">The legacy responses were mostly short clarification requests, because the old test questions had no context. That makes the interaction detectors look near-perfect. Precision on longer, substantive answers is unmeasured until the first real run.</p>
+
+    <h3>What it does not claim</h3>
+    <ul class="inv">
+      <li>An underlined phrase matched a detector. That is not evidence that a particular section produced it.</li>
+      <li>Leave-one-out misses interactions. If two sections each cause a habit on their own, removing either one changes little. A Shapley estimator exists, but the runner can't execute subset configurations yet.</li>
+      <li>Effects describe these messages on this model, and may not transfer to other conversations.</li>
+      <li>The only run so far is synthetic. It shows the method recovers known answers. It is not a measurement of any real model.</li>
+    </ul>
+  </div>
+
+  <!-- ===================================================== LOOK -->
+  <h2 id="look">Did the look change?</h2>
+  <div class="col">
+    <p>Yes, completely, though the flow is the same as before: paste a prompt, check the sections, configure, run, read the results. The purple-to-pink gradient wizard is now a quiet lab-bench interface. While a run is going, a live grid fills in one row per configuration. In the results, you switch sections off and watch the same conversation rewrite itself.</p>
+  </div>
+  <div class="shots">
+    <figure>
+      <img src="before.png" alt="Old interface: a purple and pink gradient headline 'Analyze Your Prompt' above a large empty text area and two buttons." width="1440" height="1000">
+      <figcaption>Before: an input wizard. Nothing to see without a backend and an API key.</figcaption>
+    </figure>
+    <figure>
+      <img src="after.png" alt="New interface: the system prompt as a stack of sections on the left, a conversation with underlined detector matches in the middle, and each section's significant effects on the right, with an effect matrix below." width="1440" height="1741">
+      <figcaption>After: the run opens in a working state, with the prompt, the conversation and the effects side by side.</figcaption>
+    </figure>
+  </div>
+  <div class="shots">
+    <figure>
+      <img src="sections-step.png" alt="Sections step: each section of the pasted prompt in its own card with an editable label and text, and buttons to merge with the next section or delete it." width="1440" height="1500">
+      <figcaption>Step 2: check the sections. Edit, merge or delete before running.</figcaption>
+    </figure>
+    <figure>
+      <img src="run-progress.png" alt="Run step: one row of small squares per configuration, from the full prompt to each prompt with one section removed, filling as responses arrive; 320 of 320 responses." width="1440" height="1000">
+      <figcaption>Step 4: the run. Each square is one response, one row per configuration.</figcaption>
+    </figure>
+  </div>
+  <figure>
+    <img src="after-ablation.png" alt="Dark mode, with the Formatting section removed: the list lines are struck through in the response and the list-item effect shows +1.55 with its confidence interval." width="1440" height="1000" style="width:100%;height:auto;border:1px solid var(--rule);border-radius:8px">
+    <figcaption>The signature interaction, with "Formatting" removed. The section folds to a cobalt rail, the response turns into a word diff of the same paired conversation, and the effect whisker springs to its interval.</figcaption>
+  </figure>
+  <div class="col">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Palette</td><td>White with purple-to-pink gradients</td><td>Cool lab-paper white and ink, one cobalt signal for "removed", six muted group colours. Dark mode too.</td></tr>
+          <tr><td>Type</td><td>Inter throughout</td><td>Instrument Sans for the interface, JetBrains Mono only for model input and output</td></tr>
+          <tr><td>Motion</td><td>Incidental hover effects</td><td>One orchestrated moment: section fold, word-diff reveal, spring whiskers. Reduced-motion path included.</td></tr>
+          <tr><td>Phrase colouring</td><td>By the section it was blamed on</td><td>Underlines by detector group, labelled "matches, not causes"</td></tr>
+          <tr><td>Hosting</td><td>Needs FastAPI and an API key to show anything</td><td>Local: <code>spet serve</code> plus any OpenAI-compatible endpoint. Hosted: static files that show recorded runs and work under a sub-path.</td></tr>
+          <tr><td>Accessibility</td><td>Not measured</td><td>axe: 0 violations, light and dark. Lighthouse accessibility 100.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">To run it locally: start <code>python -m spet serve</code> with <code>SPET_BASE_URL</code> and <code>SPET_MODEL</code> set, then run <code>NEXT_PUBLIC_SPET_API=http://localhost:8000 npm run dev</code> in <code>web/</code> and open localhost:3100. For testing without a model, <code>python -m spet mock</code> serves the stub as an endpoint.</p>
+  </div>
+
+  <!-- ===================================================== NEXT -->
+  <h2 id="next">What's next</h2>
+  <div class="col">
+    <ol>
+      <li><strong>Serve gpt-oss-20b on Modal</strong> (vLLM, OpenAI-compatible, paid from workspace credits, scales to zero). It is a 2025 open-weights model in the same lineage as the GPT-4o / GPT-5-nano the original tool used. Point the analyse flow at it. The first real runs become the showcase bundles.</li>
+      <li><strong>Validate on a real model:</strong> planted-instruction recovery, seed stability, and a fresh precision sample for the revised detectors.</li>
+      <li><strong>Subset runs</strong> for Shapley values, to catch interactions between sections.</li>
+      <li><strong>windesheim.co:</strong> publish the static export under <code>/projects/spet</code>, in a separate PR in the site repo.</li>
+    </ol>
+    <p class="small muted">Source: github.com/r-windesheim/system_prompt_evaluation, PR #1 on branch <span class="mono">overhaul/2025-redesign</span>.</p>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Synthetic demo: a stub model with planted behaviours, so the ground truth is known.
+# Each behavioural section switches on exactly one quirk; "Company context" and
+# "Length limit" are inert. A correct analysis attributes each quirk to its section
+# and nothing to the inert ones.
+id: stub-demo
+title: "Planted-instruction demo"
+fixture: true
+notes: >
+  Synthetic run against a deterministic stub model whose behaviours are switched on
+  by trigger phrases. It demonstrates the method and the viewer. It is not a
+  measurement of a real model.
+provider:
+  kind: stub
+seed: 0
+n_per_query: 8
+temperature: 0.7
+# questions the stub's debugging-flavoured filler actually answers
+queries:
+  - My build fails with a missing module after I upgraded. What should I check?
+  - The export job worked yesterday and now produces an empty file.
+  - Why does my query return different results on staging and production?
+  - Tests pass locally but fail in CI with a timeout.
+  - How do I find out which change broke the import script?
+sections:
+  - label: Company context
+    text: You are the support assistant for Lumen, a developer tools company. Users are mostly software engineers.
+  - label: Apology policy
+    text: Always apologise when the user reports a problem, even if it is not our fault.
+  - label: Epistemic stance
+    text: Be humble about uncertainty and avoid overstating what you know.
+  - label: Formatting
+    text: Use bullet points for any steps the user should follow.
+  - label: Engagement
+    text: Ask a follow-up question at the end so the conversation continues.
+  - label: Voice
+    text: Be warm and encouraging toward the user.
+  - label: Length limit
+    text: Keep answers under 200 words.

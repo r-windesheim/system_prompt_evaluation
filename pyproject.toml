@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spet"
+version = "2.0.0.dev0"
+description = "System Prompt Evaluation Tool: attribute stylistic quirks to system-prompt sections"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.5",
+  "numpy>=1.24",
+  "httpx>=0.25",
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "fastapi>=0.110", "uvicorn>=0.29"]
+serve = ["fastapi>=0.110", "uvicorn>=0.29"]
+
+[project.scripts]
+spet = "spet.cli:main"
+
+[tool.setuptools.package-data]
+spet = ["precision.json"]
+
+[tool.setuptools.packages.find]
+include = ["spet*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

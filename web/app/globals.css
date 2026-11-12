@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+/* ---- tokens ------------------------------------------------------------ */
+:root {
+  --paper: #f4f5f1;      /* cool lab-paper white */
+  --sheet: #fbfbf9;      /* raised surfaces */
+  --ink: #16191d;
+  --graphite: #5e646c;
+  --rule: #d9dcd3;
+  --rule-strong: #b9bdb3;
+  --cobalt: #2a44e8;     /* the ablation signal: removed sections, changed words */
+  --cobalt-wash: #e4e8fd;
+  --mark: #ffe58a;
+  --mark-ink: #4a3b00;
+  --caution: #7f4a00;
+
+  --g-deference: #b4387a;
+  --g-certainty: #a86a12;
+  --g-structure: #23806a;
+  --g-interaction: #7a4fd6;
+  --g-framing: #c2492f;
+  --g-tone: #5f7410;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121417;
+    --sheet: #181b1f;
+    --ink: #e9ebe6;
+    --graphite: #9aa0a8;
+    --rule: #2a2e33;
+    --rule-strong: #3b4047;
+    --cobalt: #8796ff;
+    --cobalt-wash: #1f2550;
+    --mark: #5c4a00;
+    --mark-ink: #ffe9a3;
+    --caution: #e9b25e;
+
+    --g-deference: #ec7fb6;
+    --g-certainty: #e2a64a;
+    --g-structure: #5cc7a8;
+    --g-interaction: #b39bff;
+    --g-framing: #f08a70;
+    --g-tone: #a9c450;
+
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-wash: var(--cobalt-wash);
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* ---- base -------------------------------------------------------------- */
+html {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--cobalt-wash);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Detector match: an underline in the group's colour, never a fill, so it reads
+   as an annotation ("matched"), not as a causal highlight. */
+.match {
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--c);
+}
+.match[data-dim="true"] {
+  text-decoration-color: color-mix(in srgb, var(--c) 28%, transparent);
+}
+
+/* Rendered model answers (drill-down level 3) */
+.answer { font-size: 14.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.answer p { margin: 0 0 8px; }
+.answer ul, .answer ol { margin: 0 0 8px; padding-left: 20px; }
+.answer ul { list-style: disc; }
+.answer ol { list-style: decimal; }
+.answer li { margin: 2px 0; }
+.answer h4 { font-weight: 600; margin: 12px 0 4px; }
+.answer code { font-family: var(--font-mono); font-size: 12.5px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 3px; }
+.answer pre { font: 12.5px/1.5 var(--font-mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; overflow-x: auto; margin: 0 0 8px; }
+.answer table { border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; margin: 0 0 8px; }
+.answer td, .answer th { border: 1px solid var(--rule); padding: 3px 6px; vertical-align: top; text-align: left; }
+.answer mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 1px; }
+
+/* Word diff */
+.w-del {
+  color: var(--cobalt);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in srgb, var(--cobalt) 70%, transparent);
+}
+.w-ins {
+  background: var(--cobalt-wash);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--cobalt-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
