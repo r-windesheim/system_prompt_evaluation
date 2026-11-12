@@ -46,7 +46,8 @@ def test_shapley_interaction_splits_evenly():
 def test_planted_instructions_are_recovered(seed):
     spec = RunSpec(id="t", title="t", sections=SECTIONS, queries=QUERIES, n_per_query=8, seed=seed)
     b = asyncio.run(execute(spec, StubProvider(respond)))
-    sig = {(e.detector, e.section) for e in b.effects if e.significant}
+    habits = {d.id for d in b.detectors if d.kind == "habit"}
+    sig = {(e.detector, e.section) for e in b.effects if e.significant and e.detector in habits}
     # exactly the planted effects: no misses, no spill-over onto other quirks or inert sections
     assert sig == PLANTED, f"missed {PLANTED - sig}, spurious {sig - PLANTED}"
     for d, k in PLANTED:

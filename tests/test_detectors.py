@@ -8,23 +8,28 @@ def hits(det: str, text: str) -> list[str]:
 
 
 CASES = {
-    "apology": (["Sorry about that.", "I apologize for the confusion.", "My apologies."],
-                ["He felt sorrowful.", "No problem."]),
+    "apology": (["Sorry about that.", "I apologize for the confusion.", "My apologies.", "I'm sorry, I'm not sure."],
+                ["He felt sorrowful.", "No problem.", "I'm sorry to hear that.", "Sorry you're stuck."]),
+    "sympathy": (["I'm sorry to hear that.", "Sorry you're stuck.", "Sorry for the trouble."], ["Sorry, my mistake."]),
+    "unclear": (["I'm not sure what you mean.", "I don't quite understand.", "It's not clear what you're asking."],
+                ["I'm not sure it will rain.", "I understand."]),
     "flattery": (["Great question!", "That's an interesting point.", "What a great idea"],
                  ["The question is hard.", "A great deal of work.", "whether it's a good idea or not"]),
-    "hedge": (["It might rain.", "Perhaps not.", "It seems fine.", "I think so.", "I'm not sure."],
-              ["You may leave.", "It looks like a cat.", "This could work.", "hard to say what might be wrong"]),
+    "hedge": (["It might rain.", "Perhaps not.", "It seems fine.", "I think so."],
+              ["You may leave.", "It looks like a cat.", "This could work.", "hard to say what might be wrong",
+               "I'm not sure what you mean."]),
     "booster": (["It is clearly wrong.", "Absolutely.", "Without a doubt.", "Clearly, this fails."],
                 ["It is wrong.", "Clearly understand the goal.", "Organize your results clearly."]),
     "list_item": (["- one", "1. first", "  * nested", "2) second"], ["-1 degrees", "Version 1.2 is out"]),
     "heading": (["## Setup", "# Title"], ["#hashtag", "C# is a language"]),
-    "bold": (["This is **important**."], ["2 * 3 * 4"]),
+    "bold": (["This is **important**.", "- **Step:** check **this**"], ["2 * 3 * 4", "- **Step one:** do it"]),
     "parenthetical": (["Rust (a systems language) is fast."], ["f(x)", "()"]),
-    "question": (["What do you mean?"], ["I know what you mean."]),
-    "clarify": (["Could you provide more details?", "Can you clarify?", "I need more context."],
+    "question": (["What do you mean?", "Is it a tool, e.g. a script?"], ["I know what you mean."]),
+    "clarify": (["Could you provide more details?", "Can you clarify?", "I need more context.",
+                 "Could you let me know which file?", "Feel free to share the log."],
                 ["You could provide feedback later."]),
     "offer": (["Let me know if you need anything.", "I'm happy to help.", "Feel free to ask.", "Hope this helps!"],
-              ["Let me know your name."]),
+              ["Let me know your name.", "I'm happy to help. First do A. Then do B. Finally do C."]),
     "caveat": (["It works. However, it is slow.", "But not today."], ["Everything but the kitchen sink."]),
     "disclaimer": (["Please note that rates vary.", "I'm not a lawyer.", "Consult a professional."],
                    ["Note the date."]),
@@ -69,3 +74,18 @@ def test_typographic_apostrophes():
 
 def test_list_item_spans_whole_line():
     assert hits("list_item", "1. First step here") == ["1. First step here"]
+
+
+def test_question_not_cut_by_abbreviation():
+    assert hits("question", "Is it a tool, e.g. a script?") == ["Is it a tool, e.g. a script?"]
+
+
+def test_gpt_oss_audit_regressions():
+    # bold used as labels (table cells, standalone lines) is not emphasis
+    assert hits("bold", "**Next steps**") == []
+    assert hits("bold", "| **Memory** | own address space |") == []
+    assert hits("bold", "A **thread** is a path.") == ["**thread**"]
+    # "might" inside the model's own question is not a hedge
+    assert hits("hedge", "Have you changed anything that might have broken it?") == []
+    # nothing inside code blocks counts
+    assert hits("heading", "```bash\n# Example for Jest\nnpm test\n```") == []

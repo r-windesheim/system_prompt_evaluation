@@ -4,22 +4,31 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import attribution, detectors, schedule
-from .bundle import Config, Detector, Effect, Meta, Response, RunBundle, Section, Span
+from .bundle import Analysis, Config, Detector, Effect, Meta, Response, RunBundle, Section, Span
 from .providers import Provider
 
-try:  # measured in scripts/precision_report.py; see docs/detector-precision.md
-    _PRECISION = json.loads((Path(__file__).parent / "precision.json").read_text())
+# Precision per model, measured in scripts/precision_report.py (see docs/detector-precision.md).
+# Format: {model: {detector: {"precision": p, "n": n}}}. A flat legacy file = gpt-4o-mini.
+try:
+    _raw = json.loads((Path(__file__).parent / "precision.json").read_text())
+    _PRECISION = _raw if all(isinstance(v, dict) and "precision" not in v for v in _raw.values()) else {"openai/gpt-4o-mini": _raw}
 except FileNotFoundError:
     _PRECISION = {}
 
 
-def _default_precision() -> dict[str, tuple[float, int]]:
-    return {k: (v["precision"], v["n"]) for k, v in _PRECISION.items()}
+def precision_for(model: str) -> tuple[str | None, dict[str, dict]]:
+    """Precision measured on this model's answers, if any. Never borrowed from another model."""
+    for key, table in _PRECISION.items():
+        if key == model or key.split("/")[-1] == model.split("/")[-1]:
+            return key, table
+    return None, {}
 
 
 @dataclass
@@ -35,7 +44,7 @@ class RunSpec:
     alpha: float = 0.05
     notes: str = ""
     fixture: bool = False
-    detector_precision: dict[str, tuple[float, int]] = field(default_factory=_default_precision)
+    settings: dict = field(default_factory=dict)
 
 
 async def execute(spec: RunSpec, provider: Provider, *, progress=None, on_job=None) -> RunBundle:
@@ -53,34 +62,120 @@ async def execute(spec: RunSpec, provider: Provider, *, progress=None, on_job=No
         return text
 
     texts = await asyncio.gather(*(one(j) for j in jobs))
-    return assemble(spec, provider.name, provider.model, jobs, list(texts))
+    settings = {**getattr(provider, "settings", {}), **spec.settings}
+    spec.settings = settings
+    return assemble(spec, provider.name, provider.model, jobs, list(texts),
+                    finish=[getattr(t, "finish_reason", None) for t in texts])
+
+
+_WORD_LIMIT = re.compile(r"(?:under|fewer than|less than|at most|no more than|max(?:imum)?(?: of)?|within)\s+(\d{2,5})\s+words", re.I)
+_IDENTITY = re.compile(r"^\s*(?:you are|you're|act as|your role)\b", re.I)
 
 
 def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.Job],
-             texts: list[str]) -> RunBundle:
-    det_ids = [d.id for d in detectors.DETECTORS]
+             texts: list[str], finish: list[str | None] | None = None) -> RunBundle:
+    finish = finish or [None] * len(texts)
+    habit_ids = [d.id for d in detectors.DETECTORS]
+    metric_ids = [m.id for m in detectors.METRICS]
     responses: list[Response] = []
-    cell_rates: dict[str, dict[tuple[int, int], dict[str, float]]] = {}
-    for job, text in zip(jobs, texts):
+    cells: dict[str, dict[tuple[int, int], dict[str, float]]] = {}
+    span_cache: dict[tuple[str, int, int], list] = {}
+    dropped = 0
+    for job, text, fr in zip(jobs, texts, finish):
+        text = str(text)
         sp = detectors.spans(text)
         responses.append(Response(config=job.config, query_idx=job.query_idx, sample_idx=job.sample_idx,
-                                  text=text, spans=[Span(start=s, end=e, detector=d) for s, e, d in sp]))
-        cell_rates.setdefault(job.config, {})[(job.query_idx, job.sample_idx)] = detectors.counts(text)
+                                  text=text, spans=[Span(start=s, end=e, detector=d) for s, e, d in sp],
+                                  finish_reason=fr))
+        if fr == "length" or not text.strip():  # truncated or empty: not a clean zero (review problem 18)
+            dropped += 1
+            continue
+        counts = {d: 0.0 for d in habit_ids}
+        for _, _, d in sp:
+            counts[d] += 1
+        cells.setdefault(job.config, {})[(job.query_idx, job.sample_idx)] = {**counts, **detectors.metrics(text, sp)}
+        span_cache[(job.config, job.query_idx, job.sample_idx)] = (text, sp)
 
-    effects = attribution.section_effects(cell_rates, range(len(spec.sections)), det_ids,
-                                          alpha=spec.alpha, seed=spec.seed)
-    labels = spec.section_labels or [f"Section {i + 1}" for i in range(len(spec.sections))]
+    k_range = range(len(spec.sections))
+    # two separate families: habits are the findings; shape metrics are context and shouldn't dilute them
+    habit_fx = attribution.section_effects(cells, k_range, habit_ids, alpha=spec.alpha, seed=spec.seed)
+    metric_fx = attribution.section_effects(cells, k_range, metric_ids, alpha=spec.alpha, seed=spec.seed + 1)
+
+    length_shift = {e.section for e in metric_fx if e.detector == "words" and e.significant}
+    identity = {i for i, t in enumerate(spec.sections) if _IDENTITY.match(t)}
+    binary = {m.id for m in detectors.METRICS if m.binary}
+
+    def flags(e) -> list[str]:
+        out = []
+        if not e.tested or max(e.full_mean, e.ablated_mean) < 0.1 or (
+                e.detector in binary and min(e.full_mean, e.ablated_mean) >= 0.9):
+            out.append("not_testable")
+        if e.detector in habit_ids and e.detector not in ("list_item", "heading"):
+            inside = total = 0
+            for (cfg, q, s), (text, sp) in span_cache.items():
+                if cfg in ("full", f"without_{e.section}"):
+                    a, b = detectors.list_line_share(text, sp, e.detector)
+                    inside, total = inside + a, total + b
+            if total >= 5 and inside / total > 0.7:
+                out.append("in_lists")
+        if e.section in length_shift and e.detector != "words":
+            out.append("length_shift")
+        if e.section in identity:
+            out.append("context_shift")
+        return out
+
+    # per-section notes: numeric limits that no answer ever approached
+    max_words = max((detectors.word_count(t) for t, _ in span_cache.values()), default=0)
+    notes: dict[int, list[str]] = {i: [] for i in k_range}
+    for i, t in enumerate(spec.sections):
+        m = _WORD_LIMIT.search(t)
+        if m and max_words < 0.8 * int(m.group(1)):
+            notes[i].append(f"never tested: the longest answer was {max_words} words, so the {m.group(1)}-word limit never came into play")
+        if i in identity:
+            notes[i].append("context shift: this part sets who the assistant is, so removing it changes what answers are about, not just their style")
+
+    warnings = []
+    qwords = [len(q.split()) for q in spec.queries]
+    if qwords and statistics.median(qwords) < 8:
+        warnings.append("The questions are very short and vague, so answers are mostly clarification requests. "
+                        "Instructions about length, formatting or claims may never come into play.")
+    if dropped:
+        warnings.append(f"{dropped} answers were cut off or empty and were left out of the comparison.")
+    if len(spec.queries) < 10:
+        warnings.append(f"Effects describe these {len(spec.queries)} questions; with few questions they may not generalise.")
+
+    prec_model, prec = precision_for(model)
+    labels = spec.section_labels or [f"Section {i + 1}" for i in k_range]
+    settings = {"detector_version": detectors.detector_version(), **spec.settings}
     return RunBundle(
         meta=Meta(id=spec.id, title=spec.title, created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                   model=model, provider=provider_name, temperature=spec.temperature,
                   n_per_query=spec.n_per_query, seed=spec.seed, queries=spec.queries,
-                  fixture=spec.fixture, notes=spec.notes),
-        sections=[Section(id=i, label=labels[i], text=t) for i, t in enumerate(spec.sections)],
+                  fixture=spec.fixture, notes=spec.notes, settings=settings),
+        sections=[Section(id=i, label=labels[i], text=t, notes=notes[i]) for i, t in enumerate(spec.sections)],
         configs=[Config(id=c, removed=r) for c, r in schedule.config_ids(len(spec.sections))],
         responses=responses,
         detectors=[Detector(id=d.id, label=d.label, group=d.group, description=d.description,
-                            precision=spec.detector_precision.get(d.id, (None, None))[0],
-                            precision_n=spec.detector_precision.get(d.id, (None, None))[1])
-                   for d in detectors.DETECTORS],
-        effects=[Effect(**e.__dict__) for e in effects],
+                            precision=prec.get(d.id, {}).get("precision"), precision_n=prec.get(d.id, {}).get("n"),
+                            precision_model=prec_model if d.id in prec else None)
+                   for d in detectors.DETECTORS]
+                  + [Detector(id=m.id, label=m.label, group=m.group, description=m.description, kind="metric", unit=m.unit)
+                     for m in detectors.METRICS],
+        effects=[Effect(**{**e.__dict__, "per_query": list(e.per_query)}, flags=flags(e)) for e in habit_fx + metric_fx],
+        analysis=Analysis(n_tests=sum(e.tested for e in habit_fx), alpha=spec.alpha,
+                          mde_alpha=attribution.MDE_ALPHA, warnings=warnings),
     )
+
+
+def rescore(b: RunBundle) -> RunBundle:
+    """Recompute spans, metrics, effects and flags from a bundle's stored answers (no model calls)."""
+    by_cfg = {c.id: c.removed for c in b.configs}
+    jobs = [schedule.Job(r.config, by_cfg[r.config], r.query_idx, r.sample_idx, "", "", 0) for r in b.responses]
+    spec = RunSpec(id=b.meta.id, title=b.meta.title, sections=[s.text for s in b.sections],
+                   section_labels=[s.label for s in b.sections], queries=b.meta.queries,
+                   n_per_query=b.meta.n_per_query, temperature=b.meta.temperature, seed=b.meta.seed,
+                   notes=b.meta.notes, fixture=b.meta.fixture, settings=dict(b.meta.settings))
+    out = assemble(spec, b.meta.provider, b.meta.model, jobs, [r.text for r in b.responses],
+                   finish=[r.finish_reason for r in b.responses])
+    out.meta.created_at = b.meta.created_at
+    return out

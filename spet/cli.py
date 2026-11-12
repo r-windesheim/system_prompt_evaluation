@@ -101,6 +101,19 @@ def cmd_validate(args) -> int:
     return 1 if bad else 0
 
 
+def cmd_rescore(args) -> int:
+    from .run import rescore
+
+    b = rescore(bundle.load(args.bundle))
+    out = Path(args.out or args.bundle)
+    bundle.dump(b, out)
+    sig = [e for e in b.effects if e.significant]
+    print(f"wrote {out}: {len(sig)} significant effects, {b.analysis.n_tests} habit tests", file=sys.stderr)
+    for w in b.analysis.warnings:
+        print(f"  warning: {w}", file=sys.stderr)
+    return 0
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -129,6 +142,10 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")
     v.set_defaults(fn=cmd_validate)
+    rs = sub.add_parser("rescore", help="re-analyse a bundle's stored answers with the current detectors and statistics")
+    rs.add_argument("bundle")
+    rs.add_argument("-o", "--out")
+    rs.set_defaults(fn=cmd_rescore)
     sv = sub.add_parser("serve", help="run the analysis API used by the web app")
     sv.add_argument("--runs-dir", default="web/public/runs")
     sv.add_argument("--port", type=int, default=8000)

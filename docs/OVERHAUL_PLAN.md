@@ -149,3 +149,23 @@ Each step lists its deliverable and the check that marks it done.
   - **Overclaims fixed:** "independent annotator" now says it was an LLM (Claude) annotator, not human-validated. The sign-flip test is described as exact only up to 16 pairs. Shapley is described as estimator-only (subset runs aren't wired up).
   - **Hedge precision:** the 26/26 figure came from re-scoring on the same hits used to write the revision, so it was in-sample. Revised detectors now ship as unmeasured.
   - **Demo:** now uses debugging questions that the stub's filler actually answers.
+- **Methodology review fixes, engine (2026-11-12).** These are steps 5–10 of `docs/methodology-review.md`.
+  - **Detectors**
+    - Split apology/sympathy and hedge/didn't-understand.
+    - Broadened clarify; offer counts only at the end of an answer.
+    - Bold counts only as emphasis (not labels or table cells); hedges inside questions are skipped.
+    - Questions are no longer cut at "e.g.", and nothing inside code blocks counts.
+  - **Shape metrics:** words, lines, any/ends question, any list, asks for context. These are analysed as a separate family.
+  - **Statistics**
+    - Per-question deltas and a CI that resamples by question.
+    - The smallest detectable change (α = 0.005).
+    - All-zero tests are excluded from BH, and m is reported.
+  - **Flags and notes:** in_lists, length_shift, context_shift, not_testable, plus untested word limits, and warnings for short probes or few questions.
+  - **Reproducibility**
+    - The bundle stores settings and per-response finish_reason; truncated or empty answers are left out of the comparison.
+    - The model revision is in the cache key, and precision is stored per model.
+  - **gpt-oss audit:** a second precision audit on 247 gpt-oss hits.
+  - **Real run, rescored with `spet rescore`:**
+    - "Role & Audience reduces bold" disappeared (it was bullet labels).
+    - "Apology Policy adds apologies" became "adds sympathy" (0.47 vs 0.15 per answer).
+    - Step Formatting's effects carry `length_shift`.

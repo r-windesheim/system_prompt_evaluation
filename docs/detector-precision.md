@@ -48,3 +48,35 @@ while looking at those hits), so revised detectors ship as "precision unmeasured
 - **Flattery:** "good idea" was 0/4 ("whether it's a good idea or not"). Removed.
 - **Meta:** "here's a/the/how" was 0/1 (it introduces a real answer). Removed.
 - **Hedge:** 4/30 false positives were "what might be wrong"-style embedded questions. These are now excluded.
+
+
+## gpt-oss-20b audit (2026-11-12)
+
+**Data:** 247 hits from the current detectors. That's up to 20 per detector, sampled (seed 0) from 352 distinct gpt-oss-20b answers in two real runs. Sampler: `scripts/sample_bundle_hits.py`. Labels are in `docs/detector-audit/gpt-oss-20b/labels.jsonl`, from a separate Claude agent that didn't see the detector code. A person hasn't checked them.
+
+| Detector | Precision [Wilson 95%] | Note |
+|---|---|---|
+| heading | 16/20 = 0.80 [0.58, 0.92] | revised after this audit: shipped as unmeasured |
+| list_item | 20/20 = 1.00 [0.84, 1.00] |  |
+| hedge | 11/20 = 0.55 [0.34, 0.74] | revised after this audit: shipped as unmeasured |
+| emoji | 20/20 = 1.00 [0.84, 1.00] |  |
+| parenthetical | 19/20 = 0.95 [0.76, 0.99] |  |
+| sympathy | 20/20 = 1.00 [0.84, 1.00] |  |
+| clarify | 17/20 = 0.85 [0.64, 0.95] |  |
+| question | 20/20 = 1.00 [0.84, 1.00] |  |
+| apology | 19/20 = 0.95 [0.76, 0.99] |  |
+| unclear | 20/20 = 1.00 [0.84, 1.00] |  |
+| bold | 4/20 = 0.20 [0.08, 0.42] | revised after this audit: shipped as unmeasured |
+| exclamation | 20/20 = 1.00 [0.84, 1.00] |  |
+| offer | 3/5 = 0.60 [0.23, 0.88] | too few hits |
+| meta | 1/1 = 1.00 [0.21, 1.00] | too few hits |
+| booster | 1/1 = 1.00 [0.21, 1.00] | too few hits |
+
+**Fixed because of this audit:**
+- **bold** (4/20): table-row labels and bold lines standing alone are no longer counted.
+- **hedge** (11/20): "might" inside the model's own questions no longer counts.
+- **heading:** `#` comments in code blocks no longer count. All detectors now ignore code blocks.
+
+These three ship as "unmeasured" until a fresh sample is labelled.
+
+Precision is now stored **per model** in `spet/precision.json`. A run only shows precision measured on its own model's answers, never one borrowed from another model (methodology review, problem 11).

@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class _Strict(BaseModel):
@@ -32,12 +32,16 @@ class Meta(_Strict):
     queries: list[str]
     fixture: bool = False
     notes: str = ""
+    # everything needed to rerun: max_tokens, reasoning_effort, endpoint host, model revision,
+    # vLLM version, detector version, run date (methodology review, problem 17)
+    settings: dict[str, str | int | float | None] = {}
 
 
 class Section(_Strict):
     id: int
     label: str
     text: str
+    notes: list[str] = []  # e.g. "never tested: no answer came within 80% of the 200-word limit"
 
 
 class Config(_Strict):
@@ -57,6 +61,7 @@ class Response(_Strict):
     sample_idx: int = Field(ge=0)
     text: str
     spans: list[Span] = []
+    finish_reason: str | None = None  # "length" means the answer was cut off
 
 
 class Detector(_Strict):
@@ -64,9 +69,11 @@ class Detector(_Strict):
     label: str
     group: str
     description: str = ""
-    unit: Literal["per response"] = "per response"
+    kind: Literal["habit", "metric"] = "habit"
+    unit: str = "per response"
     precision: float | None = None
     precision_n: int | None = None
+    precision_model: str | None = None  # which model's answers the precision was measured on
 
 
 class Effect(_Strict):
@@ -80,16 +87,31 @@ class Effect(_Strict):
     q: float = Field(ge=0, le=1)
     significant: bool
     n_pairs: int
+    tested: bool = True
+    ci_query: tuple[float, float] | None = None
+    per_query: list[float] = []
+    mde: float | None = None
+    # "in_lists": mostly sits inside bullet lists; "length_shift": the section also changes answer length;
+    # "context_shift": the section sets identity/audience; "not_testable": floor/ceiling or never exercised
+    flags: list[str] = []
+
+
+class Analysis(_Strict):
+    n_tests: int
+    alpha: float
+    mde_alpha: float
+    warnings: list[str] = []
 
 
 class RunBundle(_Strict):
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[1, 2] = SCHEMA_VERSION
     meta: Meta
     sections: list[Section]
     configs: list[Config]
     responses: list[Response]
     detectors: list[Detector]
     effects: list[Effect]
+    analysis: Analysis | None = None
     shapley: dict[str, dict[str, float]] | None = None  # detector -> section id -> value
 
     @model_validator(mode="after")

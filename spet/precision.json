@@ -1,34 +1,74 @@
 {
- "list_item": {
-  "precision": 1.0,
-  "n": 30
+ "openai/gpt-4o-mini": {
+  "list_item": {
+   "precision": 1.0,
+   "n": 30
+  },
+  "bold": {
+   "precision": 1.0,
+   "n": 30
+  },
+  "parenthetical": {
+   "precision": 1.0,
+   "n": 15
+  },
+  "question": {
+   "precision": 1.0,
+   "n": 30
+  },
+  "clarify": {
+   "precision": 1.0,
+   "n": 30
+  },
+  "offer": {
+   "precision": 1.0,
+   "n": 30
+  },
+  "caveat": {
+   "precision": 1.0,
+   "n": 25
+  },
+  "exclamation": {
+   "precision": 1.0,
+   "n": 30
+  }
  },
- "bold": {
-  "precision": 1.0,
-  "n": 30
- },
- "parenthetical": {
-  "precision": 1.0,
-  "n": 15
- },
- "question": {
-  "precision": 1.0,
-  "n": 30
- },
- "clarify": {
-  "precision": 1.0,
-  "n": 30
- },
- "offer": {
-  "precision": 1.0,
-  "n": 30
- },
- "caveat": {
-  "precision": 1.0,
-  "n": 25
- },
- "exclamation": {
-  "precision": 1.0,
-  "n": 30
+ "openai/gpt-oss-20b": {
+  "list_item": {
+   "precision": 1.0,
+   "n": 20
+  },
+  "emoji": {
+   "precision": 1.0,
+   "n": 20
+  },
+  "parenthetical": {
+   "precision": 0.95,
+   "n": 20
+  },
+  "sympathy": {
+   "precision": 1.0,
+   "n": 20
+  },
+  "clarify": {
+   "precision": 0.85,
+   "n": 20
+  },
+  "question": {
+   "precision": 1.0,
+   "n": 20
+  },
+  "apology": {
+   "precision": 0.95,
+   "n": 20
+  },
+  "unclear": {
+   "precision": 1.0,
+   "n": 20
+  },
+  "exclamation": {
+   "precision": 1.0,
+   "n": 20
+  }
  }
 }

@@ -1,0 +1,247 @@
+{"id": "heading-110", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "list_item-100", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "offer-202", "detector": "offer", "verdict": "tp", "note": ""}
+{"id": "hedge-56", "detector": "hedge", "verdict": "fp", "note": "'might' inside a question asking the user for screenshots; not softening a claim the model makes"}
+{"id": "emoji-232", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "parenthetical-158", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "sympathy-36", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "emoji-230", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer, but still a pictographic emoji"}
+{"id": "list_item-84", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "list_item-91", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "hedge-58", "detector": "hedge", "verdict": "fp", "note": "'might' inside a question to the user about recent changes; not softening a claim"}
+{"id": "list_item-99", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "clarify-186", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "question-161", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "question-180", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "clarify-199", "detector": "clarify", "verdict": "fp", "note": "conditional 'if you prefer a different style, just tell me' is an offer of customization, not a request for missing context"}
+{"id": "emoji-235", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "apology-17", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "sympathy-32", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "emoji-237", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer"}
+{"id": "question-175", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "unclear-68", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "sympathy-26", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "bold-130", "detector": "bold", "verdict": "fp", "note": "bold row label in a table's first column, a label not emphasis in running text"}
+{"id": "parenthetical-150", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "unclear-76", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "unclear-64", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "emoji-243", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "unclear-73", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "apology-18", "detector": "apology", "verdict": "fp", "note": "'I'm sorry this isn't working as expected' sympathises with the user's situation rather than apologising"}
+{"id": "hedge-59", "detector": "hedge", "verdict": "tp", "note": "borderline: legitimate epistemic possibility, but it does soften the claim"}
+{"id": "unclear-67", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "exclamation-222", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "emoji-236", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "bold-139", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "sympathy-24", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "bold-127", "detector": "bold", "verdict": "tp", "note": ""}
+{"id": "exclamation-223", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "bold-122", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "heading-116", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "clarify-184", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "question-170", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "parenthetical-146", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "bold-134", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "bold-123", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading, not emphasis in running text"}
+{"id": "emoji-239", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "list_item-82", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "sympathy-31", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "heading-105", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "bold-128", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "heading-103", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "bold-131", "detector": "bold", "verdict": "tp", "note": ""}
+{"id": "bold-132", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "clarify-187", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "unclear-78", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "hedge-44", "detector": "hedge", "verdict": "fp", "note": "'might' in a relative clause of an instruction (check if a service might behave differently); describes a possibility to check, not hedging a claim"}
+{"id": "emoji-245", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer"}
+{"id": "list_item-97", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "question-163", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "parenthetical-152", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "list_item-98", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "heading-120", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "clarify-189", "detector": "clarify", "verdict": "fp", "note": "'Feel free to share more details—happy to dive deeper' is a closing offer after a full answer, not a request for missing context"}
+{"id": "hedge-55", "detector": "hedge", "verdict": "fp", "note": "'might' in a request for logs that might help; not softening a claim"}
+{"id": "list_item-90", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "bold-129", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "bold-138", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "hedge-47", "detector": "hedge", "verdict": "fp", "note": "'might' inside a question to the user; not softening a claim"}
+{"id": "exclamation-224", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "parenthetical-148", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "sympathy-27", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "unclear-62", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "hedge-57", "detector": "hedge", "verdict": "fp", "note": "'might' in a relative clause of an instruction (read notes for changes that might affect imports); not hedging a claim"}
+{"id": "sympathy-37", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "heading-118", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "emoji-246", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "clarify-190", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "heading-108", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "apology-1", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "hedge-49", "detector": "hedge", "verdict": "tp", "note": "borderline: softened advice ('that spot might need more review')"}
+{"id": "apology-7", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "sympathy-28", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "exclamation-211", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "bold-136", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "apology-8", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "emoji-242", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "list_item-81", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "clarify-194", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "unclear-72", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "clarify-182", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "exclamation-212", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "apology-19", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "list_item-87", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "heading-112", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "parenthetical-153", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "clarify-198", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "offer-203", "detector": "offer", "verdict": "tp", "note": ""}
+{"id": "unclear-63", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "list_item-89", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "apology-14", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "heading-113", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "apology-15", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "heading-104", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "exclamation-208", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "hedge-43", "detector": "hedge", "verdict": "tp", "note": ""}
+{"id": "unclear-60", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "clarify-196", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "question-174", "detector": "question", "verdict": "tp", "note": "borderline: question to the user about the result of a suggested test; partly self-directed diagnostic prompt"}
+{"id": "exclamation-220", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "apology-13", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "parenthetical-149", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "question-178", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "emoji-241", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "meta-206", "detector": "meta", "verdict": "tp", "note": "borderline: brief signpost 'let me break it down' before actually answering"}
+{"id": "hedge-51", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim about CI behaviour"}
+{"id": "exclamation-217", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "parenthetical-151", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "bold-125", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "exclamation-213", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "heading-109", "detector": "heading", "verdict": "fp", "note": "'#' comment line inside a bash code block, not a Markdown heading"}
+{"id": "sympathy-22", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "question-168", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "apology-6", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "exclamation-221", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "clarify-200", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "parenthetical-159", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "unclear-61", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "emoji-244", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "unclear-75", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "exclamation-218", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "offer-201", "detector": "offer", "verdict": "tp", "note": ""}
+{"id": "list_item-92", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "parenthetical-147", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "parenthetical-144", "detector": "parenthetical", "verdict": "fp", "note": "'(IPC)' is an acronym gloss, not an aside"}
+{"id": "hedge-41", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim"}
+{"id": "emoji-231", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "parenthetical-157", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "emoji-227", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "parenthetical-141", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "sympathy-23", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "list_item-94", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "list_item-86", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "list_item-85", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "unclear-69", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "sympathy-38", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "sympathy-35", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "apology-2", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "unclear-74", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "list_item-96", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "hedge-53", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim in troubleshooting advice"}
+{"id": "hedge-45", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim in troubleshooting advice"}
+{"id": "bold-137", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "list_item-95", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "heading-111", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "heading-117", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "exclamation-225", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "clarify-192", "detector": "clarify", "verdict": "fp", "note": "matched span is 'I'm not sure what you're referring to' (the didn't-understand statement); the actual request is the next sentence"}
+{"id": "question-164", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "parenthetical-145", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "list_item-93", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "offer-205", "detector": "offer", "verdict": "fp", "note": "'Let me know if there's a deadline' is a bullet asking for context mid-answer, not a closing offer of further help"}
+{"id": "parenthetical-142", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "emoji-238", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer"}
+{"id": "hedge-52", "detector": "hedge", "verdict": "fp", "note": "'what I think' just introduces the model's views; nothing is softened"}
+{"id": "question-171", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "apology-10", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "apology-4", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "clarify-188", "detector": "clarify", "verdict": "tp", "note": "borderline: implicit request ('with a few more details I can guide you') after a list of questions"}
+{"id": "sympathy-39", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "question-177", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "list_item-88", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "question-165", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "clarify-191", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "bold-133", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "question-167", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "sympathy-34", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "unclear-65", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "sympathy-29", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "heading-115", "detector": "heading", "verdict": "fp", "note": "'#' comment line inside a bash code block, not a Markdown heading"}
+{"id": "unclear-70", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "apology-5", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "sympathy-20", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "parenthetical-160", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "heading-101", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "bold-121", "detector": "bold", "verdict": "fp", "note": "bold line used as a standalone pseudo-heading"}
+{"id": "clarify-195", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "hedge-46", "detector": "hedge", "verdict": "fp", "note": "'might' inside a question to the user; not softening a claim"}
+{"id": "question-176", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "unclear-71", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "unclear-77", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "hedge-50", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim"}
+{"id": "question-166", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "parenthetical-155", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "sympathy-30", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "exclamation-215", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "sympathy-25", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "parenthetical-156", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "emoji-234", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a checklist bullet marker"}
+{"id": "question-172", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "offer-204", "detector": "offer", "verdict": "fp", "note": "'I'm happy to help' opens a one-line clarifying reply; not a closing offer of further help"}
+{"id": "emoji-229", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer"}
+{"id": "clarify-183", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "exclamation-209", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "hedge-54", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim"}
+{"id": "emoji-228", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a checklist bullet marker"}
+{"id": "booster-80", "detector": "booster", "verdict": "tp", "note": "borderline: 'definitely' is a certainty marker, though the conditional reasoning arguably warrants it"}
+{"id": "exclamation-216", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "question-173", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "heading-102", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "apology-3", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "sympathy-33", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "clarify-185", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "sympathy-21", "detector": "sympathy", "verdict": "tp", "note": ""}
+{"id": "question-162", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "bold-140", "detector": "bold", "verdict": "tp", "note": ""}
+{"id": "hedge-48", "detector": "hedge", "verdict": "fp", "note": "'might' inside a request for details (list of info to share); not softening a claim"}
+{"id": "heading-106", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "exclamation-219", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "exclamation-210", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "exclamation-207", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "apology-12", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "heading-119", "detector": "heading", "verdict": "fp", "note": "'####' markup wraps a closing offer/question sentence; it is not used as a section heading (formatting misuse)"}
+{"id": "exclamation-214", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "unclear-79", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "list_item-83", "detector": "list_item", "verdict": "tp", "note": ""}
+{"id": "bold-126", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "apology-9", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "emoji-233", "detector": "emoji", "verdict": "tp", "note": ""}
+{"id": "apology-0", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "clarify-193", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "parenthetical-154", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "parenthetical-143", "detector": "parenthetical", "verdict": "tp", "note": ""}
+{"id": "bold-124", "detector": "bold", "verdict": "tp", "note": ""}
+{"id": "exclamation-226", "detector": "exclamation", "verdict": "tp", "note": ""}
+{"id": "bold-135", "detector": "bold", "verdict": "fp", "note": "bold row label in table's first column"}
+{"id": "emoji-240", "detector": "emoji", "verdict": "tp", "note": "borderline: emoji used as a bullet pointer"}
+{"id": "hedge-40", "detector": "hedge", "verdict": "tp", "note": ""}
+{"id": "question-179", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "unclear-66", "detector": "unclear", "verdict": "tp", "note": ""}
+{"id": "apology-16", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "heading-114", "detector": "heading", "verdict": "tp", "note": ""}
+{"id": "hedge-42", "detector": "hedge", "verdict": "tp", "note": "borderline: hedged possibility claim"}
+{"id": "apology-11", "detector": "apology", "verdict": "tp", "note": ""}
+{"id": "clarify-181", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "question-169", "detector": "question", "verdict": "tp", "note": ""}
+{"id": "clarify-197", "detector": "clarify", "verdict": "tp", "note": ""}
+{"id": "heading-107", "detector": "heading", "verdict": "fp", "note": "'# or' comment line inside a bash code block, not a Markdown heading"}

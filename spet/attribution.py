@@ -44,6 +44,10 @@ class EffectResult:
     q: float
     significant: bool
     n_pairs: int
+    tested: bool = True                       # False when both arms are all-zero: excluded from the correction
+    ci_query: tuple[float, float] | None = None  # bootstrap over questions (clusters), not cells
+    per_query: tuple[float, ...] = ()         # mean paired difference for each question
+    mde: float | None = None                  # smallest change detectable 80% of the time at alpha=MDE_ALPHA
 
 
 def bootstrap_ci(diffs: np.ndarray, rng: np.random.Generator, n_boot: int = 4000,
@@ -86,6 +90,33 @@ def benjamini_hochberg(p: Sequence[float]) -> list[float]:
     return q.tolist()
 
 
+MDE_ALPHA = 0.005  # roughly the per-test threshold BH needs with ~100 tests and a handful of real effects
+_Z = {0.005: 2.807, 0.05: 1.960}
+_Z80 = 0.8416
+
+
+def cluster_bootstrap_ci(diffs: np.ndarray, groups: np.ndarray, rng: np.random.Generator,
+                         n_boot: int = 4000, level: float = 0.95) -> tuple[float, float]:
+    """Percentile bootstrap that resamples whole groups (questions), keeping their cells together."""
+    ids = np.unique(groups)
+    if len(ids) < 2:
+        return bootstrap_ci(diffs, rng, n_boot, level)
+    by = [diffs[groups == g] for g in ids]
+    sums = np.array([b.sum() for b in by])
+    lens = np.array([len(b) for b in by])
+    pick = rng.integers(0, len(ids), size=(n_boot, len(ids)))
+    means = sums[pick].sum(axis=1) / lens[pick].sum(axis=1)
+    a = (1 - level) / 2
+    return (float(np.quantile(means, a)), float(np.quantile(means, 1 - a)))
+
+
+def min_detectable(diffs: np.ndarray, alpha: float = MDE_ALPHA) -> float | None:
+    if len(diffs) < 2:
+        return None
+    sd = float(np.std(diffs, ddof=1))
+    return (_Z[alpha] + _Z80) * sd / np.sqrt(len(diffs)) if sd > 0 else 0.0
+
+
 def section_effects(
     cell_rates: Mapping[str, Mapping[Cell, Rates]],
     sections: Sequence[int],
@@ -107,12 +138,21 @@ def section_effects(
             f = np.array([full[c].get(d, 0.0) for c in cells])
             a = np.array([abl[c].get(d, 0.0) for c in cells])
             diffs = f - a
+            groups = np.array([c[0] for c in cells])
+            tested = bool(len(cells)) and not (np.all(f == 0) and np.all(a == 0))
+            per_q = tuple(float(diffs[groups == g].mean()) for g in np.unique(groups)) if len(cells) else ()
             raw.append(dict(detector=d, section=k, full_mean=float(f.mean()) if len(f) else 0.0,
                             ablated_mean=float(a.mean()) if len(a) else 0.0,
                             delta=float(diffs.mean()) if len(diffs) else 0.0,
-                            ci=bootstrap_ci(diffs, rng), p=sign_flip_p(diffs, rng), n_pairs=len(cells)))
-    qs = benjamini_hochberg([r["p"] for r in raw])
-    return [EffectResult(**r, q=q, significant=q < alpha) for r, q in zip(raw, qs)]
+                            ci=bootstrap_ci(diffs, rng), p=sign_flip_p(diffs, rng) if tested else 1.0,
+                            n_pairs=len(cells), tested=tested,
+                            ci_query=cluster_bootstrap_ci(diffs, groups, rng) if tested else None,
+                            per_query=per_q, mde=min_detectable(diffs) if tested else None))
+    # Benjamini–Hochberg over the tests that could fire (all-zero tests are reported, not counted)
+    idx = [i for i, r in enumerate(raw) if r["tested"]]
+    qs = benjamini_hochberg([raw[i]["p"] for i in idx])
+    qmap = dict(zip(idx, qs))
+    return [EffectResult(**r, q=qmap.get(i, 1.0), significant=qmap.get(i, 1.0) < alpha) for i, r in enumerate(raw)]
 
 
 def shapley_values(n_players: int, value: Callable[[frozenset[int]], float], *,

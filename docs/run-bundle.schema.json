@@ -1,5 +1,37 @@
 {
   "$defs": {
+    "Analysis": {
+      "additionalProperties": false,
+      "properties": {
+        "n_tests": {
+          "title": "N Tests",
+          "type": "integer"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "mde_alpha": {
+          "title": "Mde Alpha",
+          "type": "number"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "n_tests",
+        "alpha",
+        "mde_alpha"
+      ],
+      "title": "Analysis",
+      "type": "object"
+    },
     "Config": {
       "additionalProperties": false,
       "properties": {
@@ -46,8 +78,16 @@
           "title": "Description",
           "type": "string"
         },
+        "kind": {
+          "default": "habit",
+          "enum": [
+            "habit",
+            "metric"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
         "unit": {
-          "const": "per response",
           "default": "per response",
           "title": "Unit",
           "type": "string"
@@ -75,6 +115,18 @@
           ],
           "default": null,
           "title": "Precision N"
+        },
+        "precision_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precision Model"
         }
       },
       "required": [
@@ -141,6 +193,61 @@
         "n_pairs": {
           "title": "N Pairs",
           "type": "integer"
+        },
+        "tested": {
+          "default": true,
+          "title": "Tested",
+          "type": "boolean"
+        },
+        "ci_query": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci Query"
+        },
+        "per_query": {
+          "default": [],
+          "items": {
+            "type": "number"
+          },
+          "title": "Per Query",
+          "type": "array"
+        },
+        "mde": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mde"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
         }
       },
       "required": [
@@ -210,6 +317,27 @@
           "default": "",
           "title": "Notes",
           "type": "string"
+        },
+        "settings": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Settings",
+          "type": "object"
         }
       },
       "required": [
@@ -254,6 +382,18 @@
           },
           "title": "Spans",
           "type": "array"
+        },
+        "finish_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finish Reason"
         }
       },
       "required": [
@@ -279,6 +419,14 @@
         "text": {
           "title": "Text",
           "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
         }
       },
       "required": [
@@ -318,8 +466,11 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "default": 2,
+      "enum": [
+        1,
+        2
+      ],
       "title": "Schema Version",
       "type": "integer"
     },
@@ -360,6 +511,17 @@
       },
       "title": "Effects",
       "type": "array"
+    },
+    "analysis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Analysis"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "shapley": {
       "anyOf": [
