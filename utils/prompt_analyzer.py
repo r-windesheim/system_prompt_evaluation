@@ -66,13 +66,18 @@ SYSTEM PROMPT TO ANALYZE:
 {system_prompt}
 
 CRITICAL RULES:
-1. Group related sentences together - each section should be ONE coherent topic or theme
+1. Split the prompt into distinct logical sections - each section should be ONE coherent topic or theme
 2. Keep content within XML tags together as a single section (e.g., everything inside <election_info> is one section)
 3. Include ALL content - behavioral instructions, facts, context, dates, everything
 4. Return the EXACT original wording - do not rephrase, summarize, or interpret
-5. Aim for 15-30 sections for long prompts - not too granular (one sentence per section is wrong), not too broad
-6. Each section should be 1-5 related sentences that form a complete idea
-7. DO NOT split single topics across multiple sections
+5. Target section counts based on prompt size:
+   - Very long prompts (20+ paragraphs): Aim for 25-40 sections
+   - Long prompts (10-20 paragraphs): Aim for 15-25 sections
+   - Medium prompts (5-10 paragraphs): Aim for 10-15 sections
+   - Short prompts (1-5 paragraphs): Aim for 5-10 sections
+6. Each section should be 1-5 related sentences that form a complete testable idea
+7. When in doubt, split into separate sections rather than combining - we need granularity for testing
+8. DO NOT create overly broad sections that combine unrelated topics
 
 INCLUDE EVERYTHING:
 ✅ Behavioral instructions: "Be direct and concise"

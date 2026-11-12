@@ -1471,6 +1471,159 @@ async def analyze_prompt_quirks(
 
 
 # ============================================================================
+# SHOWCASE RESPONSE GENERATION
+# ============================================================================
+
+def select_best_showcase_response(
+    full_responses: List[str],
+    detected_quirks: List[Dict[str, Any]]
+) -> str:
+    """
+    Select the best response to showcase based on quirk richness and variety
+
+    Scoring:
+    - +1 point for each quirk instance found
+    - +5 bonus for each unique quirk type represented
+    - 0.5× penalty for very short responses (<100 words)
+    - 0.7× penalty for very long responses (>500 words)
+
+    Args:
+        full_responses: List of responses generated with full prompt
+        detected_quirks: List of detected quirks with attribution
+
+    Returns:
+        The best response text for showcasing
+    """
+    if not full_responses:
+        return ""
+
+    if len(full_responses) == 1:
+        return full_responses[0]
+
+    best_score = -1
+    best_response = full_responses[0]  # fallback
+
+    for response in full_responses:
+        score = 0
+        unique_quirks = set()
+
+        # Count quirk instances and track variety
+        for quirk in detected_quirks:
+            quirk_type = quirk.get('technical_name') or quirk.get('quirk_type', '')
+            if not quirk_type:
+                continue
+
+            positions = extract_phrase_positions(response, quirk_type)
+            score += len(positions)  # +1 per instance
+
+            if positions:
+                unique_quirks.add(quirk_type)
+
+        # Bonus for variety (shows multiple section impacts)
+        score += len(unique_quirks) * 5
+
+        # Length optimization
+        word_count = len(response.split())
+        if word_count < 100:
+            score *= 0.5  # too short - not enough to highlight
+        elif word_count > 500:
+            score *= 0.7  # too long - harder to read
+
+        if score > best_score:
+            best_score = score
+            best_response = response
+
+    return best_response
+
+
+def generate_showcase_response(
+    full_responses: List[str],
+    detected_quirks: List[Dict[str, Any]],
+    sections: List[str]
+) -> Dict[str, Any]:
+    """
+    Generate a showcase response with phrase-level attribution
+
+    This creates the "wow factor" visualization showing which sections
+    caused which specific phrases in a real AI response.
+
+    Args:
+        full_responses: List of responses generated with the full prompt
+        detected_quirks: List of detected quirks with attribution
+        sections: The prompt sections
+
+    Returns:
+        Dict with:
+        - response_text: The actual AI response to showcase
+        - attributions: List of phrase positions with section attribution
+    """
+    if not full_responses or not detected_quirks:
+        return {
+            'response_text': '',
+            'attributions': []
+        }
+
+    # Select the best response for showcasing
+    showcase_text = select_best_showcase_response(full_responses, detected_quirks)
+
+    # Color scheme for sections (matching frontend SECTION_COLORS)
+    SECTION_COLORS = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'blue', 'green']
+
+    attributions = []
+
+    # For each detected quirk, extract phrase positions from the showcase text
+    for quirk in detected_quirks:
+        quirk_type = quirk.get('technical_name') or quirk.get('quirk_type', '')
+        if not quirk_type:
+            continue
+
+        section_index = quirk.get('attribution', {}).get('section_index', 0)
+
+        # Extract positions where this quirk appears
+        positions = extract_phrase_positions(showcase_text, quirk_type)
+
+        # Get section info
+        section_text = sections[section_index] if section_index < len(sections) else "Unknown"
+        section_name = section_text[:50] + "..." if len(section_text) > 50 else section_text
+
+        # Get statistical info from quirk
+        impact = quirk.get('impact', 0)
+        p_value = quirk.get('p_value', 1.0)
+        effect_size = quirk.get('effect_size', 0)
+
+        # Map each position to this section
+        for pos in positions:
+            attributions.append({
+                'text': pos['text'],
+                'start': pos['start'],
+                'end': pos['end'],
+                'sectionId': str(section_index),  # Match frontend interface
+                'sectionName': section_name,
+                'quirkType': quirk_type,
+                'color': SECTION_COLORS[section_index % len(SECTION_COLORS)],
+                'impact': abs(impact),  # Use absolute value for display
+                'pValue': p_value,
+                'effectSize': abs(effect_size)
+            })
+
+    # Sort attributions by start position to avoid overlaps
+    attributions.sort(key=lambda a: a['start'])
+
+    # Remove overlapping attributions (keep first occurrence)
+    non_overlapping = []
+    last_end = 0
+    for attr in attributions:
+        if attr['start'] >= last_end:
+            non_overlapping.append(attr)
+            last_end = attr['end']
+
+    return {
+        'response_text': showcase_text,
+        'attributions': non_overlapping
+    }
+
+
+# ============================================================================
 # RESULT FORMATTING FOR UI
 # ============================================================================
 
@@ -1546,6 +1699,79 @@ def format_quirk_results_for_ui(analysis_results: Dict[str, Any]) -> Dict[str, A
 # ============================================================================
 # PERSISTENCE - SAVE RESULTS
 # ============================================================================
+
+def generate_network_graph_data(formatted_quirks: List[Dict[str, Any]], sections: List[str]) -> Dict[str, Any]:
+    """
+    Generate network graph data structure for visualization
+
+    Creates nodes for sections and quirk types, with edges showing which sections
+    cause which quirks (weighted by impact strength).
+
+    Args:
+        formatted_quirks: List of formatted quirk dicts from format_quirk_results_for_ui
+        sections: List of prompt sections
+
+    Returns:
+        Dictionary with 'nodes' and 'edges' lists for network visualization
+    """
+    nodes = []
+    edges = []
+
+    # Create section nodes (colored circles)
+    for idx, section_text in enumerate(sections):
+        # Truncate long section text for display
+        display_text = section_text[:40] + "..." if len(section_text) > 40 else section_text
+        nodes.append({
+            'id': f'section_{idx}',
+            'label': f'Section {idx + 1}',
+            'description': display_text,
+            'full_text': section_text,
+            'type': 'section',
+            'group': 'section'
+        })
+
+    # Track which quirks we've added as nodes
+    quirk_nodes_added = set()
+
+    # Create quirk nodes and edges
+    for quirk in formatted_quirks:
+        quirk_name = quirk['name']
+        quirk_type = quirk['technical_name']
+
+        # Add quirk node if not already added
+        if quirk_type not in quirk_nodes_added:
+            nodes.append({
+                'id': f'quirk_{quirk_type}',
+                'label': quirk_name,
+                'description': quirk_name,
+                'type': 'quirk',
+                'group': 'quirk'
+            })
+            quirk_nodes_added.add(quirk_type)
+
+        # Add edge from section to quirk
+        section_idx = quirk['attribution']['section_index']
+        impact = abs(quirk['attribution']['impact'])
+        spike_ratio = quirk.get('spike_ratio', 1.0)
+
+        edges.append({
+            'source': f'section_{section_idx}',
+            'target': f'quirk_{quirk_type}',
+            'weight': impact,
+            'spike_ratio': spike_ratio,
+            'impact': quirk['attribution']['impact'],
+            'with_section': quirk['attribution']['with_section'],
+            'without_section': quirk['attribution']['without_section'],
+            'p_value': quirk['attribution'].get('p_value', 1.0),
+            'effect_size': quirk['attribution'].get('effect_size', 0),
+            'significant': quirk['attribution'].get('significant', False)
+        })
+
+    return {
+        'nodes': nodes,
+        'edges': edges
+    }
+
 
 def save_quirk_analysis_results(
     analysis_results: Dict[str, Any],

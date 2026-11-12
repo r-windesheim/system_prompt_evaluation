@@ -25,7 +25,9 @@ from utils.quirk_analyzer import (
     format_quirk_results_for_ui,
     save_quirk_analysis_results,
     estimate_quirk_analysis_cost,
-    extract_phrase_positions
+    extract_phrase_positions,
+    generate_showcase_response,
+    generate_network_graph_data
 )
 from config import (
     QUIRK_ANALYSIS_QUERIES,
@@ -73,6 +75,14 @@ class AnalyzeQuirksRequest(BaseModel):
     model: Optional[str] = None
     include_semantic: bool = False
 
+class ShowcaseResponse(BaseModel):
+    response_text: str
+    attributions: List[Dict[str, Any]]
+
+class NetworkGraphData(BaseModel):
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+
 class AnalyzeQuirksResponse(BaseModel):
     analysis_id: str
     quirks: List[Dict[str, Any]]
@@ -84,6 +94,10 @@ class AnalyzeQuirksResponse(BaseModel):
     failed_configs: List[str]
     xml_only_sections: List[int]
     test_queries_used: List[str]
+    showcase: Optional[ShowcaseResponse] = None
+    network_graph: Optional[NetworkGraphData] = None
+    leave_one_out_responses: Optional[Dict[str, List[str]]] = None
+    leave_one_out_showcases: Optional[Dict[str, ShowcaseResponse]] = None
 
 class CostEstimateRequest(BaseModel):
     n_sections: int
@@ -178,13 +192,76 @@ async def analyze_quirks(request: AnalyzeQuirksRequest):
             test_queries=test_queries,
             n=request.n_responses,
             model=model,
-            spike_threshold=1.5,
-            min_impact=1.0,
+            spike_threshold=1.2,  # Lower threshold to catch more quirks
+            min_impact=0.5,  # Lower min impact to show more quirks (was 1.0)
             include_semantic=request.include_semantic
         )
 
         # Format for UI
         formatted_results = format_quirk_results_for_ui(analysis_results)
+
+        # Generate showcase response with real data
+        showcase_data = None
+        leave_one_out_showcases = {}
+        full_responses = analysis_results.get('all_responses', {}).get('full', [])
+        all_responses = analysis_results.get('all_responses', {})
+        detected_quirks = formatted_results.get('quirks', [])
+
+        print(f"DEBUG: full_responses count: {len(full_responses) if full_responses else 0}")
+        print(f"DEBUG: detected_quirks count: {len(detected_quirks) if detected_quirks else 0}")
+
+        # Generate showcase for full prompt response
+        if full_responses and detected_quirks:
+            try:
+                print(f"DEBUG: Generating showcase response for full prompt...")
+                showcase_data = generate_showcase_response(
+                    full_responses=full_responses,
+                    detected_quirks=detected_quirks,
+                    sections=request.sections
+                )
+                print(f"DEBUG: Showcase generated! Response length: {len(showcase_data.get('response_text', ''))} chars, Attributions: {len(showcase_data.get('attributions', []))}")
+            except Exception as e:
+                print(f"ERROR: Failed to generate showcase response: {e}")
+                import traceback
+                traceback.print_exc()
+                # Continue without showcase - it's a nice-to-have feature
+        else:
+            print(f"DEBUG: Skipping showcase - no responses or quirks")
+
+        # Generate showcases for leave-one-out responses
+        # This enables highlighting in "decreases" mode
+        print(f"DEBUG: Generating showcases for leave-one-out responses...")
+        for config_name, responses in all_responses.items():
+            if config_name == 'full' or not responses:
+                continue
+
+            try:
+                # Extract section index from config name (e.g., "without_0" -> 0)
+                removed_section_idx = int(config_name.split('_')[1])
+
+                # Filter quirks to only include those with NEGATIVE impact for this section
+                # (quirks that are suppressed by this section, so they appear more when it's removed)
+                relevant_quirks = [
+                    q for q in detected_quirks
+                    if q.get('attribution', {}).get('section_index') == removed_section_idx
+                    and q.get('attribution', {}).get('impact', 0) < 0
+                ]
+
+                print(f"DEBUG: Config {config_name} - removed section {removed_section_idx}, found {len(relevant_quirks)} relevant quirks with negative impact")
+
+                # Generate showcase for this leave-one-out response with filtered quirks
+                loo_showcase = generate_showcase_response(
+                    full_responses=responses,
+                    detected_quirks=relevant_quirks,  # Only quirks suppressed by removed section
+                    sections=request.sections
+                )
+                leave_one_out_showcases[config_name] = loo_showcase
+                print(f"DEBUG: Generated showcase for {config_name}: {len(loo_showcase.get('attributions', []))} attributions")
+            except Exception as e:
+                print(f"ERROR: Failed to generate showcase for {config_name}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Continue without this showcase
 
         # Save results
         save_paths = save_quirk_analysis_results(
@@ -214,6 +291,19 @@ async def analyze_quirks(request: AnalyzeQuirksRequest):
                 return [convert_numpy_types(item) for item in obj]
             return obj
 
+        # Generate network graph data
+        network_graph_data = generate_network_graph_data(
+            formatted_quirks=formatted_results['quirks'],
+            sections=request.sections
+        )
+
+        # Extract leave-one-out responses for before/after slider
+        all_responses = analysis_results.get('all_responses', {})
+        leave_one_out_responses = {}
+        for config_name, responses in all_responses.items():
+            if config_name != 'full':
+                leave_one_out_responses[config_name] = responses
+
         # Clean the results
         clean_results = convert_numpy_types({
             'quirks': formatted_results['quirks'],
@@ -226,6 +316,40 @@ async def analyze_quirks(request: AnalyzeQuirksRequest):
             'xml_only_sections': analysis_results.get('xml_only_sections', []),
         })
 
+        # Clean showcase data
+        clean_showcase_data = convert_numpy_types(showcase_data) if showcase_data else None
+
+        # Clean network graph data
+        clean_network_graph_data = convert_numpy_types(network_graph_data)
+
+        # Clean leave-one-out responses
+        clean_leave_one_out = convert_numpy_types(leave_one_out_responses)
+
+        # Clean leave-one-out showcases
+        clean_leave_one_out_showcases = convert_numpy_types(leave_one_out_showcases)
+
+        # Prepare showcase response if available
+        showcase_response = None
+        if clean_showcase_data:
+            showcase_response = ShowcaseResponse(
+                response_text=clean_showcase_data['response_text'],
+                attributions=clean_showcase_data['attributions']
+            )
+
+        # Prepare leave-one-out showcase responses
+        loo_showcase_responses = {}
+        for config_name, loo_data in clean_leave_one_out_showcases.items():
+            loo_showcase_responses[config_name] = ShowcaseResponse(
+                response_text=loo_data['response_text'],
+                attributions=loo_data['attributions']
+            )
+
+        # Prepare network graph
+        network_graph = NetworkGraphData(
+            nodes=clean_network_graph_data['nodes'],
+            edges=clean_network_graph_data['edges']
+        )
+
         return AnalyzeQuirksResponse(
             analysis_id=analysis_id,
             quirks=clean_results['quirks'],
@@ -236,7 +360,11 @@ async def analyze_quirks(request: AnalyzeQuirksRequest):
             dimensions=clean_results['dimensions'],
             failed_configs=clean_results['failed_configs'],
             xml_only_sections=clean_results['xml_only_sections'],
-            test_queries_used=test_queries
+            test_queries_used=test_queries,
+            showcase=showcase_response,
+            network_graph=network_graph,
+            leave_one_out_responses=clean_leave_one_out,
+            leave_one_out_showcases=loo_showcase_responses if loo_showcase_responses else None
         )
 
     except Exception as e:
