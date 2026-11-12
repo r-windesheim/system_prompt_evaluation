@@ -124,13 +124,17 @@ def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.
             out.append("context_shift")
         return out
 
-    # per-section notes: numeric limits that no answer ever approached
-    max_words = max((detectors.word_count(t) for t, _ in span_cache.values()), default=0)
+    # per-section notes: a word limit is only tested if answers WITHOUT it go over the limit
     notes: dict[int, list[str]] = {i: [] for i in k_range}
     for i, t in enumerate(spec.sections):
         m = _WORD_LIMIT.search(t)
-        if m and max_words < 0.8 * int(m.group(1)):
-            notes[i].append(f"never tested: the longest answer was {max_words} words, so the {m.group(1)}-word limit never came into play")
+        if not m:
+            continue
+        limit = int(m.group(1))
+        without = [detectors.word_count(tx) for (cfg, _, _), (tx, _) in span_cache.items() if cfg == f"without_{i}"]
+        if without and max(without) <= limit:
+            notes[i].append(f"never tested: even without this part, no answer went over {limit} words "
+                            f"(longest: {max(without)}), so the limit had nothing to hold back")
         if i in identity:
             notes[i].append("context shift: this part sets who the assistant is, so removing it changes what answers are about, not just their style")
 
@@ -146,7 +150,7 @@ def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.
 
     prec_model, prec = precision_for(model)
     labels = spec.section_labels or [f"Section {i + 1}" for i in k_range]
-    settings = {"detector_version": detectors.detector_version(), **spec.settings}
+    settings = {**spec.settings, "detector_version": detectors.detector_version()}
     return RunBundle(
         meta=Meta(id=spec.id, title=spec.title, created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                   model=model, provider=provider_name, temperature=spec.temperature,

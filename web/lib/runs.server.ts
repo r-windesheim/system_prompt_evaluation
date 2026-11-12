@@ -24,7 +24,7 @@ export function summarize(b: RunBundle): RunSummary {
     sections: b.sections.map(({ id, label }) => ({ id, label })),
     nResponses: b.responses.length,
     top: b.effects
-      .filter((e) => e.significant)
+      .filter((e) => e.significant && det.has(e.detector) && b.detectors.find((d) => d.id === e.detector)?.kind !== "metric")
       .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
       .slice(0, 6)
       .map((e) => ({

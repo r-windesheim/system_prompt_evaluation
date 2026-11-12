@@ -59,7 +59,10 @@ for d in DETECTORS:
         note = (note + "; " if note else "") + "too few labelled hits to report"
     rows.append(f"| {d.label} | {d.group} | {pr} | {note} |")
 
-(ROOT / "spet/precision.json").write_text(json.dumps(out, indent=1) + "\n")
+# precision.json is keyed by model; this script only refreshes the legacy gpt-4o-mini table
+_all = json.loads((ROOT / "spet/precision.json").read_text())
+_all["openai/gpt-4o-mini"] = out
+(ROOT / "spet/precision.json").write_text(json.dumps(_all, indent=1) + "\n")
 md = f"""# Detector precision audit
 
 **Data:** {len(labels)} detector hits, up to 30 per detector, sampled at random (seed 0) from 1,140
