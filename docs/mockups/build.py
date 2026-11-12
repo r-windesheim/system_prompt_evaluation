@@ -27,6 +27,8 @@ data = {
                   [r["text"], [[sp["start"], sp["end"], det_ids.index(sp["detector"])] for sp in r["spans"]]]
                   for r in b["responses"]},
 }
-html = (HERE / "template.html").read_text().replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")))
-(HERE / "index.html").write_text(html)
-print(f"wrote {HERE / 'index.html'} ({len(html) // 1024} KB)")
+blob = json.dumps(data, separators=(",", ":"))
+for src, out in (("template.html", "index.html"), ("drilldown.template.html", "drilldown.html")):
+    html = (HERE / src).read_text().replace("/*__DATA__*/null", blob)
+    (HERE / out).write_text(html)
+    print(f"wrote {HERE / out} ({len(html) // 1024} KB)")

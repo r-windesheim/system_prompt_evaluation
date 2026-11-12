@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPET results drill-down</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one narrow column, one level at a time. Overview → part → habit → details. */
+:root {
+  --paper: #f4f5f1; --sheet: #fbfbf9; --ink: #16191d; --graphite: #5e646c; --rule: #d9dcd3; --rule-strong: #b9bdb3;
+  --cobalt: #2a44e8; --cobalt-wash: #e4e8fd; --mark: #ffe58a; --mark-ink: #4a3b00; --up: #1f7a5c; --down: #2a44e8;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #2c3036; --rule-strong: #3d424a;
+  --cobalt: #8796ff; --cobalt-wash: #1f2550; --mark: #5c4a00; --mark-ink: #ffe9a3; --up: #5cc7a8; --down: #8796ff; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #2c3036; --rule-strong: #3d424a;
+  --cobalt: #8796ff; --cobalt-wash: #1f2550; --mark: #5c4a00; --mark-ink: #ffe9a3; --up: #5cc7a8; --down: #8796ff; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+main { max-width: 760px; margin: 0 auto; padding: 32px 20px 96px; }
+main.wide { max-width: 1120px; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+button:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 6px; }
+h1 { font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--graphite); margin: 0 0 28px; max-width: 62ch; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* path */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; color: var(--graphite); margin-bottom: 28px; min-height: 22px; }
+.crumbs button { color: var(--graphite); text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
+.crumbs button:hover { color: var(--ink); }
+.crumbs .here { color: var(--ink); }
+
+/* level 1: parts */
+.parts { display: grid; gap: 10px; }
+.part { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; width: 100%; padding: 16px 18px; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); }
+.part:hover { border-color: var(--rule-strong); }
+.part .name { font-weight: 600; }
+.part .text { grid-column: 1; font-family: var(--font-mono); font-size: 12.5px; color: var(--graphite); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.part .verdict { grid-column: 1; font-size: 15px; margin-top: 4px; }
+.part .go { grid-column: 2; grid-row: 1 / span 3; color: var(--graphite); font-size: 20px; }
+.part.quiet .verdict { color: var(--graphite); }
+.up { color: var(--up); } .down { color: var(--down); }
+
+/* level 2: one part */
+.quote { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.65; padding: 14px 16px; border-left: 3px solid var(--cobalt); background: var(--sheet); border-radius: 0 10px 10px 0; margin: 0 0 28px; }
+.lead { font-size: 15px; color: var(--graphite); margin: 0 0 10px; }
+.changes { display: grid; gap: 8px; }
+.change { display: grid; grid-template-columns: 1fr 190px 20px; gap: 16px; align-items: center; width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); }
+.change:hover { border-color: var(--rule-strong); }
+.change .what { font-size: 16px; }
+.change .what small { display: block; font-size: 13px; color: var(--graphite); }
+.pair { display: grid; gap: 4px; font-size: 12px; color: var(--graphite); }
+.pair .row { display: grid; grid-template-columns: 52px 1fr 30px; gap: 8px; align-items: center; }
+.pair .bar { height: 8px; border-radius: 4px; background: var(--rule); position: relative; overflow: hidden; }
+.pair .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.pair .with .bar i { background: var(--ink); }
+.pair .without .bar i { background: var(--cobalt); }
+.none-note { margin-top: 18px; font-size: 14px; color: var(--graphite); }
+.none-note button { text-decoration: underline; text-underline-offset: 3px; }
+.unchanged { margin-top: 10px; font-size: 14px; color: var(--graphite); display: none; }
+.unchanged.on { display: block; }
+@media (max-width: 600px) { .change { grid-template-columns: 1fr 20px; } .change .pair { grid-column: 1; } }
+
+/* level 3: answers */
+.claim { font-size: 17px; margin: 0 0 18px; max-width: 70ch; }
+.qrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; }
+.chip { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--graphite); background: var(--sheet); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.step { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--graphite); }
+.step button { padding: 3px 9px; border-radius: 6px; }
+.step button:hover { background: var(--sheet); color: var(--ink); }
+.step button:disabled { opacity: .3; cursor: default; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); overflow: hidden; }
+.col { padding: 16px 18px 20px; min-width: 0; }
+.col + .col { border-left: 1px solid var(--rule); }
+.col-h { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--graphite); margin-bottom: 10px; }
+.col.without .col-h .lab { color: var(--cobalt); }
+.k { display: inline-block; min-width: 1.6em; text-align: center; padding: 0 6px; border-radius: 5px; background: var(--mark); color: var(--mark-ink); font-weight: 600; }
+.user { font-size: 13.5px; color: var(--graphite); margin: 0 0 8px; }
+.user b { color: var(--ink); font-weight: 500; }
+@media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .col + .col { border-left: 0; border-top: 1px solid var(--rule); } }
+.md { font-size: 14.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.md p { margin: 0 0 8px; } .md ul, .md ol { margin: 0 0 8px; padding-left: 20px; } .md li { margin: 2px 0; }
+.md h4 { font-size: 14.5px; margin: 12px 0 4px; }
+.md code { font-family: var(--font-mono); font-size: 12.5px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 3px; }
+.md pre { font: 12.5px/1.5 var(--font-mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
+.md table { border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; margin: 0 0 8px; }
+.md td, .md th { border: 1px solid var(--rule); padding: 3px 6px; }
+mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 1px; }
+.more { margin-top: 22px; }
+.more > button { font-size: 14px; color: var(--graphite); text-decoration: underline; text-underline-offset: 3px; }
+
+/* level 4: details */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 10px 22px; font-size: 15px; margin: 4px 0 22px; }
+.facts dt { color: var(--graphite); } .facts dd { margin: 0; }
+.expl { font-size: 15px; color: var(--graphite); max-width: 64ch; }
+.expl p { margin: 0 0 10px; }
+
+/* level transitions */
+#stage { position: relative; }
+@media (prefers-reduced-motion: no-preference) {
+  .enter-fwd { animation: fwd .32s cubic-bezier(.16,1,.3,1); }
+  .enter-back { animation: back .32s cubic-bezier(.16,1,.3,1); }
+  @keyframes fwd { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes back { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+<main id="main">
+  <nav class="crumbs" id="crumbs" aria-label="Where you are"></nav>
+  <div id="stage" aria-live="polite"></div>
+</main>
+<script>
+const D = /*__DATA__*/null;
+
+const NOUN = { apology: "apologies", flattery: "compliments", hedge: "hedges", booster: "certainty words", list_item: "bullet points",
+  heading: "headings", bold: "bold phrases", parenthetical: "asides in brackets", question: "questions back", clarify: "requests for more context",
+  offer: "offers of more help", caveat: "caveats", disclaimer: "disclaimers", meta: "meta comments", self_ai: "“as an AI” mentions",
+  exclamation: "exclamation marks", emoji: "emoji" };
+// what the PART does to the model (used when the part increases / decreases the habit)
+const MORE = { apology: "apologise more", flattery: "compliment the user more", hedge: "hedge more", booster: "sound more certain",
+  list_item: "use more bullet points", heading: "use more headings", bold: "use more bold text", parenthetical: "add more asides in brackets",
+  question: "ask more questions back", clarify: "ask for more context", offer: "offer more help", caveat: "add more caveats",
+  disclaimer: "add more disclaimers", meta: "talk more about its own answer", self_ai: "mention being an AI more", exclamation: "use more exclamation marks", emoji: "use more emoji" };
+const LESS = { apology: "apologise less", flattery: "compliment the user less", hedge: "hedge less", booster: "sound less certain",
+  list_item: "use fewer bullet points", heading: "use fewer headings", bold: "use less bold text", parenthetical: "add fewer asides in brackets",
+  question: "ask fewer questions back", clarify: "ask for context less often", offer: "offer more help less often", caveat: "add fewer caveats",
+  disclaimer: "add fewer disclaimers", meta: "talk less about its own answer", self_ai: "mention being an AI less", exclamation: "use fewer exclamation marks", emoji: "use fewer emoji" };
+
+const SEC = D.sections, Q = D.queries, N = D.n;
+const DIDX = Object.fromEntries(D.detectors.map((d, i) => [d.id, i]));
+const EFF = Object.fromEntries(D.effects.map((e) => [e.detector + "|" + e.section, e]));
+const eff = (d, k) => EFF[d + "|" + k];
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f1 = (x) => (Math.abs(x) < 0.05 ? "0" : x.toFixed(1));
+const real = (e) => e.significant;                       // shown as a finding
+const HABITS = D.detectors.map((d) => d.id).filter((d) => SEC.some((s) => Math.max(eff(d, s.id).full_mean, eff(d, s.id).ablated_mean) >= 0.1));
+const findingsFor = (k) => HABITS.map((d) => eff(d, k)).filter(real).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+const phrase = (e) => (e.delta > 0 ? MORE : LESS)[e.detector];
+
+// ---------- markdown with one habit highlighted ----------
+const MS = "", ME = "";
+const inline = (t) => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+function render(text, spans, di) {
+  const pts = [];
+  for (const [s, e, d] of spans) if (d === di) pts.push([s, MS], [e, ME]);
+  pts.sort((a, b) => b[0] - a[0] || (a[1] === MS ? -1 : 1));
+  let t = text; for (const [i, m] of pts) t = t.slice(0, i) + m + t.slice(i);
+  let html = "", list = null, code = null, table = [], open = false;
+  const endList = () => { if (list) { html += `</${list}>`; list = null; } };
+  const endTable = () => { if (!table.length) return;
+    const rows = table.filter((r) => !/^\s*\|?\s*:?-{2,}/.test(r.replace(/[]/g, "")));
+    html += "<table>" + rows.map((r, i) => "<tr>" + r.replace(/^\s*\||\|\s*$/g, "").split("|").map((c) => `<${i ? "td" : "th"}>${inline(c.trim())}</${i ? "td" : "th"}>`).join("") + "</tr>").join("") + "</table>"; table = []; };
+  for (const raw of t.split("\n")) {
+    const o = (raw.match(//g) || []).length, c = (raw.match(//g) || []).length;
+    const now = open ? o >= c : o > c;
+    const line = (open ? MS : "") + raw + (now ? ME : ""); open = now;
+    const bare = line.replace(/[]/g, "");
+    if (/^\s*```/.test(bare)) { if (code) { html += `<pre>${esc(code.join("\n"))}</pre>`; code = null; } else { endList(); endTable(); code = []; } continue; }
+    if (code) { code.push(bare); continue; }
+    if (/^\s*\|/.test(bare)) { endList(); table.push(line); continue; } else endTable();
+    const lead = (line.match(/^[]*/) || [""])[0], rest = line.slice(lead.length);
+    let m;
+    if ((m = rest.match(/^\s*#{1,6}\s+(.*)$/))) { endList(); html += `<h4>${inline(lead + m[1])}</h4>`; continue; }
+    if ((m = rest.match(/^\s*([-*•]|\d{1,2}[.)])\s+(.*)$/))) { const k = /\d/.test(m[1]) ? "ol" : "ul"; if (list !== k) { endList(); html += `<${k}>`; list = k; } html += `<li>${inline(lead + m[2])}</li>`; continue; }
+    if (!bare.trim() || /^\s*(-{3,}|\*{3,})\s*$/.test(bare)) { endList(); continue; }
+    endList(); html += `<p>${inline(line)}</p>`;
+  }
+  endList(); endTable(); if (code) html += `<pre>${esc(code.join("\n"))}</pre>`;
+  return html.replaceAll(MS, "<mark>").replaceAll(ME, "</mark>");
+}
+const resp = (cfg, q, s) => D.responses[`${cfg}|${q}|${s}`];
+const count = (r, di) => (r ? r[1].filter((x) => x[2] === di).length : 0);
+
+// ---------- routing: #overview, #part-3, #part-3-list-item, #part-3-list-item-details ----------
+const slug = (d) => d.replace(/_/g, "-"), unslug = (s) => s.replace(/-/g, "_");
+function parse() {
+  const m = location.hash.match(/^#part-(\d+)(?:-([a-z-]+?))?(-details)?$/);
+  if (!m) return { level: 0 };
+  const k = +m[1]; if (!SEC[k]) return { level: 0 };
+  if (!m[2]) return { level: 1, k };
+  const d = unslug(m[2]); if (!(d in DIDX)) return { level: 1, k };
+  return { level: m[3] ? 3 : 2, k, d };
+}
+const go = (h) => { location.hash = h; };
+let lastLevel = 0, view = { q: 0, s: 0 };
+
+function crumbs(st) {
+  const parts = [["Overview", "#overview"]];
+  if (st.level >= 1) parts.push([SEC[st.k].label, `#part-${st.k}`]);
+  if (st.level >= 2) parts.push([NOUN[st.d][0].toUpperCase() + NOUN[st.d].slice(1), `#part-${st.k}-${slug(st.d)}`]);
+  if (st.level >= 3) parts.push(["Details", ""]);
+  document.getElementById("crumbs").innerHTML = parts.map(([t, h], i) => i === parts.length - 1
+    ? `<span class="here" aria-current="page">${esc(t)}</span>` : `<button data-h="${h}">${esc(t)}</button><span aria-hidden="true">›</span>`).join("");
+  document.querySelectorAll("#crumbs [data-h]").forEach((b) => (b.onclick = () => go(b.dataset.h)));
+}
+
+// level 0
+function overview() {
+  return `<h1>What each part of your prompt does</h1>
+    <p class="sub">We took out one part at a time and asked the same ${Q.length} questions ${N} times each. Here is what changed. Pick a part to see more.</p>
+    <div class="parts">${SEC.map((s) => {
+      const f = findingsFor(s.id);
+      const verdict = f.length ? `Makes the model ${f.slice(0, 2).map((e) => `<span class="${e.delta > 0 ? "up" : "down"}">${phrase(e)}</span>`).join(" and ")}${f.length > 2 ? `, +${f.length - 2} more` : ""}`
+        : "No clear effect";
+      return `<button class="part ${f.length ? "" : "quiet"}" data-h="#part-${s.id}"><span class="name">${esc(s.label)}</span><span class="text">${esc(s.text)}</span><span class="verdict">${verdict}</span><span class="go" aria-hidden="true">›</span></button>`;
+    }).join("")}</div>
+    <p class="none-note">Run: ${esc(D.title)} on ${esc(D.model)}.</p>`;
+}
+
+// level 1
+function part(k) {
+  const f = findingsFor(k);
+  const unchanged = HABITS.filter((d) => !real(eff(d, k)));
+  const max = Math.max(0.5, ...f.map((e) => Math.max(e.full_mean, e.ablated_mean)));
+  return `<h1>${esc(SEC[k].label)}</h1>
+    <div class="quote">${esc(SEC[k].text)}</div>
+    ${f.length ? `<p class="lead">Because of this part, the model will:</p>
+    <div class="changes">${f.map((e) => `<button class="change" data-h="#part-${k}-${slug(e.detector)}">
+        <span class="what">${phrase(e)}<small class="num">${f1(e.full_mean)} ${NOUN[e.detector]} per answer with it, ${f1(e.ablated_mean)} without</small></span>
+        <span class="pair" aria-hidden="true">
+          <span class="row with"><span>with</span><span class="bar"><i style="width:${(e.full_mean / max) * 100}%"></i></span><span class="num">${f1(e.full_mean)}</span></span>
+          <span class="row without"><span>without</span><span class="bar"><i style="width:${(e.ablated_mean / max) * 100}%"></i></span><span class="num">${f1(e.ablated_mean)}</span></span>
+        </span><span aria-hidden="true">›</span></button>`).join("")}</div>`
+    : `<p class="lead">Taking this part out didn't change any habit we measure. Its job may be something we don't track, like what the model knows or which topics it covers.</p>`}
+    ${unchanged.length ? `<p class="none-note">${unchanged.length} other habits stayed the same. <button id="show-unchanged">Show them</button></p>
+    <p class="unchanged" id="unchanged">${unchanged.map((d) => NOUN[d]).join(", ")}.</p>` : ""}`;
+}
+
+// level 2
+function answers(k, d) {
+  const e = eff(d, k), di = DIDX[d];
+  const A = resp("full", view.q, view.s), B = resp("without_" + k, view.q, view.s);
+  return `<h1>${esc(SEC[k].label)}: ${NOUN[d]}</h1>
+    <p class="claim">With this part the model averages <b class="num">${f1(e.full_mean)}</b> ${NOUN[d]} per answer. Without it: <b class="num">${f1(e.ablated_mean)}</b>. Here are the same questions answered both ways. The ${NOUN[d]} are highlighted.</p>
+    <div class="qrow">${Q.map((t, i) => `<button class="chip" data-q="${i}" aria-pressed="${i === view.q}">${esc(t.length > 40 ? t.slice(0, 38) + "…" : t)}</button>`).join("")}
+      <span class="step"><button data-s="-1" ${view.s === 0 ? "disabled" : ""} aria-label="Previous answer">‹</button><span class="num">answer ${view.s + 1} of ${N}</span><button data-s="1" ${view.s >= N - 1 ? "disabled" : ""} aria-label="Next answer">›</button></span></div>
+    <div class="cols">
+      <div class="col"><div class="col-h"><span class="lab">With “${esc(SEC[k].label)}”</span><span class="num"><span class="k">${count(A, di)}</span> ${NOUN[d]}</span></div>
+        <p class="user">User: <b>${esc(Q[view.q])}</b></p><div class="md">${A ? render(A[0], A[1], di) : ""}</div></div>
+      <div class="col without"><div class="col-h"><span class="lab">Without it</span><span class="num"><span class="k">${count(B, di)}</span> ${NOUN[d]}</span></div>
+        <p class="user">User: <b>${esc(Q[view.q])}</b></p><div class="md">${B ? render(B[0], B[1], di) : ""}</div></div>
+    </div>
+    <div class="more"><button data-h="#part-${k}-${slug(d)}-details">How sure are we? See the details</button></div>`;
+}
+
+// level 3
+function details(k, d) {
+  const e = eff(d, k);
+  return `<h1>How sure are we?</h1>
+    <p class="sub">${esc(SEC[k].label)} → ${NOUN[d]}</p>
+    <dl class="facts num">
+      <dt>With this part</dt><dd>${e.full_mean.toFixed(2)} ${NOUN[d]} per answer</dd>
+      <dt>Without it</dt><dd>${e.ablated_mean.toFixed(2)} per answer</dd>
+      <dt>Difference</dt><dd>${e.delta > 0 ? "+" : ""}${e.delta.toFixed(2)} per answer</dd>
+      <dt>Likely range</dt><dd>${e.ci[0].toFixed(2)} to ${e.ci[1].toFixed(2)} (95% interval)</dd>
+      <dt>Compared</dt><dd>${e.n_pairs} pairs of answers (same question, same seed)</dd>
+      <dt>Chance of a fluke</dt><dd>${e.q < 0.001 ? "below 0.1%" : (e.q * 100).toFixed(1) + "%"} (q-value, corrected for testing ${D.effects.length} combinations)</dd>
+    </dl>
+    <div class="expl">
+      <p><b>Likely range:</b> if we repeated the run, the difference would usually land in this range. If it doesn't cross zero, the direction is solid.</p>
+      <p><b>Chance of a fluke:</b> we tested every part against every habit, so some differences appear by luck. This number already accounts for that. We call an effect real when it's under 5%.</p>
+      <p><b>What a highlight means:</b> a highlighted phrase matched the ${NOUN[d]} detector. On its own, it doesn't prove this part caused that phrase. The comparison across all ${e.n_pairs} pairs is what shows the cause.</p>
+    </div>`;
+}
+
+function bestAnswer(k, d) {
+  const di = DIDX[d]; let best = [0, 0, -1];
+  for (let q = 0; q < Q.length; q++) for (let s = 0; s < N; s++) {
+    const g = Math.abs(count(resp("full", q, s), di) - count(resp("without_" + k, q, s), di));
+    if (g > best[2]) best = [q, s, g];
+  }
+  return { q: best[0], s: best[1] };
+}
+
+let lastKey = "";
+function draw() {
+  const st = parse();
+  const key = `${st.level}|${st.k}|${st.d}`;
+  const changed = key !== lastKey;
+  if (st.level === 2 && !lastKey.startsWith(`2|${st.k}|${st.d}`) && !lastKey.startsWith(`3|${st.k}|${st.d}`)) view = bestAnswer(st.k, st.d);
+  document.getElementById("main").classList.toggle("wide", st.level === 2);
+  crumbs(st);
+  const stage = document.getElementById("stage");
+  stage.innerHTML = st.level === 0 ? overview() : st.level === 1 ? part(st.k) : st.level === 2 ? answers(st.k, st.d) : details(st.k, st.d);
+  if (changed) { stage.className = st.level >= lastLevel ? "enter-fwd" : "enter-back"; void stage.offsetWidth; }
+  lastLevel = st.level; lastKey = key;
+  stage.querySelectorAll("[data-h]").forEach((b) => (b.onclick = () => go(b.dataset.h)));
+  stage.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { view = { q: +b.dataset.q, s: 0 }; draw(); }));
+  stage.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { view.s = Math.max(0, Math.min(N - 1, view.s + +b.dataset.s)); draw(); }));
+  const su = document.getElementById("show-unchanged");
+  if (su) su.onclick = () => { document.getElementById("unchanged").classList.toggle("on"); };
+  if (changed) scrollTo({ top: 0 });
+}
+addEventListener("hashchange", draw);
+draw();
+</script>
+</body>
+</html>
