@@ -238,3 +238,6 @@ Thumbs.db
 
 # SPET provider response cache
 .spet_cache/
+
+# web viewer source (overrides the Python lib/ rule above)
+!web/lib/
