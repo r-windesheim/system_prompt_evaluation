@@ -1,0 +1,393 @@
+{
+  "$defs": {
+    "Config": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "removed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Removed"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Config",
+      "type": "object"
+    },
+    "Detector": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "unit": {
+          "const": "per 100 words",
+          "default": "per 100 words",
+          "title": "Unit",
+          "type": "string"
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precision"
+        },
+        "precision_n": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precision N"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "group"
+      ],
+      "title": "Detector",
+      "type": "object"
+    },
+    "Effect": {
+      "additionalProperties": false,
+      "properties": {
+        "detector": {
+          "title": "Detector",
+          "type": "string"
+        },
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "full_mean": {
+          "title": "Full Mean",
+          "type": "number"
+        },
+        "ablated_mean": {
+          "title": "Ablated Mean",
+          "type": "number"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        },
+        "ci": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Ci",
+          "type": "array"
+        },
+        "p": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P",
+          "type": "number"
+        },
+        "q": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Q",
+          "type": "number"
+        },
+        "significant": {
+          "title": "Significant",
+          "type": "boolean"
+        },
+        "n_pairs": {
+          "title": "N Pairs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "detector",
+        "section",
+        "full_mean",
+        "ablated_mean",
+        "delta",
+        "ci",
+        "p",
+        "q",
+        "significant",
+        "n_pairs"
+      ],
+      "title": "Effect",
+      "type": "object"
+    },
+    "Meta": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "temperature": {
+          "title": "Temperature",
+          "type": "number"
+        },
+        "n_per_query": {
+          "minimum": 1,
+          "title": "N Per Query",
+          "type": "integer"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "queries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Queries",
+          "type": "array"
+        },
+        "fixture": {
+          "default": false,
+          "title": "Fixture",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "created_at",
+        "model",
+        "provider",
+        "temperature",
+        "n_per_query",
+        "seed",
+        "queries"
+      ],
+      "title": "Meta",
+      "type": "object"
+    },
+    "Response": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "title": "Config",
+          "type": "string"
+        },
+        "query_idx": {
+          "minimum": 0,
+          "title": "Query Idx",
+          "type": "integer"
+        },
+        "sample_idx": {
+          "minimum": 0,
+          "title": "Sample Idx",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "spans": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Span"
+          },
+          "title": "Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "config",
+        "query_idx",
+        "sample_idx",
+        "text"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "Section": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "text"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "Span": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        },
+        "detector": {
+          "title": "Detector",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "detector"
+      ],
+      "title": "Span",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "configs": {
+      "items": {
+        "$ref": "#/$defs/Config"
+      },
+      "title": "Configs",
+      "type": "array"
+    },
+    "responses": {
+      "items": {
+        "$ref": "#/$defs/Response"
+      },
+      "title": "Responses",
+      "type": "array"
+    },
+    "detectors": {
+      "items": {
+        "$ref": "#/$defs/Detector"
+      },
+      "title": "Detectors",
+      "type": "array"
+    },
+    "effects": {
+      "items": {
+        "$ref": "#/$defs/Effect"
+      },
+      "title": "Effects",
+      "type": "array"
+    },
+    "shapley": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shapley"
+    }
+  },
+  "required": [
+    "meta",
+    "sections",
+    "configs",
+    "responses",
+    "detectors",
+    "effects"
+  ],
+  "title": "RunBundle",
+  "type": "object"
+}
