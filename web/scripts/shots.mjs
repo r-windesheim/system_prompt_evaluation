@@ -19,15 +19,14 @@ async function shoot(name, url, { width = 1440, height = 1000, scheme = "light",
   await page.close();
 }
 
-const removeSection = (label) => async (p) => {
-  await p.getByRole("button", { name: `Remove section: ${label}` }).click();
-};
-
+const R = "/run/?id=lumen-original-probes";
 await shoot("home", "/");
-await shoot("home-removed", "/", { act: removeSection("Apology policy"), full: false });
-await shoot("run", "/runs/stub-demo/");
-await shoot("run-dark-removed", "/runs/stub-demo/", { scheme: "dark", act: removeSection("Formatting"), full: false });
+await shoot("overview", R);
+await shoot("part", R + "#part-3");
+await shoot("habit", R + "#part-3-list-item", { full: false });
+await shoot("details", R + "#part-3-list-item-details");
+await shoot("habit-dark", R + "#part-1-sympathy", { scheme: "dark", full: false });
 await shoot("method", "/method/");
-await shoot("mobile", "/", { width: 390, height: 844 });
+await shoot("mobile-part", R + "#part-3", { width: 390, height: 844 });
 await browser.close();
 console.log(errors.length ? "ERRORS:\n" + errors.join("\n") : "no console errors");

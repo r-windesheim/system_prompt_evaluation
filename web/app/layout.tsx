@@ -22,12 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-dvh">
         <Providers>
-          <header className="mx-auto flex max-w-[1240px] items-baseline justify-between px-6 pt-6 pb-4">
+          <header className="mx-auto flex max-w-[1240px] items-baseline justify-between gap-6 px-6 pt-6 pb-4">
             <Link href="/" className="text-[15px] font-semibold tracking-tight">
               spet
             </Link>
-            <nav className="flex gap-6 text-[14px] text-graphite">
-              <Link href="/analyze/" className={hasApi ? "font-medium text-ink" : "hover:text-ink"}>Analyse a prompt</Link>
+            <nav className="flex flex-wrap justify-end gap-x-5 gap-y-1 text-[14px] text-graphite">
+              <Link href="/analyze/" className={`whitespace-nowrap ${hasApi ? "font-medium text-ink" : "hover:text-ink"}`}>Analyse a prompt</Link>
               <Link href="/" className="hover:text-ink">Runs</Link>
               <Link href="/method/" className="hover:text-ink">Method</Link>
               <a href={REPO_URL} className="hover:text-ink">Source</a>

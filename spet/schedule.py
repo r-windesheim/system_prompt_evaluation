@@ -2,8 +2,10 @@
 
 Every configuration (``full`` and each ``without_k``) gets the *same* grid of
 (query_idx, sample_idx) cells, and each cell has one sampling seed shared by
-all configurations. This makes comparisons paired and, on providers that honour
-``seed`` (vLLM does), gives common random numbers across configurations.
+all configurations. The shared seed makes runs reproducible. It does NOT make
+paired answers near-twins: once the prompt differs, sampling diverges (on
+gpt-oss, same-seed pairs are barely more alike than different-seed pairs;
+methodology review, problem 4). Pairing by cell is still valid for the test.
 
 The seed travels as a request parameter and part of the cache key. It is
 never written into the prompt. The legacy tool appended ``[sample_i_t0.5]`` to

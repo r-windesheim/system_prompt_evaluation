@@ -2,7 +2,13 @@
 
 SPET takes one section out of a system prompt at a time and replays the same conversations with the same sampling seeds. Then it measures which stylistic habits change: apologising, hedging, bullet lists, questions back to the user. Every effect is reported with a 95% confidence interval and a false-discovery-rate correction.
 
-![The ablation bench: a section is removed, the paired response is shown as a word diff, and the effect moves](docs/screenshots/after-run-dark-removed.png)
+![What one part of the prompt does: the changes it causes, with and without it, per answer](docs/screenshots/part.png)
+
+Results are a drill-down. Each level answers one question:
+1. **Overview:** what each part of the prompt does.
+2. **One part:** what changes without it, plus cautions about length or formatting.
+3. **One habit:** the same question answered with and without the part, with the habit highlighted.
+4. **How sure:** plausible ranges, per-question consistency, the smallest change the run could have seen, and limits.
 
 ## How it works
 

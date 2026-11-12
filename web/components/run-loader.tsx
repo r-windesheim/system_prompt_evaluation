@@ -4,18 +4,16 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { bundleUrl } from "@/lib/api";
 import type { RunBundle } from "@/lib/types";
-import { RunView } from "./run-view";
+import { DrillDown } from "./drilldown/drilldown";
 
 /** Fetches the run bundle after first paint, so pages stay small (bundles are ~300 KB of JSON). */
 export function RunLoader({
   id,
   sectionLabels = [],
-  withMatrix = true,
   onLoad,
 }: {
   id: string;
   sectionLabels?: string[];
-  withMatrix?: boolean;
   onLoad?: (b: RunBundle) => void;
 }) {
   const [bundle, setBundle] = useState<RunBundle | null>(null);
@@ -46,21 +44,16 @@ export function RunLoader({
 
   if (!bundle)
     return (
-      <div aria-busy="true" aria-label="Loading run" className="grid min-h-[620px] gap-10 lg:grid-cols-[minmax(250px,300px)_minmax(0,1fr)_minmax(270px,320px)]">
-        <ol className="mt-[74px]">
-          {sectionLabels.map((l) => (
-            <li key={l} className="border-t border-rule py-3 pl-4 text-[14px] text-graphite/60 last:border-b">
-              {l}
-            </li>
-          ))}
-        </ol>
-        <div className="mt-[74px] h-72 rounded-lg border border-rule bg-sheet" />
+      <div aria-busy="true" aria-label="Loading run" className="grid min-h-[620px] max-w-[760px] gap-2.5">
+        {sectionLabels.map((l) => (
+          <div key={l} className="h-[104px] rounded-xl border border-rule bg-sheet px-5 py-4 font-semibold text-graphite/50">{l}</div>
+        ))}
       </div>
     );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-      <RunView bundle={bundle} withMatrix={withMatrix} />
+      <DrillDown bundle={bundle} />
     </motion.div>
   );
 }

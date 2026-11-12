@@ -26,10 +26,11 @@ export default function Method() {
 
       <H>2. Replay the same conversations</H>
       <P>
-        Every configuration answers the same user messages, with the same number of samples and the same sampling seed
-        per sample. So the response to message 2, sample 5 with the full prompt is paired with message 2, sample 5
-        without section 3. The seed goes in the request, never in the prompt text. An earlier version appended a
-        cache-busting tag to the user message, and the model dutifully answered the tag.
+        Every configuration answers the same user messages the same number of times, so answers can be compared in
+        pairs: message 2, sample 5 with the full prompt against message 2, sample 5 without section 3. Each pair shares
+        a sampling seed for reproducibility. That doesn&apos;t make the two answers twins, because once the prompts
+        differ the sampling diverges. The seed goes in the request, never in the prompt text. An earlier version
+        appended a cache-busting tag to the user message, and the model dutifully answered the tag.
       </P>
 
       <H>3. Count, don&apos;t normalise</H>

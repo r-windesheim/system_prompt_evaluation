@@ -12,9 +12,10 @@ export type Meta = {
   queries: string[];
   fixture: boolean;
   notes: string;
+  settings?: Record<string, string | number | null>;
 };
 
-export type Section = { id: number; label: string; text: string };
+export type Section = { id: number; label: string; text: string; notes?: string[] };
 export type Config = { id: string; removed: number | null };
 export type Span = { start: number; end: number; detector: string };
 
@@ -24,6 +25,7 @@ export type Response = {
   sample_idx: number;
   text: string;
   spans: Span[];
+  finish_reason?: string | null;
 };
 
 export type Detector = {
@@ -31,10 +33,14 @@ export type Detector = {
   label: string;
   group: string;
   description: string;
-  unit: "per response";
+  kind?: "habit" | "metric";
+  unit: string;
   precision: number | null;
   precision_n: number | null;
+  precision_model?: string | null;
 };
+
+export type Flag = "in_lists" | "length_shift" | "context_shift" | "not_testable";
 
 export type Effect = {
   detector: string;
@@ -47,16 +53,24 @@ export type Effect = {
   q: number;
   significant: boolean;
   n_pairs: number;
+  tested?: boolean;
+  ci_query?: [number, number] | null;
+  per_query?: number[];
+  mde?: number | null;
+  flags?: Flag[];
 };
 
+export type Analysis = { n_tests: number; alpha: number; mde_alpha: number; warnings: string[] };
+
 export type RunBundle = {
-  schema_version: 1;
+  schema_version: 1 | 2;
   meta: Meta;
   sections: Section[];
   configs: Config[];
   responses: Response[];
   detectors: Detector[];
   effects: Effect[];
+  analysis?: Analysis | null;
   shapley?: Record<string, Record<string, number>> | null;
 };
 
