@@ -121,7 +121,7 @@ def create_app(runs_dir: Path) -> FastAPI:
                        n_per_query=body.n_per_query, temperature=body.temperature, seed=body.seed)
 
         async def work():
-            prov = OpenAICompatible(base, model, extra=_extra())
+            prov = OpenAICompatible(base, model, extra=_extra(), max_tokens=int(os.environ.get("SPET_MAX_TOKENS", "4000")))
             try:
                 def on_done(j: schedule.Job, _text: str):
                     job["done"] += 1
