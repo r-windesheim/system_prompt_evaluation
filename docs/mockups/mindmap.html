@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everything a SPET run tells you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: title + legend, then one wide mind map (root centre, branches left and right), scrollable on small screens. */
+:root {
+  --paper: #f4f5f1; --sheet: #fbfbf9; --ink: #16191d; --graphite: #5e646c; --rule: #cfd3c9;
+  --l1: #1f7a5c; --l2: #2a44e8; --l3: #a8590f; --l4: #8a3fb8; --hidden: #9aa0a8;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #3a3f46;
+  --l1: #5cc7a8; --l2: #8796ff; --l3: #e8a55a; --l4: #c99bf0; --hidden: #6b7179; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #3a3f46;
+  --l1: #5cc7a8; --l2: #8796ff; --l3: #e8a55a; --l4: #c99bf0; --hidden: #6b7179; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; }
+main { max-width: 1700px; margin: 0 auto; padding: 32px 20px 64px; }
+h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--graphite); max-width: 70ch; margin: 0 0 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13.5px; margin-bottom: 18px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 22px; height: 16px; border-radius: 4px; display: inline-grid; place-items: center; font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--paper); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; font-size: 13px; }
+.filters button { font: inherit; border: 1px solid var(--rule); background: var(--sheet); color: var(--graphite); border-radius: 999px; padding: 3px 11px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.filters button:focus-visible { outline: 2px solid var(--l2); outline-offset: 2px; }
+.canvas { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--sheet); }
+svg { display: block; min-width: 1500px; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+.dim { opacity: .14; }
+figcaption { font-size: 13.5px; color: var(--graphite); margin-top: 10px; max-width: 80ch; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Everything a SPET run tells you</h1>
+  <p class="sub">Every piece of information the tool has about a run, grouped by topic. The tag on each item shows which level of the drill-down it appears on, so gaps and overlaps are easy to spot.</p>
+  <div class="legend" id="legend"></div>
+  <div class="filters" id="filters" role="group" aria-label="Highlight one level"></div>
+  <figure style="margin:0">
+    <div class="canvas"><svg id="map" role="img" aria-label="Mind map of all information a SPET run provides, grouped into setup, answers, habits, results, summaries, method and unused data, each item tagged with the drill-down level that shows it."></svg></div>
+    <figcaption>Items tagged “not shown” exist in the run data but no screen uses them yet. Use the filters to highlight one level and see what that screen is responsible for.</figcaption>
+  </figure>
+</main>
+<script>
+// level tags: 1 overview, 2 one part, 3 answers side by side, 4 details, 0 not shown
+const LV = {
+  1: { name: "Overview", var: "--l1" }, 2: { name: "One part", var: "--l2" }, 3: { name: "Answers", var: "--l3" },
+  4: { name: "Details", var: "--l4" }, 0: { name: "not shown", var: "--hidden" },
+};
+const TREE = [
+  { t: "What was tested", side: "L", kids: [
+    ["System prompt, full text", 0], ["Its parts: name + text", [1, 2]], ["How it was split (model or paragraphs)", 0],
+    ["The questions asked", 3], ["Question set: original probes or concrete tasks", 0],
+    ["Model (gpt-oss-20b), temperature, reasoning effort", 1], ["Run name and date", 1], ["Real or synthetic run", 0] ] },
+  { t: "Size of the run", side: "L", kids: [
+    ["Answers per question (8)", 1], ["Total answers (320)", 0], ["Pairs per comparison (40)", 4], ["Model calls / cost", 0] ] },
+  { t: "The raw answers", side: "L", kids: [
+    ["Every answer, every configuration", 3], ["Same question + same seed pairing", [3, 4]], ["Answer rendered as text", 3],
+    ["Habit matches highlighted", 3], ["Habit count per answer", 3], ["Browse by question and sample", 3] ] },
+  { t: "Habits we measure", side: "R", kids: [
+    ["17 habits in 6 groups", 0], ["Deference: apologies, compliments", 2], ["Certainty: hedges, certainty words", 2],
+    ["Structure: bullets, headings, bold, asides", 2], ["Interaction: questions, context requests, offers", 2],
+    ["Framing: caveats, disclaimers, meta, “as an AI”", 2], ["Tone: exclamation marks, emoji", 2],
+    ["What each habit means (definition)", 0], ["How reliable each detector is (precision)", 0] ] },
+  { t: "Result per part × habit", side: "R", kids: [
+    ["With the part: per answer", [2, 3, 4]], ["Without it: per answer", [2, 3, 4]], ["Difference", 4],
+    ["Direction: adds or reduces", [1, 2]], ["Likely range (95% interval)", 4], ["Chance of a fluke (q)", 4], ["Raw p-value", 0],
+    ["Verdict: clear / likely / none", [1, 2]] ] },
+  { t: "Summaries", side: "R", kids: [
+    ["What each part does (one line)", 1], ["Parts with no clear effect", 1], ["Habits a part didn't change", 2],
+    ["Which part drives a habit", 0], ["How often each habit appears overall", 0], ["Strongest findings ranked", 0] ] },
+  { t: "Method and caveats", side: "R", kids: [
+    ["Remove one part, replay the same questions", 1], ["Counting matches, not rates", 0], ["Correction for testing everything", 4],
+    ["Highlights are matches, not causes", 4], ["Interactions between parts are missed", 0], ["Only these questions on this model", 0] ] },
+];
+
+const CSS = getComputedStyle(document.documentElement);
+const col = (v) => `var(${v})`;
+const W = 1640, rootX = W / 2, branchGap = 26, leafH = 24, leafGap = 4;
+const levelsOf = (l) => (Array.isArray(l) ? l : [l]);
+
+function layout() {
+  const sides = { L: TREE.filter((b) => b.side === "L"), R: TREE.filter((b) => b.side === "R") };
+  const h = (bs) => bs.reduce((a, b) => a + b.kids.length * (leafH + leafGap) + branchGap, -branchGap);
+  const H = Math.max(h(sides.L), h(sides.R)) + 80;
+  const rootY = H / 2;
+  let svg = "";
+  const el = [];
+  for (const side of ["L", "R"]) {
+    const bs = sides[side];
+    let y = rootY - h(bs) / 2;
+    const dir = side === "R" ? 1 : -1;
+    const bx = rootX + dir * 170;          // branch label anchor
+    const lx = rootX + dir * 410;          // leaf start
+    for (const b of bs) {
+      const bh = b.kids.length * (leafH + leafGap) - leafGap;
+      const by = y + bh / 2;
+      // root -> branch
+      svg += `<path d="M${rootX + dir * 70},${rootY} C${rootX + dir * 120},${rootY} ${bx - dir * 60},${by} ${bx - dir * 8},${by}" fill="none" stroke="var(--rule)" stroke-width="2"/>`;
+      svg += `<text x="${bx}" y="${by + 5}" text-anchor="${side === "R" ? "start" : "end"}" font-size="15" font-weight="600" fill="currentColor">${b.t}</text>`;
+      b.kids.forEach(([label, lv], i) => {
+        const ly = y + i * (leafH + leafGap) + leafH / 2;
+        const branchEnd = bx + dir * 196;
+        const levels = levelsOf(lv);
+        const tagW = levels.length * 22 + (levels.length - 1) * 3;
+        const textX = side === "R" ? lx + tagW + 8 : lx - tagW - 8;
+        svg += `<g class="leaf" data-lv="${levels.join(",")}">`;
+        svg += `<path d="M${branchEnd},${by} C${branchEnd + dir * 30},${by} ${lx - dir * 40},${ly} ${lx - dir * 4},${ly}" fill="none" stroke="var(--rule)" stroke-width="1.2"/>`;
+        levels.forEach((l, j) => {
+          const tx = side === "R" ? lx + j * 25 : lx - tagW + j * 25;
+          svg += `<rect x="${tx}" y="${ly - 8}" width="22" height="16" rx="4" fill="${col(LV[l].var)}"/>`;
+          svg += `<text x="${tx + 11}" y="${ly + 3.5}" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--paper)">${l === 0 ? "–" : "L" + l}</text>`;
+        });
+        svg += `<text x="${textX}" y="${ly + 4.5}" text-anchor="${side === "R" ? "start" : "end"}" font-size="13" fill="${levels.includes(0) ? "var(--graphite)" : "currentColor"}">${label}</text>`;
+        svg += `</g>`;
+      });
+      y += bh + branchGap;
+    }
+  }
+  // root
+  svg += `<rect x="${rootX - 78}" y="${rootY - 28}" width="156" height="56" rx="28" fill="var(--ink)"/>`;
+  svg += `<text x="${rootX}" y="${rootY - 2}" text-anchor="middle" font-size="16" font-weight="600" fill="var(--paper)">A SPET run</text>`;
+  svg += `<text x="${rootX}" y="${rootY + 16}" text-anchor="middle" font-size="11.5" fill="var(--paper)" opacity=".75">everything it knows</text>`;
+  const map = document.getElementById("map");
+  map.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  map.innerHTML = svg;
+}
+
+function legend() {
+  document.getElementById("legend").innerHTML = [1, 2, 3, 4, 0].map((l) =>
+    `<span><i style="background:${col(LV[l].var)}">${l ? "L" + l : "–"}</i>${l ? `Level ${l}: ${LV[l].name}` : "Not shown anywhere yet"}</span>`).join("");
+  const f = document.getElementById("filters");
+  f.innerHTML = `<button data-f="all" aria-pressed="true">Show all</button>` + [1, 2, 3, 4, 0].map((l) => `<button data-f="${l}" aria-pressed="false">${l ? "Only " + LV[l].name : "Only not shown"}</button>`).join("");
+  f.querySelectorAll("button").forEach((b) => b.onclick = () => {
+    f.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    document.querySelectorAll(".leaf").forEach((g) => g.classList.toggle("dim", b.dataset.f !== "all" && !g.dataset.lv.split(",").includes(b.dataset.f)));
+  });
+}
+legend(); layout();
+</script>
+</body>
+</html>
