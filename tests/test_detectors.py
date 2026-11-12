@@ -58,3 +58,12 @@ def test_rates_per_100_words():
     r = rates("sorry sorry " + "word " * 98)
     assert r["apology"] == pytest.approx(2.0)
     assert rates("")["apology"] == 0.0
+
+
+def test_typographic_apostrophes():
+    assert hits("meta", "Here’s how it works.")
+    assert hits("offer", "I’m happy to help.")
+
+
+def test_list_item_spans_whole_line():
+    assert hits("list_item", "1. First step here") == ["1. First step here"]

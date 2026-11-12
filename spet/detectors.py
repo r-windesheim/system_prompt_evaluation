@@ -31,7 +31,9 @@ class DetectorDef:
 
 
 def _d(id: str, label: str, group: str, description: str, *patterns: str, flags: int = I) -> DetectorDef:
-    return DetectorDef(id, label, group, description, tuple(re.compile(p, flags) for p in patterns))
+    # models often emit typographic apostrophes (it’s, I’m); accept both everywhere
+    pats = tuple(re.compile(p.replace("'", "['\u2019]"), flags) for p in patterns)
+    return DetectorDef(id, label, group, description, pats)
 
 
 DETECTORS: tuple[DetectorDef, ...] = (
@@ -49,7 +51,7 @@ DETECTORS: tuple[DetectorDef, ...] = (
        r"\b(?:definitely|absolutely|clearly|obviously|certainly|undoubtedly|without a doubt)\b"),
     # Structure
     _d("list_item", "List item", "Structure", "Bulleted or numbered list lines.",
-       r"^[ \t]*(?:[-*•]|\d{1,2}[.)])[ \t]+\S", flags=M),
+       r"^[ \t]*(?:[-*•]|\d{1,2}[.)])[ \t]+\S.*$", flags=M),
     _d("heading", "Heading", "Structure", "Markdown headings.", r"^[ \t]*#{1,6}[ \t]+\S.*$", flags=M),
     _d("bold", "Bold emphasis", "Structure", "Markdown bold spans.", r"\*\*[^*\n]+\*\*|__[^_\n]+__"),
     _d("parenthetical", "Parenthetical", "Structure", "Asides in parentheses.", r"\([^()\n]{3,}\)"),
