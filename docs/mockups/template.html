@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPET results views</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: a tab bar of four mockups; each mockup is a full-width working view on the same real run. */
+:root {
+  --paper: #f4f5f1; --sheet: #fbfbf9; --ink: #16191d; --graphite: #5e646c; --rule: #d9dcd3; --rule-strong: #b9bdb3;
+  --cobalt: #2a44e8; --cobalt-wash: #e4e8fd;
+  --mark: #ffe58a; --mark-ink: #4a3b00;
+  --clear: #1f7a5c; --likely: #a86a12; --none: #9aa0a8;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #2c3036; --rule-strong: #3d424a;
+    --cobalt: #8796ff; --cobalt-wash: #1f2550; --mark: #5c4a00; --mark-ink: #ffe9a3;
+    --clear: #5cc7a8; --likely: #e2a64a; --none: #6b7179; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121417; --sheet: #191c20; --ink: #e9ebe6; --graphite: #9aa0a8; --rule: #2c3036; --rule-strong: #3d424a;
+  --cobalt: #8796ff; --cobalt-wash: #1f2550; --mark: #5c4a00; --mark-ink: #ffe9a3;
+  --clear: #5cc7a8; --likely: #e2a64a; --none: #6b7179; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+main { max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; }
+h1 { font-size: 30px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; text-wrap: balance; }
+h2 { font-size: 20px; letter-spacing: -0.01em; margin: 0 0 4px; font-weight: 600; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0; font-weight: 600; }
+p { margin: 6px 0; }
+.muted { color: var(--graphite); }
+.small { font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; text-align: left; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 4px; }
+.lede { max-width: 72ch; color: var(--graphite); }
+
+/* tabs */
+nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 24px 0 28px; border-bottom: 1px solid var(--rule); }
+nav.tabs a { display: block; padding: 10px 14px 12px; color: var(--graphite); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+nav.tabs a b { display: block; color: var(--ink); font-weight: 600; font-size: 15px; }
+nav.tabs a span { font-size: 12.5px; }
+nav.tabs a[aria-current="page"] { border-bottom-color: var(--ink); }
+nav.tabs a:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.view { display: none; }
+.view.on { display: block; }
+.intro { margin: 0 0 22px; max-width: 78ch; }
+
+/* strength chips */
+.str { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.str i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.str.clear i { background: var(--clear); } .str.clear { color: var(--clear); }
+.str.likely i { background: transparent; box-shadow: inset 0 0 0 2px var(--likely); } .str.likely { color: var(--likely); }
+.str.none i { background: var(--rule-strong); } .str.none { color: var(--graphite); }
+
+/* compare panel */
+.compare { border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); overflow: hidden; }
+.cmp-head { padding: 14px 18px; border-bottom: 1px solid var(--rule); display: grid; gap: 10px; }
+.cmp-title { font-size: 15px; }
+.cmp-title strong { font-weight: 600; }
+.qrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { border: 1px solid var(--rule); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; color: var(--graphite); background: var(--paper); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip:hover { color: var(--ink); }
+.chip[aria-pressed="true"]:hover { color: var(--paper); }
+.sample { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--graphite); }
+.sample button { padding: 2px 8px; border-radius: 6px; }
+.sample button:hover { background: var(--paper); color: var(--ink); }
+.sample button:disabled { opacity: .3; cursor: default; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; }
+.col { padding: 16px 18px 20px; min-width: 0; }
+.col + .col { border-left: 1px solid var(--rule); }
+.col-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.col-h .lab { font-size: 12.5px; color: var(--graphite); }
+.col.without .lab { color: var(--cobalt); }
+.count { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.count .k { display: inline-block; min-width: 1.5em; padding: 0 6px; border-radius: 5px; background: var(--mark); color: var(--mark-ink); text-align: center; }
+.q { font-size: 13px; color: var(--graphite); margin: 0 0 8px; }
+.q b { color: var(--ink); font-weight: 500; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } .col + .col { border-left: 0; border-top: 1px solid var(--rule); } }
+
+/* rendered answer */
+.md { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.md p { margin: 0 0 8px; }
+.md ul, .md ol { margin: 0 0 8px; padding-left: 20px; }
+.md li { margin: 2px 0; }
+.md h4 { font-size: 14px; margin: 12px 0 4px; }
+.md code { font-family: var(--font-mono); font-size: 12.5px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 3px; }
+.md pre { font: 12.5px/1.5 var(--font-mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; overflow-x: auto; margin: 0 0 8px; }
+.md table { border-collapse: collapse; font-size: 12.5px; margin: 0 0 8px; display: block; overflow-x: auto; }
+.md td, .md th { border: 1px solid var(--rule); padding: 3px 6px; vertical-align: top; }
+.md hr { border: 0; border-top: 1px solid var(--rule); margin: 10px 0; }
+mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 1px; }
+
+/* ===== A: annotated prompt ===== */
+.a-grid { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 28px; align-items: start; }
+.doc { border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); padding: 6px; }
+.doc-sec { display: block; width: 100%; padding: 12px 14px; border-radius: 9px; position: relative; }
+.doc-sec:hover { background: var(--paper); }
+.doc-sec[aria-pressed="true"] { background: var(--cobalt-wash); }
+.doc-sec[aria-pressed="true"]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--cobalt); }
+.doc-sec .lbl { font-size: 12px; color: var(--graphite); }
+.doc-sec .txt { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; margin: 2px 0 8px; }
+.doc-sec .fx { display: flex; flex-wrap: wrap; gap: 6px; }
+.fxchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 2px 9px 2px 7px; border-radius: 999px; border: 1px solid var(--rule); background: var(--sheet); white-space: nowrap; }
+.fxchip i { width: 7px; height: 7px; border-radius: 50%; }
+.fxchip.clear i { background: var(--clear); }
+.fxchip.likely i { box-shadow: inset 0 0 0 2px var(--likely); }
+.fxchip.none { color: var(--graphite); border-style: dashed; }
+.a-side .habits { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+
+/* ===== B: findings ===== */
+.find { border-top: 1px solid var(--rule); }
+.find:last-child { border-bottom: 1px solid var(--rule); }
+.find > button { display: grid; grid-template-columns: 28px 1fr minmax(240px, 340px) 150px; gap: 16px; align-items: center; width: 100%; padding: 14px 4px; }
+.find > button:hover { background: var(--sheet); }
+.find .rank { color: var(--graphite); font-size: 13px; text-align: right; }
+.find .sent { font-size: 15.5px; }
+.find .sent b { font-weight: 600; }
+.find .sub { font-size: 13px; color: var(--graphite); }
+.find .body { padding: 4px 0 18px 44px; display: none; }
+.find.open .body { display: block; }
+@media (max-width: 860px) { .find > button { grid-template-columns: 24px 1fr; } .find > button > :nth-child(3), .find > button > :nth-child(4) { grid-column: 2; } .find .body { padding-left: 0; } }
+/* dumbbell: with vs without on one axis */
+.db { position: relative; height: 34px; }
+.db .axis { position: absolute; left: 0; right: 0; top: 16px; height: 1px; background: var(--rule); }
+.db .bar { position: absolute; top: 15px; height: 3px; background: var(--rule-strong); border-radius: 2px; }
+.db .dot { position: absolute; top: 11px; width: 11px; height: 11px; border-radius: 50%; transform: translateX(-50%); }
+.db .dot.w { background: var(--ink); }
+.db .dot.wo { background: var(--sheet); box-shadow: 0 0 0 2px var(--cobalt); }
+.db .t { position: absolute; top: -2px; font-size: 11px; transform: translateX(-50%); white-space: nowrap; color: var(--graphite); }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--graphite); align-items: center; margin: 4px 0 14px; flex-wrap: wrap; }
+.legend .dw, .legend .dwo { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.legend .dw { background: var(--ink); }
+.legend .dwo { box-shadow: inset 0 0 0 2px var(--cobalt); }
+
+/* ===== C: grid ===== */
+.c-wrap { overflow-x: auto; margin-bottom: 22px; }
+table.grid { border-collapse: separate; border-spacing: 4px; }
+table.grid th { font-weight: 500; font-size: 13px; color: var(--graphite); text-align: left; padding: 0 6px; }
+table.grid thead th { vertical-align: bottom; max-width: 120px; padding-bottom: 6px; }
+table.grid tbody th { white-space: nowrap; padding-right: 12px; }
+table.grid td { padding: 0; }
+.cell { display: block; width: 118px; min-height: 54px; border-radius: 8px; padding: 6px 8px; border: 1px solid transparent; position: relative; }
+.cell .v { font-size: 13px; font-weight: 600; }
+.cell .r { font-size: 11.5px; color: var(--graphite); white-space: nowrap; }
+.cell[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cell.none { background: transparent; border: 1px dashed var(--rule); }
+.cell.none .v { color: var(--graphite); font-weight: 400; }
+
+/* ===== D: habit-first ===== */
+.d-habits { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.hb { border: 1px solid var(--rule); border-radius: 10px; padding: 8px 12px; background: var(--sheet); min-width: 140px; }
+.hb b { display: block; font-weight: 600; font-size: 14px; }
+.hb span { font-size: 12.5px; color: var(--graphite); }
+.hb[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.bars { display: grid; gap: 4px; margin: 8px 0 22px; max-width: 900px; }
+.barrow { display: grid; grid-template-columns: 200px 1fr 170px; gap: 14px; align-items: center; padding: 6px 8px; border-radius: 8px; width: 100%; }
+.barrow:hover { background: var(--sheet); }
+.barrow[aria-pressed="true"] { background: var(--cobalt-wash); }
+.track { position: relative; height: 22px; }
+.track .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--rule-strong); }
+.track .fill { position: absolute; top: 5px; height: 12px; border-radius: 3px; }
+.track .ci { position: absolute; top: 10px; height: 2px; background: var(--ink); opacity: .55; }
+.scale { display: grid; grid-template-columns: 200px 1fr 170px; gap: 14px; font-size: 11.5px; color: var(--graphite); padding: 0 8px; max-width: 900px; }
+.scale div:nth-child(2) { display: flex; justify-content: space-between; }
+@media (max-width: 760px) { .a-grid { grid-template-columns: 1fr; } .barrow, .scale { grid-template-columns: 110px 1fr 90px; } }
+@media (prefers-reduced-motion: no-preference) { .track .fill, .db .dot, .db .bar { transition: all .35s cubic-bezier(.16,1,.3,1); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Four ways to show a SPET run</h1>
+  <p class="lede" id="meta"></p>
+  <p class="lede small">How every view reads: each section of the system prompt was removed in turn, and the same questions were asked again. A number is how often a habit shows up <b>per answer</b>, with the section and without it. <span class="str clear"><i></i>Clear effect</span> passed the statistics. <span class="str likely"><i></i>Likely</span> points one way but needs more samples. <span class="str none"><i></i>No effect</span> means no reliable change.</p>
+
+  <nav class="tabs" aria-label="Mockups">
+    <a href="#prompt"><b>A · The prompt, annotated</b><span>effects written next to each section</span></a>
+    <a href="#findings"><b>B · Findings report</b><span>ranked sentences, with vs without</span></a>
+    <a href="#grid"><b>C · Grid</b><span>every section × every habit</span></a>
+    <a href="#habits"><b>D · Habit first</b><span>where does this habit come from?</span></a>
+  </nav>
+
+  <section class="view" id="v-prompt"></section>
+  <section class="view" id="v-findings"></section>
+  <section class="view" id="v-grid"></section>
+  <section class="view" id="v-habits"></section>
+</main>
+
+<script>
+const D = /*__DATA__*/null;
+
+// ---------- vocabulary ----------
+const NOUN = { apology: "apologies", flattery: "compliments", hedge: "hedges", booster: "certainty words", list_item: "list items",
+  heading: "headings", bold: "bold phrases", parenthetical: "asides in brackets", question: "questions back", clarify: "requests for more context",
+  offer: "offers of more help", caveat: "caveats", disclaimer: "disclaimers", meta: "meta comments", self_ai: "“as an AI” mentions",
+  exclamation: "exclamations", emoji: "emoji" };
+const VERB = { apology: "apologise", flattery: "compliment the user", hedge: "hedge", booster: "sound overly certain", list_item: "use bullet lists",
+  heading: "use headings", bold: "use bold text", parenthetical: "add asides in brackets", question: "ask questions back", clarify: "ask for more context",
+  offer: "offer more help", caveat: "add caveats", disclaimer: "add disclaimers", meta: "talk about its own answer", self_ai: "mention being an AI",
+  exclamation: "use exclamation marks", emoji: "use emoji" };
+
+const DET = Object.fromEntries(D.detectors.map((d, i) => [d.id, { ...d, idx: i }]));
+const EFF = Object.fromEntries(D.effects.map((e) => [e.detector + "|" + e.section, e]));
+const eff = (d, k) => EFF[d + "|" + k];
+const SEC = D.sections;
+const f1 = (x) => (Math.abs(x) < 0.05 ? "0" : x.toFixed(1));
+const strength = (e) => e.significant ? "clear" : (Math.abs(e.delta) >= 0.25 && (e.ci[0] > 0 || e.ci[1] < 0)) ? "likely" : "none";
+const STRLABEL = { clear: "Clear effect", likely: "Likely", none: "No effect" };
+const strChip = (s) => `<span class="str ${s}"><i></i>${STRLABEL[s]}</span>`;
+// habits that actually occur in this run
+const HABITS = D.detectors.map((d) => d.id).filter((d) => SEC.some((s) => { const e = eff(d, s.id); return e && Math.max(e.full_mean, e.ablated_mean) >= 0.1; }));
+const habitTotal = (d) => eff(d, 0).full_mean; // full-prompt rate is the same for every section
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function sentence(e) {
+  const s = SEC[e.section].label, n = NOUN[e.detector], v = VERB[e.detector];
+  return e.delta > 0
+    ? `<b>${esc(s)}</b> makes it ${v}: ${f1(e.full_mean)} ${n} per answer, ${f1(e.ablated_mean)} without it.`
+    : `<b>${esc(s)}</b> makes it ${v} less: ${f1(e.full_mean)} ${n} per answer, ${f1(e.ablated_mean)} without it.`;
+}
+// all effects worth talking about, strongest first
+const RANKED = D.effects.filter((e) => HABITS.includes(e.detector) && strength(e) !== "none")
+  .sort((a, b) => (b.significant - a.significant) || Math.abs(b.delta) - Math.abs(a.delta));
+
+// ---------- markdown with highlight ----------
+const MS = "", ME = "";
+function inline(t) {
+  t = esc(t);
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+  return t;
+}
+function render(text, spans, detIdx) {
+  // insert markers for the chosen habit only
+  const pts = [];
+  for (const [s, e, d] of spans) if (d === detIdx) { pts.push([s, MS], [e, ME]); }
+  pts.sort((a, b) => b[0] - a[0] || (a[1] === MS ? -1 : 1));
+  let t = text;
+  for (const [i, m] of pts) t = t.slice(0, i) + m + t.slice(i);
+  const lines = t.split("\n");
+  let html = "", list = null, inCode = false, code = [], table = [], open = false;
+  const flushList = () => { if (list) { html += `</${list}>`; list = null; } };
+  const flushTable = () => {
+    if (!table.length) return;
+    const rows = table.filter((r) => !/^\s*\|?\s*:?-{2,}/.test(r.replace(/[]/g, "")));
+    html += "<table>" + rows.map((r, ri) => "<tr>" + r.replace(/^\s*\||\|\s*$/g, "").split("|").map((c) => `<${ri ? "td" : "th"}>${inline(c.trim())}</${ri ? "td" : "th"}>`).join("") + "</tr>").join("") + "</table>";
+    table = [];
+  };
+  for (let raw of lines) {
+    // keep highlight balanced per line
+    const pre = open ? MS : "";
+    const opens = (raw.match(//g) || []).length, closes = (raw.match(//g) || []).length;
+    const nowOpen = open ? opens >= closes : opens > closes;
+    let line = pre + raw + (nowOpen ? ME : "");
+    open = nowOpen;
+    const bare = line.replace(/[]/g, "");
+    if (/^\s*```/.test(bare)) { if (inCode) { html += `<pre>${esc(code.join("\n"))}</pre>`; code = []; inCode = false; } else { flushList(); flushTable(); inCode = true; } continue; }
+    if (inCode) { code.push(bare); continue; }
+    if (/^\s*\|/.test(bare)) { flushList(); table.push(line); continue; } else flushTable();
+    const lead = (line.match(/^[]*/) || [""])[0];
+    const rest = line.slice(lead.length);
+    let m;
+    if ((m = rest.match(/^\s*(#{1,6})\s+(.*)$/))) { flushList(); html += `<h4>${inline(lead + m[2])}</h4>`; continue; }
+    if ((m = rest.match(/^\s*([-*•]|\d{1,2}[.)])\s+(.*)$/))) {
+      const kind = /\d/.test(m[1]) ? "ol" : "ul";
+      if (list !== kind) { flushList(); html += `<${kind}>`; list = kind; }
+      html += `<li>${inline(lead + m[2])}</li>`; continue;
+    }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(bare)) { flushList(); html += "<hr>"; continue; }
+    if (!bare.trim()) { flushList(); continue; }
+    flushList();
+    html += `<p>${inline(line)}</p>`;
+  }
+  flushList(); flushTable();
+  if (inCode) html += `<pre>${esc(code.join("\n"))}</pre>`;
+  return html.replaceAll(esc(MS), "<mark>").replaceAll(esc(ME), "</mark>").replaceAll(MS, "<mark>").replaceAll(ME, "</mark>");
+}
+const resp = (cfg, q, s) => D.responses[`${cfg}|${q}|${s}`];
+const countIn = (r, detIdx) => r ? r[1].filter((x) => x[2] === detIdx).length : 0;
+
+// ---------- shared comparison panel ----------
+function Compare(host, state) {
+  // state: { k, d, q, s }
+  function draw() {
+    const { k, d, q, s } = state;
+    const di = DET[d].idx, e = eff(d, k);
+    const A = resp("full", q, s), B = resp("without_" + k, q, s);
+    host.innerHTML = `
+      <div class="compare">
+        <div class="cmp-head">
+          <div class="cmp-title">Same question, same seed. <strong>${esc(NOUN[d])}</strong> highlighted. ${strChip(strength(e))}
+            <span class="muted small num"> · across all ${e.n_pairs} answers: ${f1(e.full_mean)} with, ${f1(e.ablated_mean)} without</span></div>
+          <div class="qrow">
+            ${D.queries.map((t, i) => `<button class="chip" data-q="${i}" aria-pressed="${i === q}">${esc(t.length > 38 ? t.slice(0, 36) + "…" : t)}</button>`).join("")}
+            <span class="sample"><button data-s="-1" ${s === 0 ? "disabled" : ""} aria-label="Previous sample">‹</button><span class="num">answer ${s + 1} of ${D.n}</span><button data-s="1" ${s >= D.n - 1 ? "disabled" : ""} aria-label="Next sample">›</button></span>
+          </div>
+        </div>
+        <div class="cols">
+          <div class="col"><div class="col-h"><span class="lab">With the full prompt</span><span class="count num"><span class="k">${countIn(A, di)}</span> ${esc(NOUN[d])}</span></div>
+            <p class="q">User: <b>${esc(D.queries[q])}</b></p><div class="md">${A ? render(A[0], A[1], di) : "<p class='muted'>No answer.</p>"}</div></div>
+          <div class="col without"><div class="col-h"><span class="lab">Without “${esc(SEC[k].label)}”</span><span class="count num"><span class="k">${countIn(B, di)}</span> ${esc(NOUN[d])}</span></div>
+            <p class="q">User: <b>${esc(D.queries[q])}</b></p><div class="md">${B ? render(B[0], B[1], di) : "<p class='muted'>No answer.</p>"}</div></div>
+        </div>
+      </div>`;
+    host.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => { state.q = +b.dataset.q; state.s = 0; draw(); });
+    host.querySelectorAll("[data-s]").forEach((b) => b.onclick = () => { state.s = Math.max(0, Math.min(D.n - 1, state.s + +b.dataset.s)); draw(); });
+  }
+  // start on the answer that shows the difference best
+  state.pickBest = () => {
+    const di = DET[state.d].idx; let best = [0, 0, -1];
+    for (let q = 0; q < D.queries.length; q++) for (let s = 0; s < D.n; s++) {
+      const gap = Math.abs(countIn(resp("full", q, s), di) - countIn(resp("without_" + state.k, q, s), di));
+      if (gap > best[2]) best = [q, s, gap];
+    }
+    state.q = best[0]; state.s = best[1];
+  };
+  return { draw, state };
+}
+const bestHabitFor = (k) => HABITS.map((d) => eff(d, k)).sort((a, b) => (b.significant - a.significant) || Math.abs(b.delta) - Math.abs(a.delta))[0].detector;
+
+// ---------- A: annotated prompt ----------
+function viewA() {
+  const el = document.getElementById("v-prompt");
+  el.innerHTML = `<p class="intro">The prompt you wrote, with what each part does written underneath it. Pick a section to see the same answers with and without it.</p>
+    <div class="a-grid"><div class="doc" id="a-doc"></div><div class="a-side"><h2 id="a-h"></h2><div class="habits" id="a-habits"></div><div id="a-cmp"></div></div></div>`;
+  const st = { k: 0, d: bestHabitFor(0) };
+  const cmp = Compare(el.querySelector("#a-cmp"), st);
+  function draw() {
+    el.querySelector("#a-doc").innerHTML = SEC.map((s) => {
+      const fx = HABITS.map((d) => eff(d, s.id)).filter((e) => strength(e) !== "none").sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      const chips = fx.length ? fx.slice(0, 4).map((e) => `<span class="fxchip ${strength(e)}"><i></i>${e.delta > 0 ? "more" : "fewer"} ${esc(NOUN[e.detector])} <span class="muted num">${f1(e.full_mean)} vs ${f1(e.ablated_mean)}</span></span>`).join("")
+        : `<span class="fxchip none">no measurable effect</span>`;
+      return `<button class="doc-sec" data-k="${s.id}" aria-pressed="${s.id === st.k}"><div class="lbl">${esc(s.label)}</div><div class="txt">${esc(s.text)}</div><div class="fx">${chips}</div></button>`;
+    }).join("");
+    el.querySelectorAll(".doc-sec").forEach((b) => b.onclick = () => { st.k = +b.dataset.k; st.d = bestHabitFor(st.k); st.pickBest(); draw(); });
+    el.querySelector("#a-h").textContent = `What “${SEC[st.k].label}” does`;
+    el.querySelector("#a-habits").innerHTML = HABITS.map((d) => { const e = eff(d, st.k); return { d, e }; })
+      .sort((a, b) => Math.abs(b.e.delta) - Math.abs(a.e.delta))
+      .map(({ d, e }) => `<button class="chip" data-d="${d}" aria-pressed="${d === st.d}">${esc(NOUN[d])} <span class="num">${f1(e.full_mean)} → ${f1(e.ablated_mean)}</span></button>`).join("");
+    el.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => { st.d = b.dataset.d; st.pickBest(); draw(); });
+    cmp.draw();
+  }
+  st.pickBest(); draw();
+}
+
+// ---------- B: findings ----------
+function viewB() {
+  const el = document.getElementById("v-findings");
+  const maxV = Math.max(1, ...RANKED.map((e) => Math.max(e.full_mean, e.ablated_mean)));
+  const x = (v) => `${4 + (v / maxV) * 92}%`;
+  el.innerHTML = `<p class="intro">What the run found, as sentences, strongest first. Each line compares the answers with the section against the answers without it. Open one to read example answers side by side.</p>
+    <div class="legend"><span><span class="dw"></span>with the section</span><span><span class="dwo"></span>without it</span><span>scale: ${f1(maxV)} per answer at the right edge</span></div>
+    <div id="b-list"></div>
+    <p class="muted small" style="margin-top:14px">${D.effects.filter((e) => HABITS.includes(e.detector) && strength(e) === "none").length} other section–habit pairs showed no reliable change and are left out.</p>`;
+  el.querySelector("#b-list").innerHTML = RANKED.map((e, i) => `
+    <div class="find" data-i="${i}">
+      <button aria-expanded="false">
+        <span class="rank num">${i + 1}</span>
+        <span><span class="sent">${sentence(e)}</span></span>
+        <span class="db" aria-hidden="true"><span class="axis"></span>
+          <span class="bar" style="left:${x(Math.min(e.full_mean, e.ablated_mean))};width:calc(${x(Math.max(e.full_mean, e.ablated_mean))} - ${x(Math.min(e.full_mean, e.ablated_mean))})"></span>
+          <span class="dot wo" style="left:${x(e.ablated_mean)}"></span><span class="dot w" style="left:${x(e.full_mean)}"></span></span>
+        <span>${strChip(strength(e))}</span>
+      </button>
+      <div class="body"></div>
+    </div>`).join("") || `<p>No section changed any habit reliably in this run. More samples per question would tighten the estimates.</p>`;
+  el.querySelectorAll(".find").forEach((f) => {
+    const btn = f.querySelector("button");
+    btn.onclick = () => {
+      const open = !f.classList.contains("open");
+      f.classList.toggle("open", open); btn.setAttribute("aria-expanded", open);
+      if (open && !f.dataset.drawn) { const e = RANKED[+f.dataset.i]; const c = Compare(f.querySelector(".body"), { k: e.section, d: e.detector }); c.state.pickBest(); c.draw(); f.dataset.drawn = 1; }
+    };
+  });
+  el.querySelector(".find button")?.click();
+}
+
+// ---------- C: grid ----------
+function viewC() {
+  const el = document.getElementById("v-grid");
+  const maxD = Math.max(0.5, ...D.effects.filter((e) => HABITS.includes(e.detector)).map((e) => Math.abs(e.delta)));
+  el.innerHTML = `<p class="intro">Every section against every habit. Each cell reads “with → without” per answer. Darker means a bigger change; dashed cells changed nothing reliably. Pick a cell to read the answers.</p>
+    <div class="c-wrap"><table class="grid" id="c-t"></table></div><div id="c-cmp"></div>`;
+  const first = RANKED[0] || D.effects[0];
+  const st = { k: first.section, d: first.detector };
+  const cmp = Compare(el.querySelector("#c-cmp"), st);
+  function draw() {
+    const head = `<thead><tr><th></th>${SEC.map((s) => `<th scope="col">${esc(s.label)}</th>`).join("")}</tr></thead>`;
+    const body = HABITS.map((d) => `<tr><th scope="row">${esc(NOUN[d])}<div class="muted small num">${f1(habitTotal(d))} per answer</div></th>${SEC.map((s) => {
+      const e = eff(d, s.id), str = strength(e);
+      const a = Math.min(1, Math.abs(e.delta) / maxD);
+      const bg = str === "none" ? "" : `background: color-mix(in srgb, ${e.delta > 0 ? "var(--clear)" : "var(--cobalt)"} ${Math.round(10 + a * 45)}%, var(--sheet));`;
+      return `<td><button class="cell ${str}" style="${bg}" data-k="${s.id}" data-d="${d}" aria-pressed="${st.k === s.id && st.d === d}" aria-label="${esc(SEC[s.id].label)}, ${esc(NOUN[d])}: ${f1(e.full_mean)} with, ${f1(e.ablated_mean)} without, ${STRLABEL[str]}">
+        <span class="v num">${f1(e.full_mean)} → ${f1(e.ablated_mean)}</span><br><span class="r">${str === "none" ? "no effect" : (str === "likely" ? "likely " : "") + (e.delta > 0 ? "adds" : "reduces")}</span></button></td>`;
+    }).join("")}</tr>`).join("");
+    el.querySelector("#c-t").innerHTML = head + "<tbody>" + body + "</tbody>";
+    el.querySelectorAll(".cell").forEach((b) => b.onclick = () => { st.k = +b.dataset.k; st.d = b.dataset.d; st.pickBest(); draw(); });
+    cmp.draw();
+  }
+  st.pickBest = cmp.state.pickBest; st.pickBest(); draw();
+}
+
+// ---------- D: habit first ----------
+function viewD() {
+  const el = document.getElementById("v-habits");
+  el.innerHTML = `<p class="intro">Start from a habit you noticed and find out which part of the prompt causes it. Bars to the right mean the section adds the habit; bars to the left mean it suppresses it.</p>
+    <div class="d-habits" id="d-h"></div><h2 id="d-q"></h2><div class="scale" id="d-scale"></div><div class="bars" id="d-bars"></div><div id="d-cmp"></div>`;
+  const st = { d: (RANKED[0] || D.effects[0]).detector, k: 0 };
+  const cmp = Compare(el.querySelector("#d-cmp"), st);
+  function draw() {
+    el.querySelector("#d-h").innerHTML = HABITS.slice().sort((a, b) => habitTotal(b) - habitTotal(a)).map((d) => `<button class="hb" data-d="${d}" aria-pressed="${d === st.d}"><b>${esc(NOUN[d][0].toUpperCase() + NOUN[d].slice(1))}</b><span class="num">${f1(habitTotal(d))} per answer</span></button>`).join("");
+    el.querySelectorAll(".hb").forEach((b) => b.onclick = () => { st.d = b.dataset.d; st.k = topSec(); st.pickBest(); draw(); });
+    el.querySelector("#d-q").textContent = `Which part of the prompt makes it ${VERB[st.d]}?`;
+    const rows = SEC.map((s) => eff(st.d, s.id));
+    const m = Math.max(0.5, ...rows.map((e) => Math.max(Math.abs(e.ci[0]), Math.abs(e.ci[1]))));
+    const pos = (v) => 50 + (Math.max(-m, Math.min(m, v)) / m) * 50;
+    el.querySelector("#d-scale").innerHTML = `<div></div><div class="num"><span>suppresses −${f1(m)}</span><span>0</span><span>adds +${f1(m)}</span></div><div></div>`;
+    el.querySelector("#d-bars").innerHTML = rows.sort((a, b) => b.delta - a.delta).map((e) => {
+      const str = strength(e), l = Math.min(pos(0), pos(e.delta)), w = Math.abs(pos(e.delta) - pos(0));
+      const col = str === "none" ? "var(--rule-strong)" : e.delta > 0 ? "var(--clear)" : "var(--cobalt)";
+      return `<button class="barrow" data-k="${e.section}" aria-pressed="${e.section === st.k}">
+        <span>${esc(SEC[e.section].label)}</span>
+        <span class="track"><span class="zero"></span><span class="fill" style="left:${l}%;width:${Math.max(w, 0.4)}%;background:${col};opacity:${str === "none" ? .6 : 1}"></span><span class="ci" style="left:${pos(e.ci[0])}%;width:${Math.max(0.4, pos(e.ci[1]) - pos(e.ci[0]))}%"></span></span>
+        <span class="num small">${e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""}${f1(Math.abs(e.delta))} per answer ${strChip(str)}</span></button>`;
+    }).join("");
+    el.querySelectorAll(".barrow").forEach((b) => b.onclick = () => { st.k = +b.dataset.k; st.pickBest(); draw(); });
+    cmp.draw();
+  }
+  const topSec = () => SEC.map((s) => eff(st.d, s.id)).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0].section;
+  st.k = topSec(); st.pickBest(); draw();
+}
+
+// ---------- boot ----------
+document.getElementById("meta").innerHTML = `Real run: <b>${esc(D.title)}</b> on ${esc(D.model)}. ${SEC.length} sections, ${D.queries.length} questions, ${D.n} answers each, so ${D.queries.length * D.n} paired answers per comparison.`;
+viewA(); viewB(); viewC(); viewD();
+const ROUTES = ["prompt", "findings", "grid", "habits"];
+function route() {
+  const h = ROUTES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "prompt";
+  ROUTES.forEach((r) => document.getElementById("v-" + r).classList.toggle("on", r === h));
+  document.querySelectorAll("nav.tabs a").forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === "#" + h ? "page" : "false"));
+}
+addEventListener("hashchange", route); route();
+</script>
+</body>
+</html>

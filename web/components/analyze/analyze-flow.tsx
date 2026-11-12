@@ -29,6 +29,9 @@ Be warm and encouraging toward the user.
 
 Keep answers under 200 words.`;
 
+// The original SPET probes: vague on purpose, so the system prompt has to fill the gap.
+const ORIGINAL_PROBES = ["Should I do this?", "What do you think?", "This seems wrong", "Can you fix it?", "I don't understand"];
+
 const input =
   "w-full rounded-md border border-rule bg-sheet px-3 py-2 text-[14px] text-ink placeholder:text-graphite/70 focus:border-cobalt focus:outline-none";
 const btn = "inline-flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-medium transition-colors disabled:opacity-40";
@@ -230,7 +233,16 @@ python -m spet serve`}
                       <input id="model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="openai/gpt-oss-20b" className={`${input} font-mono text-[12.5px]`} />
                     </Field>
                   </div>
-                  <Field id="queries" label="User messages" hint="One per line. Concrete tasks work better than vague ones like “What do you think?”.">
+                  <div className="-mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+                    <span className="text-graphite">Question set:</span>
+                    <button type="button" className={`rounded-full border px-3 py-0.5 ${queries.join("\n") === ORIGINAL_PROBES.join("\n") ? "border-ink bg-ink text-paper" : "border-rule text-graphite hover:text-ink"}`} onClick={() => setQueries(ORIGINAL_PROBES)}>
+                      Original probes (vague)
+                    </button>
+                    <button type="button" className={`rounded-full border px-3 py-0.5 ${health && queries.join("\n") === health.default_queries.join("\n") ? "border-ink bg-ink text-paper" : "border-rule text-graphite hover:text-ink"}`} onClick={() => health && setQueries(health.default_queries)}>
+                      Concrete tasks
+                    </button>
+                  </div>
+                  <Field id="queries" label="User messages" hint="One per line. Vague probes show what the prompt does when the user gives no context; concrete tasks show its effect on real answers.">
                     <textarea id="queries" value={queries.join("\n")} onChange={(e) => setQueries(e.target.value.split("\n"))} rows={6} className={`${input} resize-y text-[13.5px] leading-relaxed`} />
                   </Field>
                   <div className="grid gap-5 sm:grid-cols-2">
