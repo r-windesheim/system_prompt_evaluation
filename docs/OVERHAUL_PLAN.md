@@ -145,3 +145,7 @@ Each step lists its deliverable and the check that marks it done.
   - Reduced motion: no section rows move after a toggle, and diff words don't blur. Motion's `reducedMotion` doesn't cover height or filter animations, so those use explicit instant transitions.
   - Found and fixed: inlining the bundle into HTML made the pages 304 KB, so bundles are now fetched after first paint (HTML is 16 KB).
   - Reproduce: `node web/scripts/audit.mjs` (axe, frames, reduced motion). Lighthouse was run through its Node API, because the CLI refuses x64 Node on Apple Silicon.
+- **Pre-PR review (2026-11-12).**
+  - **Overclaims fixed:** "independent annotator" now says it was an LLM (Claude) annotator, not human-validated. The sign-flip test is described as exact only up to 16 pairs. Shapley is described as estimator-only (subset runs aren't wired up).
+  - **Hedge precision:** the 26/26 figure came from re-scoring on the same hits used to write the revision, so it was in-sample. Revised detectors now ship as unmeasured.
+  - **Demo:** now uses debugging questions that the stub's filler actually answers.

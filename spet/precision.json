@@ -1,8 +1,4 @@
 {
- "hedge": {
-  "precision": 1.0,
-  "n": 26
- },
  "list_item": {
   "precision": 1.0,
   "n": 30

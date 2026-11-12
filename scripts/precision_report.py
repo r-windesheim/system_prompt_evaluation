@@ -48,10 +48,11 @@ for d in DETECTORS:
     k0, n0 = orig.get(d.id, (0, 0))
     k, n = cur.get(d.id, (0, 0))
     lo, hi = wilson(k, n)
-    if n >= 10:
+    revised = (k0, n0) != (k, n)
+    if n >= 10 and not revised:
         out[d.id] = {"precision": round(k / n, 3), "n": n}
     pr = f"{k}/{n} = {k/n:.2f} [{lo:.2f}, {hi:.2f}]" if n else "n/a"
-    note = "" if (k0, n0) == (k, n) else f"revised (was {k0}/{n0})"
+    note = "" if not revised else f"revised (was {k0}/{n0}); in-sample re-score only, needs a fresh sample, shipped as unmeasured"
     if n0 == 0:
         note = "no hits in the legacy responses"
     elif n < 10:
@@ -65,13 +66,15 @@ md = f"""# Detector precision audit
 distinct gpt-4o-mini responses in the legacy cache (`cached_results/llm_cache`). Responses
 contaminated by the `[sample_i]` tag were excluded. Sampler: `scripts/sample_detector_hits.py`.
 
-**Labels:** an independent annotator (a separate Claude subagent that was told not to read the
-detector code) judged each hit against the detector's plain-language definition only.
+**Labels:** an independent LLM annotator (a separate Claude agent that was told not to read the
+detector code) judged each hit against the detector's plain-language definition only. The labels
+are **not human-validated**.
 Labels are in `docs/detector-audit/labels.jsonl`.
 
 **Precision** = true hits / labelled hits still matched by the current pattern, with a Wilson
 95% interval. Detectors were revised after the audit where precision was poor. Revised rows are
-re-scored on the surviving labelled hits.
+re-scored on the surviving labelled hits. That is an in-sample number (the revision was written
+while looking at those hits), so revised detectors ship as "precision unmeasured" until a fresh sample is labelled.
 
 | Detector | Group | Precision (current pattern) | Note |
 |---|---|---|---|

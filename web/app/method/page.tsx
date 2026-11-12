@@ -43,7 +43,7 @@ export default function Method() {
       <H>4. Paired effects with honest uncertainty</H>
       <P>
         For each quirk and section, the effect is the mean paired difference, with minus without. The interval is a
-        95% bootstrap over paired conversations. The p-value comes from an exact sign-flip permutation test. Because
+        95% bootstrap over paired conversations. The p-value comes from a sign-flip permutation test (exact up to 16 pairs, 10,000 random flips above that). Because
         one run tests every quirk against every section, p-values are corrected with Benjamini–Hochberg, and an effect
         counts as significant only at q &lt; 0.05. Every section is reported, not just the largest.
       </P>
@@ -55,15 +55,15 @@ export default function Method() {
         synthetic run on the front page is that setup.
       </P>
       <P>
-        Detector precision was audited on 262 hits sampled from real gpt-4o-mini responses and labelled by an
-        independent annotator. Three detectors were wrong every time and were rewritten. Detectors with too few
-        labelled hits are shown as &ldquo;precision unmeasured&rdquo;.
+        Detector precision was audited on 262 hits sampled from real gpt-4o-mini responses and labelled by an independent LLM annotator: a separate Claude agent that never saw the detector code. A person has not
+        checked the labels. Three detectors were wrong every time and were rewritten. Rewritten detectors, and detectors
+        with too few hits, show as &ldquo;precision unmeasured&rdquo; until a fresh sample is labelled.
       </P>
 
       <H>What it does not claim</H>
       <ul className="mt-3 list-disc pl-5 marker:text-graphite">
         <li>Underlined phrases are detector matches. They are not evidence that a particular section produced that phrase.</li>
-        <li>Leave-one-out misses interactions. If two sections each cause a habit on their own, removing either one changes little. Shapley values over subsets are implemented for that case and need more model calls.</li>
+        <li>Leave-one-out misses interactions. If two sections each cause a habit on their own, removing either one changes little. Shapley values over subsets would capture that. The estimator exists, but running subset configurations isn&apos;t wired up yet.</li>
         <li>Effects describe these user messages on this model. They may not transfer to other conversations.</li>
       </ul>
 

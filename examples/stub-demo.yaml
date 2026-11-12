@@ -14,6 +14,13 @@ provider:
 seed: 0
 n_per_query: 8
 temperature: 0.7
+# questions the stub's debugging-flavoured filler actually answers
+queries:
+  - My build fails with a missing module after I upgraded. What should I check?
+  - The export job worked yesterday and now produces an empty file.
+  - Why does my query return different results on staging and production?
+  - Tests pass locally but fail in CI with a timeout.
+  - How do I find out which change broke the import script?
 sections:
   - label: Company context
     text: You are the support assistant for Lumen, a developer tools company. Users are mostly software engineers.

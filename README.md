@@ -9,17 +9,17 @@ SPET takes one section out of a system prompt at a time and replays the same con
 1. **Leave one out.** A prompt with *k* sections becomes *k* + 1 configurations: the full prompt, and the prompt without each section.
 2. **Paired replay.** Every configuration answers the same user messages, with the same sample indices and the same per-sample seed. The seed is a request parameter, never prompt text.
 3. **Count matches.** Span-level detectors mark quirks in each response. The compared quantity is matches per response.
-4. **Paired statistics.** For each quirk and section: the mean paired difference (with − without), a bootstrap 95% CI, an exact sign-flip permutation p-value, and Benjamini–Hochberg q-values across every test in the run. An effect counts as significant at q < 0.05.
+4. **Paired statistics.** For each quirk and section: the mean paired difference (with − without), a bootstrap 95% CI, a sign-flip permutation p-value (exact up to 16 pairs, 10k-permutation Monte Carlo above that), and Benjamini–Hochberg q-values across every test in the run. An effect counts as significant at q < 0.05.
 
 The full write-up is on the viewer's Method page and in [`docs/OVERHAUL_PLAN.md`](docs/OVERHAUL_PLAN.md), which includes the audit of the previous version.
 
 ### How it is checked
 - **Planted-instruction test** (`tests/test_attribution.py`): a stub model whose behaviours are switched on by specific sentences. The pipeline must flag exactly those (quirk, section) pairs and nothing else, across five seeds. This test is what caught the length-normalisation bug that per-100-words rates caused.
-- **Detector precision audit** ([`docs/detector-precision.md`](docs/detector-precision.md)): 262 hits sampled from real gpt-4o-mini responses, labelled by an independent annotator. The detectors that failed were rewritten.
+- **Detector precision audit** ([`docs/detector-precision.md`](docs/detector-precision.md)): 262 hits sampled from real gpt-4o-mini responses, labelled by an independent LLM annotator (a separate Claude agent, blind to the detector code; not human-validated). The detectors that failed were rewritten, and they show as unmeasured until a fresh sample is labelled.
 - **Viewer** (`web/scripts/audit.mjs`): axe shows 0 WCAG 2.1 AA violations in light and dark. Frames during an ablation toggle hold 60 fps at 4× CPU throttle. A reduced-motion path is included.
 
 ### What it does not claim
-Underlined phrases are detector matches, not proof of which section produced them. Leave-one-out misses interactions: a Shapley estimator is included for subset runs. Effects describe these messages on this model.
+Underlined phrases are detector matches, not proof of which section produced them. Leave-one-out misses interactions. A Shapley estimator exists (`spet.attribution.shapley_values`), but the runner doesn't execute subset configurations yet. Effects describe these messages on this model.
 
 ## Use it
 
