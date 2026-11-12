@@ -34,7 +34,7 @@ h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600
 .filters button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .filters button:focus-visible { outline: 2px solid var(--l2); outline-offset: 2px; }
 .canvas { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--sheet); }
-svg { display: block; min-width: 1500px; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+svg { display: block; min-width: 1200px; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
 .dim { opacity: .14; }
 figcaption { font-size: 13.5px; color: var(--graphite); margin-top: 10px; max-width: 80ch; }
 </style>
@@ -42,7 +42,7 @@ figcaption { font-size: 13.5px; color: var(--graphite); margin-top: 10px; max-wi
 <body>
 <main>
   <h1>Everything a SPET run tells you</h1>
-  <p class="sub">Every piece of information the tool has about a run, grouped by topic. The tag on each item shows which level of the drill-down it appears on, so gaps and overlaps are easy to spot.</p>
+  <p class="sub">Everything the tool knows about a run, condensed to four groups. Anything derivable (differences, totals, rankings, summaries) is left out, because it’s a view of these items rather than new information. The tag shows which drill-down level shows it.</p>
   <div class="legend" id="legend"></div>
   <div class="filters" id="filters" role="group" aria-label="Highlight one level"></div>
   <figure style="margin:0">
@@ -57,35 +57,19 @@ const LV = {
   4: { name: "Details", var: "--l4" }, 0: { name: "not shown", var: "--hidden" },
 };
 const TREE = [
-  { t: "What was tested", side: "L", kids: [
-    ["System prompt, full text", 0], ["Its parts: name + text", [1, 2]], ["How it was split (model or paragraphs)", 0],
-    ["The questions asked", 3], ["Question set: original probes or concrete tasks", 0],
-    ["Model (gpt-oss-20b), temperature, reasoning effort", 1], ["Run name and date", 1], ["Real or synthetic run", 0] ] },
-  { t: "Size of the run", side: "L", kids: [
-    ["Answers per question (8)", 1], ["Total answers (320)", 0], ["Pairs per comparison (40)", 4], ["Model calls / cost", 0] ] },
-  { t: "The raw answers", side: "L", kids: [
-    ["Every answer, every configuration", 3], ["Same question + same seed pairing", [3, 4]], ["Answer rendered as text", 3],
-    ["Habit matches highlighted", 3], ["Habit count per answer", 3], ["Browse by question and sample", 3] ] },
-  { t: "Habits we measure", side: "R", kids: [
-    ["17 habits in 6 groups", 0], ["Deference: apologies, compliments", 2], ["Certainty: hedges, certainty words", 2],
-    ["Structure: bullets, headings, bold, asides", 2], ["Interaction: questions, context requests, offers", 2],
-    ["Framing: caveats, disclaimers, meta, “as an AI”", 2], ["Tone: exclamation marks, emoji", 2],
-    ["What each habit means (definition)", 0], ["How reliable each detector is (precision)", 0] ] },
-  { t: "Result per part × habit", side: "R", kids: [
-    ["With the part: per answer", [2, 3, 4]], ["Without it: per answer", [2, 3, 4]], ["Difference", 4],
-    ["Direction: adds or reduces", [1, 2]], ["Likely range (95% interval)", 4], ["Chance of a fluke (q)", 4], ["Raw p-value", 0],
-    ["Verdict: clear / likely / none", [1, 2]] ] },
-  { t: "Summaries", side: "R", kids: [
-    ["What each part does (one line)", 1], ["Parts with no clear effect", 1], ["Habits a part didn't change", 2],
-    ["Which part drives a habit", 0], ["How often each habit appears overall", 0], ["Strongest findings ranked", 0] ] },
-  { t: "Method and caveats", side: "R", kids: [
-    ["Remove one part, replay the same questions", 1], ["Counting matches, not rates", 0], ["Correction for testing everything", 4],
-    ["Highlights are matches, not causes", 4], ["Interactions between parts are missed", 0], ["Only these questions on this model", 0] ] },
+  { t: "Setup", side: "L", kids: [
+    ["Prompt parts (name + text)", [1, 2]], ["Questions asked", 3], ["Model, settings and run size", 1] ] },
+  { t: "Answers", side: "L", kids: [
+    ["Same question answered with and without a part", 3], ["Habit highlights and counts", 3] ] },
+  { t: "Effects", side: "R", kids: [
+    ["With vs without, per answer", [2, 3]], ["Verdict: adds / reduces / no effect", [1, 2]], ["How sure: likely range + fluke chance", 4] ] },
+  { t: "Context", side: "R", kids: [
+    ["What each habit means + how reliable", 0], ["Method", 4], ["Limits", 4] ] },
 ];
 
 const CSS = getComputedStyle(document.documentElement);
 const col = (v) => `var(${v})`;
-const W = 1640, rootX = W / 2, branchGap = 26, leafH = 24, leafGap = 4;
+const W = 1500, rootX = W / 2, branchGap = 40, leafH = 30, leafGap = 8;
 const levelsOf = (l) => (Array.isArray(l) ? l : [l]);
 
 function layout() {
@@ -99,8 +83,8 @@ function layout() {
     const bs = sides[side];
     let y = rootY - h(bs) / 2;
     const dir = side === "R" ? 1 : -1;
-    const bx = rootX + dir * 170;          // branch label anchor
-    const lx = rootX + dir * 410;          // leaf start
+    const bx = rootX + dir * 130;          // branch label anchor
+    const lx = rootX + dir * 300;          // leaf start
     for (const b of bs) {
       const bh = b.kids.length * (leafH + leafGap) - leafGap;
       const by = y + bh / 2;
@@ -109,7 +93,7 @@ function layout() {
       svg += `<text x="${bx}" y="${by + 5}" text-anchor="${side === "R" ? "start" : "end"}" font-size="15" font-weight="600" fill="currentColor">${b.t}</text>`;
       b.kids.forEach(([label, lv], i) => {
         const ly = y + i * (leafH + leafGap) + leafH / 2;
-        const branchEnd = bx + dir * 196;
+        const branchEnd = bx + dir * 110;
         const levels = levelsOf(lv);
         const tagW = levels.length * 22 + (levels.length - 1) * 3;
         const textX = side === "R" ? lx + tagW + 8 : lx - tagW - 8;
@@ -120,7 +104,7 @@ function layout() {
           svg += `<rect x="${tx}" y="${ly - 8}" width="22" height="16" rx="4" fill="${col(LV[l].var)}"/>`;
           svg += `<text x="${tx + 11}" y="${ly + 3.5}" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--paper)">${l === 0 ? "–" : "L" + l}</text>`;
         });
-        svg += `<text x="${textX}" y="${ly + 4.5}" text-anchor="${side === "R" ? "start" : "end"}" font-size="13" fill="${levels.includes(0) ? "var(--graphite)" : "currentColor"}">${label}</text>`;
+        svg += `<text x="${textX}" y="${ly + 4.5}" text-anchor="${side === "R" ? "start" : "end"}" font-size="14" fill="${levels.includes(0) ? "var(--graphite)" : "currentColor"}">${label}</text>`;
         svg += `</g>`;
       });
       y += bh + branchGap;
