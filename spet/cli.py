@@ -100,6 +100,24 @@ def cmd_validate(args) -> int:
     return 1 if bad else 0
 
 
+def cmd_serve(args) -> int:
+    import uvicorn
+
+    from .server import create_app
+
+    uvicorn.run(create_app(Path(args.runs_dir)), host="127.0.0.1", port=args.port)
+    return 0
+
+
+def cmd_mock(args) -> int:
+    import uvicorn
+
+    from .mock import create_mock
+
+    uvicorn.run(create_mock(), host="127.0.0.1", port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="spet")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -110,6 +128,13 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")
     v.set_defaults(fn=cmd_validate)
+    sv = sub.add_parser("serve", help="run the analysis API used by the web app")
+    sv.add_argument("--runs-dir", default="web/public/runs")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.set_defaults(fn=cmd_serve)
+    mk = sub.add_parser("mock", help="serve a fake OpenAI-compatible endpoint (stub model) for testing")
+    mk.add_argument("--port", type=int, default=8001)
+    mk.set_defaults(fn=cmd_mock)
     s = sub.add_parser("schema", help="print the bundle JSON Schema")
     s.set_defaults(fn=lambda a: print(bundle.json_schema(), end="") or 0)
     args = ap.parse_args(argv)

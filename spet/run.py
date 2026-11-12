@@ -38,7 +38,7 @@ class RunSpec:
     detector_precision: dict[str, tuple[float, int]] = field(default_factory=_default_precision)
 
 
-async def execute(spec: RunSpec, provider: Provider, *, progress=None) -> RunBundle:
+async def execute(spec: RunSpec, provider: Provider, *, progress=None, on_job=None) -> RunBundle:
     jobs = schedule.build(spec.sections, spec.queries, spec.n_per_query, spec.seed)
     done = 0
 
@@ -48,6 +48,8 @@ async def execute(spec: RunSpec, provider: Provider, *, progress=None) -> RunBun
         done += 1
         if progress:
             progress(done, len(jobs))
+        if on_job:
+            on_job(job, text)
         return text
 
     texts = await asyncio.gather(*(one(j) for j in jobs))

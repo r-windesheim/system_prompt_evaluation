@@ -5,7 +5,9 @@ title: "Customer-support prompt on <model>"
 provider:
   kind: openai
   base_url: https://<workspace>--<app>.modal.run/v1
-  model: Qwen/Qwen2.5-7B-Instruct
+  # 2025-era open weights, same lineage as the GPT-4o / GPT-5-nano the original tool used.
+  # Alternative: Qwen/Qwen3-8B (disable thinking mode).
+  model: openai/gpt-oss-20b
   max_concurrency: 16
 seed: 0
 n_per_query: 12
