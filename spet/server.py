@@ -62,6 +62,12 @@ class RunIn(BaseModel):
     endpoint: EndpointIn | None = None
 
 
+def _extra() -> dict:
+    """Extra request fields from the environment, e.g. SPET_REASONING_EFFORT=low for gpt-oss."""
+    eff = os.environ.get("SPET_REASONING_EFFORT")
+    return {"reasoning_effort": eff} if eff else {}
+
+
 def create_app(runs_dir: Path) -> FastAPI:
     app = FastAPI(title="spet")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -115,7 +121,7 @@ def create_app(runs_dir: Path) -> FastAPI:
                        n_per_query=body.n_per_query, temperature=body.temperature, seed=body.seed)
 
         async def work():
-            prov = OpenAICompatible(base, model)
+            prov = OpenAICompatible(base, model, extra=_extra())
             try:
                 def on_done(j: schedule.Job, _text: str):
                     job["done"] += 1

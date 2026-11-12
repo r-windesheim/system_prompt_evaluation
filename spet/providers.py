@@ -42,7 +42,7 @@ class OpenAICompatible:
 
     def __init__(self, base_url: str, model: str, api_key: str | None = None,
                  cache_dir: str | Path | None = ".spet_cache", max_concurrency: int = 16,
-                 max_tokens: int = 600, timeout: float = 120.0):
+                 max_tokens: int = 1500, timeout: float = 300.0, extra: dict | None = None):
         import httpx
 
         self.base_url = base_url.rstrip("/")
@@ -52,6 +52,8 @@ class OpenAICompatible:
         self._client = httpx.AsyncClient(headers=headers, timeout=timeout)
         self._sem = asyncio.Semaphore(max_concurrency)
         self.max_tokens = max_tokens
+        # provider-specific request fields, e.g. {"reasoning_effort": "low"} for gpt-oss on vLLM
+        self.extra = extra or {}
         self._cache_path = Path(cache_dir) / f"{_slug(base_url)}__{_slug(model)}.jsonl" if cache_dir else None
         self._cache: dict[str, str] = {}
         if self._cache_path and self._cache_path.exists():
@@ -66,6 +68,7 @@ class OpenAICompatible:
             "temperature": temperature,
             "seed": seed,
             "max_tokens": self.max_tokens,
+            **self.extra,
         }
 
     async def complete(self, system: str, user: str, *, temperature: float, seed: int) -> str:

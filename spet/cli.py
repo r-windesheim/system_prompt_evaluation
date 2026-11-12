@@ -57,7 +57,8 @@ def make_provider(cfg: dict):
     if kind == "openai":
         return OpenAICompatible(base_url=cfg["base_url"], model=cfg["model"],
                                 max_concurrency=int(cfg.get("max_concurrency", 16)),
-                                max_tokens=int(cfg.get("max_tokens", 600)))
+                                max_tokens=int(cfg.get("max_tokens", 1500)),
+                                extra=cfg.get("extra"))
     raise SystemExit(f"unknown provider kind: {kind}")
 
 
