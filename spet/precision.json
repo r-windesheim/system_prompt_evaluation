@@ -1,0 +1,38 @@
+{
+ "hedge": {
+  "precision": 1.0,
+  "n": 26
+ },
+ "list_item": {
+  "precision": 1.0,
+  "n": 30
+ },
+ "bold": {
+  "precision": 1.0,
+  "n": 30
+ },
+ "parenthetical": {
+  "precision": 1.0,
+  "n": 15
+ },
+ "question": {
+  "precision": 1.0,
+  "n": 30
+ },
+ "clarify": {
+  "precision": 1.0,
+  "n": 30
+ },
+ "offer": {
+  "precision": 1.0,
+  "n": 30
+ },
+ "caveat": {
+  "precision": 1.0,
+  "n": 25
+ },
+ "exclamation": {
+  "precision": 1.0,
+  "n": 30
+ }
+}

@@ -3,7 +3,7 @@
  "meta": {
   "id": "stub-demo",
   "title": "Planted-instruction demo",
-  "created_at": "2026-11-12T12:24:03+00:00",
+  "created_at": "2026-11-12T12:26:33+00:00",
   "model": "stub-planted-v1",
   "provider": "stub",
   "temperature": 0.7,
@@ -13147,8 +13147,8 @@
    "group": "Certainty",
    "description": "Softening a claim: might, perhaps, possibly, it seems.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 26
   },
   {
    "id": "booster",
@@ -13165,8 +13165,8 @@
    "group": "Structure",
    "description": "Bulleted or numbered list lines.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "heading",
@@ -13183,8 +13183,8 @@
    "group": "Structure",
    "description": "Markdown bold spans.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "parenthetical",
@@ -13192,8 +13192,8 @@
    "group": "Structure",
    "description": "Asides in parentheses.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 15
   },
   {
    "id": "question",
@@ -13201,8 +13201,8 @@
    "group": "Interaction",
    "description": "Sentences addressed back to the user ending in '?'.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "clarify",
@@ -13210,8 +13210,8 @@
    "group": "Interaction",
    "description": "Asking the user for more context.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "offer",
@@ -13219,8 +13219,8 @@
    "group": "Interaction",
    "description": "Closing offers: let me know, happy to help, feel free.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "caveat",
@@ -13228,8 +13228,8 @@
    "group": "Framing",
    "description": "Sentence-initial contrast or reservation.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 25
   },
   {
    "id": "disclaimer",
@@ -13264,8 +13264,8 @@
    "group": "Tone",
    "description": "Sentences ending in '!'.",
    "unit": "per response",
-   "precision": null,
-   "precision_n": null
+   "precision": 1.0,
+   "precision_n": 30
   },
   {
    "id": "emoji",

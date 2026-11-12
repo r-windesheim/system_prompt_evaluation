@@ -41,14 +41,17 @@ DETECTORS: tuple[DetectorDef, ...] = (
     _d("apology", "Apology", "Deference", "Apologising: sorry, apologies, I apologize.",
        r"\b(?:sorry|apologi[sz]e|apologies)\b"),
     _d("flattery", "Flattery", "Deference", "Praising the user or the question.",
-       r"\b(?:great|good|excellent|fantastic|interesting|thoughtful) (?:question|point|idea)\b",
+       r"\b(?:great|good|excellent|fantastic|interesting|thoughtful) (?:question|point)\b",
+       # "good idea" dropped: 0/4 in the audit ("whether it's a good idea or not")
        r"\bwhat an? (?:great|interesting|excellent) \w+"),
     # Certainty
     _d("hedge", "Hedging", "Certainty", "Softening a claim: might, perhaps, possibly, it seems.",
-       r"\b(?:might|perhaps|possibly|potentially|arguably|presumably)\b",
+       r"(?<!what )(?<!which )\b(?:might|perhaps|possibly|potentially|arguably|presumably)\b",
        r"\bit (?:seems|appears)\b", r"\bcould be\b", r"\bI think\b", r"\bnot (?:entirely )?sure\b"),
     _d("booster", "Certainty boost", "Certainty", "Overstating confidence: definitely, clearly, absolutely.",
-       r"\b(?:definitely|absolutely|clearly|obviously|certainly|undoubtedly|without a doubt)\b"),
+       r"\b(?:definitely|absolutely|obviously|certainly|undoubtedly|without a doubt)\b",
+       # "clearly" only as a stance marker; as a manner adverb ("explain clearly") it was 0/7 in the audit
+       r"\b(?:is|are|was|were|it's) clearly\b", r"(?:^|(?<=[.!?]\s))Clearly,"),
     # Structure
     _d("list_item", "List item", "Structure", "Bulleted or numbered list lines.",
        r"^[ \t]*(?:[-*•]|\d{1,2}[.)])[ \t]+\S.*$", flags=M),
@@ -71,7 +74,7 @@ DETECTORS: tuple[DetectorDef, ...] = (
        r"\b(?:please note|it'?s important to (?:note|remember)|I'?m not a (?:doctor|lawyer|professional)|"
        r"consult (?:a|an|with a) (?:professional|doctor|lawyer|expert))\b"),
     _d("meta", "Metacommentary", "Framing", "Talking about the answer instead of answering.",
-       r"\b(?:let me (?:explain|break (?:this|it) down|walk you through)|here'?s (?:a|an|the|how|what)|"
+       r"\b(?:let me (?:explain|break (?:this|it) down|walk you through)|"
        r"to answer your question|in summary|to summari[sz]e)\b"),
     _d("self_ai", "AI self-reference", "Framing", "Referring to itself as an AI or model.",
        r"\b(?:as an AI|I'?m (?:just )?an AI|as a (?:language|AI) model|I don'?t have (?:personal|feelings|opinions))\b"),

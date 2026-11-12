@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import attribution, detectors, schedule
 from .bundle import Config, Detector, Effect, Meta, Response, RunBundle, Section, Span
 from .providers import Provider
+
+try:  # measured in scripts/precision_report.py; see docs/detector-precision.md
+    _PRECISION = json.loads((Path(__file__).parent / "precision.json").read_text())
+except FileNotFoundError:
+    _PRECISION = {}
+
+
+def _default_precision() -> dict[str, tuple[float, int]]:
+    return {k: (v["precision"], v["n"]) for k, v in _PRECISION.items()}
 
 
 @dataclass
@@ -24,7 +35,7 @@ class RunSpec:
     alpha: float = 0.05
     notes: str = ""
     fixture: bool = False
-    detector_precision: dict[str, tuple[float, int]] = field(default_factory=dict)
+    detector_precision: dict[str, tuple[float, int]] = field(default_factory=_default_precision)
 
 
 async def execute(spec: RunSpec, provider: Provider, *, progress=None) -> RunBundle:

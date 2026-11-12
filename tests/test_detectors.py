@@ -11,10 +11,11 @@ CASES = {
     "apology": (["Sorry about that.", "I apologize for the confusion.", "My apologies."],
                 ["He felt sorrowful.", "No problem."]),
     "flattery": (["Great question!", "That's an interesting point.", "What a great idea"],
-                 ["The question is hard.", "A great deal of work."]),
+                 ["The question is hard.", "A great deal of work.", "whether it's a good idea or not"]),
     "hedge": (["It might rain.", "Perhaps not.", "It seems fine.", "I think so.", "I'm not sure."],
-              ["You may leave.", "It looks like a cat.", "This could work."]),
-    "booster": (["It is clearly wrong.", "Absolutely.", "Without a doubt."], ["It is wrong."]),
+              ["You may leave.", "It looks like a cat.", "This could work.", "hard to say what might be wrong"]),
+    "booster": (["It is clearly wrong.", "Absolutely.", "Without a doubt.", "Clearly, this fails."],
+                ["It is wrong.", "Clearly understand the goal.", "Organize your results clearly."]),
     "list_item": (["- one", "1. first", "  * nested", "2) second"], ["-1 degrees", "Version 1.2 is out"]),
     "heading": (["## Setup", "# Title"], ["#hashtag", "C# is a language"]),
     "bold": (["This is **important**."], ["2 * 3 * 4"]),
@@ -27,7 +28,8 @@ CASES = {
     "caveat": (["It works. However, it is slow.", "But not today."], ["Everything but the kitchen sink."]),
     "disclaimer": (["Please note that rates vary.", "I'm not a lawyer.", "Consult a professional."],
                    ["Note the date."]),
-    "meta": (["Let me explain.", "Here's how it works.", "In summary, yes."], ["Here is the file."]),
+    "meta": (["Let me explain.", "To answer your question, yes.", "In summary, yes."],
+             ["Here is the file.", "Here's a general approach:"]),
     "self_ai": (["As an AI, I can't.", "I'm just an AI."], ["AI is useful."]),
     "exclamation": (["Wow!"], ["Wow."]),
     "emoji": (["Nice 🎉"], ["Nice :)"]),
@@ -61,7 +63,7 @@ def test_rates_per_100_words():
 
 
 def test_typographic_apostrophes():
-    assert hits("meta", "Here’s how it works.")
+    assert hits("meta", "Let me walk you through it.") and hits("hedge", "It’s possibly fine.")
     assert hits("offer", "I’m happy to help.")
 
 
