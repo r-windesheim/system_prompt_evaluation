@@ -47,8 +47,8 @@
           "type": "string"
         },
         "unit": {
-          "const": "per 100 words",
-          "default": "per 100 words",
+          "const": "per response",
+          "default": "per response",
           "title": "Unit",
           "type": "string"
         },

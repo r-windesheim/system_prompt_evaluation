@@ -65,7 +65,7 @@ docs/                 this plan, method note, detector-precision report
   "configs": [{ "id": "full", "removed": null }, { "id": "without_0", "removed": 0 }, ...],
   "responses": [{ "config": "full", "query_idx": 0, "sample_idx": 3, "text": "...",
                   "spans": [{ "start": 12, "end": 18, "detector": "hedge" }] }],
-  "detectors": [{ "id": "hedge", "label": "Hedging", "group": "Certainty", "unit": "per 100 words",
+  "detectors": [{ "id": "hedge", "label": "Hedging", "group": "Certainty", "unit": "per response",
                   "precision": 0.91 | null }],
   "effects": [{ "detector": "hedge", "section": 2, "full_mean", "ablated_mean", "delta",
                 "ci": [lo, hi], "p": 0.003, "q": 0.02, "significant": true }]
@@ -74,7 +74,7 @@ docs/                 this plan, method note, detector-precision report
 
 The viewer keeps two layers **visually distinct**:
 - **Observation:** "this phrase matched the Hedging detector" (spans).
-- **Attribution:** "removing section 2 changed hedging by −1.8 ± 0.6 per 100 words, q = 0.02" (effects).
+- **Attribution:** "removing section 2 changed hedging by −0.8 [−1.1, −0.5] matches per response, q = 0.02" (effects).
 
 Phrases are never coloured by section.
 
@@ -134,3 +134,6 @@ Each step lists its deliverable and the check that marks it done.
 - Reduced-motion path verified.
 - Before/after screenshots are committed.
 - One PR from `overhaul/2025-redesign` → `main`.
+
+## Log
+- **Step 5 finding (2026-11-12).** With the legacy per-100-words rates, the planted stub test produced *spurious significant* effects. The apology section lengthened answers, which diluted the hedge rate (q = 0.003 for a section with no hedging instruction). The attribution metric is now **matches per response**. The planted test now requires the significant set to equal the planted set exactly, across 5 seeds.

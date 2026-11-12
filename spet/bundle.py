@@ -64,7 +64,7 @@ class Detector(_Strict):
     label: str
     group: str
     description: str = ""
-    unit: Literal["per 100 words"] = "per 100 words"
+    unit: Literal["per response"] = "per response"
     precision: float | None = None
     precision_n: int | None = None
 

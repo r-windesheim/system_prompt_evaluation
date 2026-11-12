@@ -1,7 +1,10 @@
 """Span-level stylistic quirk detectors.
 
 Every detector returns character spans, so the viewer can show *what matched*.
-Rates are matches per 100 words. Spans are observations only. Attribution to
+The attribution metric is *matches per response* (``counts``). Per-100-words
+rates leak across quirks: a section that makes answers longer dilutes every
+other quirk's rate and shows up as a spurious effect. ``rates`` is kept for
+display only. Spans are observations only. Attribution to
 prompt sections is computed separately (see attribution.py) and never painted
 onto spans.
 
@@ -114,3 +117,11 @@ def rates(text: str, detectors: tuple[DetectorDef, ...] = DETECTORS) -> dict[str
     for _, _, det in spans(text, detectors):
         counts[det] += 1
     return {k: (v / wc * 100 if wc else 0.0) for k, v in counts.items()}
+
+
+def counts(text: str, detectors: tuple[DetectorDef, ...] = DETECTORS) -> dict[str, float]:
+    """Matches per response for each detector: the attribution metric."""
+    out = {d.id: 0.0 for d in detectors}
+    for _, _, det in spans(text, detectors):
+        out[det] += 1
+    return out
