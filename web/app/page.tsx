@@ -18,16 +18,24 @@ export default function Home() {
           sampling seeds. Then it measures which habits change: apologising, hedging, bullet lists, questions back.
           Every effect comes with a confidence interval and a correction for testing many things at once.
         </p>
+        <p className="mt-7 flex flex-wrap items-center gap-4">
+          <Link href="/analyze/" className="inline-flex items-center rounded-full bg-ink px-5 py-2.5 text-[15px] font-medium text-paper hover:bg-ink/85">
+            Analyse a prompt
+          </Link>
+          <a href="#featured" className="text-[14px] text-graphite underline-offset-4 hover:text-ink hover:underline">
+            or try the demo below
+          </a>
+        </p>
       </section>
 
       {featured && (
-        <section aria-label="Featured run" className="border-t border-rule pt-10">
+        <section id="featured" aria-label="Featured run" className="scroll-mt-6 border-t border-rule pt-10">
           <RunHeader meta={featured.meta} nSections={featured.sections.length} nResponses={featured.nResponses} />
           <div className="mt-10">
             <RunLoader id={featured.meta.id} sectionLabels={featured.sections.map((s) => s.label)} withMatrix={false} />
           </div>
           <p className="mt-8 text-[14px]">
-            <Link href={`/runs/${featured.meta.id}/`} className="underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
+            <Link href={`/run/?id=${featured.meta.id}`} className="underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
               Open the full run, with every section against every quirk
             </Link>
           </p>
@@ -39,7 +47,7 @@ export default function Home() {
         <ul className="mt-4">
           {runs.map((r) => (
             <li key={r.meta.id} className="border-t border-rule first:border-t-0">
-              <Link href={`/runs/${r.meta.id}/`} className="grid gap-1 py-4 hover:bg-sheet sm:grid-cols-[1fr_auto] sm:gap-6">
+              <Link href={`/run/?id=${r.meta.id}`} className="grid gap-1 py-4 hover:bg-sheet sm:grid-cols-[1fr_auto] sm:gap-6">
                 <span>
                   <span className="text-[15px] font-medium">{r.meta.title}</span>
                   {r.meta.fixture && <span className="ml-2 text-[12.5px] text-graphite">synthetic</span>}

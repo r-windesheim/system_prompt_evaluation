@@ -2,25 +2,39 @@
 
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { bundleUrl } from "@/lib/api";
 import type { RunBundle } from "@/lib/types";
 import { RunView } from "./run-view";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
 /** Fetches the run bundle after first paint, so pages stay small (bundles are ~300 KB of JSON). */
-export function RunLoader({ id, sectionLabels, withMatrix = true }: { id: string; sectionLabels: string[]; withMatrix?: boolean }) {
+export function RunLoader({
+  id,
+  sectionLabels = [],
+  withMatrix = true,
+  onLoad,
+}: {
+  id: string;
+  sectionLabels?: string[];
+  withMatrix?: boolean;
+  onLoad?: (b: RunBundle) => void;
+}) {
   const [bundle, setBundle] = useState<RunBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    fetch(`${BASE}/runs/${id}.json`)
+    fetch(bundleUrl(id))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((b: RunBundle) => live && setBundle(b))
+      .then((b: RunBundle) => {
+        if (!live) return;
+        setBundle(b);
+        onLoad?.(b);
+      })
       .catch((e: Error) => live && setError(e.message));
     return () => {
       live = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (error)

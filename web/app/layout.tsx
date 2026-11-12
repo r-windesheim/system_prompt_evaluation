@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Providers } from "@/components/providers";
+import { hasApi } from "@/lib/api";
 import { REPO_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               spet
             </Link>
             <nav className="flex gap-6 text-[14px] text-graphite">
+              <Link href="/analyze/" className={hasApi ? "font-medium text-ink" : "hover:text-ink"}>Analyse a prompt</Link>
               <Link href="/" className="hover:text-ink">Runs</Link>
               <Link href="/method/" className="hover:text-ink">Method</Link>
               <a href={REPO_URL} className="hover:text-ink">Source</a>

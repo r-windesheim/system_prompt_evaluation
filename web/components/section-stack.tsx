@@ -18,7 +18,7 @@ export function SectionStack({ run, removed, onToggle }: Props) {
     <div>
       <h2 className="text-[13px] text-graphite">System prompt</h2>
       <p className="mt-1 mb-4 text-[13px] text-graphite">
-        Remove one section to see the same conversations without it.
+        Switch a section off to replay the same conversations without it.
       </p>
       <ol className="flex flex-col">
         {sections.map((s) => {
@@ -56,8 +56,15 @@ export function SectionStack({ run, removed, onToggle }: Props) {
                         style={{ background: groupColor(run.detectors.get(e.detector)?.group ?? "") }}
                       />
                     ))}
-                    <span className="ml-2 text-[12px] text-graphite opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                      {off ? "Restore" : "Remove"}
+                    <span
+                      className={`relative ml-2 inline-flex h-[18px] w-[30px] shrink-0 items-center rounded-full border transition-colors ${off ? "border-cobalt bg-cobalt-wash" : "border-rule-strong bg-ink group-hover:bg-ink/80"}`}
+                    >
+                      <motion.span
+                        className={`absolute size-[12px] rounded-full ${off ? "bg-cobalt" : "bg-paper"}`}
+                        initial={false}
+                        animate={{ left: off ? 2 : 14 }}
+                        transition={spring.snap}
+                      />
                     </span>
                   </span>
                 </span>

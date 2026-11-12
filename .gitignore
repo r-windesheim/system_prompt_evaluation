@@ -241,3 +241,6 @@ Thumbs.db
 
 # web viewer source (overrides the Python lib/ rule above)
 !web/lib/
+
+# runs created locally through `spet serve` (keep only curated bundles in git)
+web/public/runs/*-20[0-9][0-9][0-9][0-9][0-9][0-9]-*.json
