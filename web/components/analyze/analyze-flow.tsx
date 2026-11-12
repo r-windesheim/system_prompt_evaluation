@@ -1,10 +1,11 @@
 "use client";
 
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type Health, type RunStatus, type SectionDraft } from "@/lib/api";
-import { instant, spring } from "@/lib/motion";
+import { spring } from "@/lib/motion";
+import { SectionEditor } from "./section-editor";
 
 type Step = "prompt" | "sections" | "configure" | "running";
 const STEPS: { id: Step; label: string }[] = [
@@ -43,7 +44,9 @@ export function AnalyzeFlow() {
 
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [sections, setSections] = useState<(SectionDraft & { key: number })[]>([]);
+  const [split, setSplit] = useState<SectionDraft[] | null>(null);
+  const [sections, setSections] = useState<SectionDraft[]>([]);
+  const onSections = useCallback((s: SectionDraft[]) => setSections(s), []);
   const [splitMethod, setSplitMethod] = useState<"model" | "heuristic" | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
@@ -53,7 +56,6 @@ export function AnalyzeFlow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
-  const keyRef = useRef(0);
 
   useEffect(() => {
     api
@@ -76,7 +78,8 @@ export function AnalyzeFlow() {
     setError(null);
     try {
       const r = await api.split(prompt, endpoint);
-      setSections(r.sections.map((s) => ({ ...s, key: keyRef.current++ })));
+      setSplit(r.sections);
+      setSections(r.sections);
       setSplitMethod(r.method);
       setStep("sections");
     } catch (e) {
@@ -122,16 +125,6 @@ export function AnalyzeFlow() {
     return () => clearInterval(t);
   }, [step, status?.id, status?.state, router, reduce]);
 
-  const update = (key: number, patch: Partial<SectionDraft>) =>
-    setSections((ss) => ss.map((s) => (s.key === key ? { ...s, ...patch } : s)));
-  const remove = (key: number) => setSections((ss) => ss.filter((s) => s.key !== key));
-  const mergeDown = (i: number) =>
-    setSections((ss) => {
-      if (i >= ss.length - 1) return ss;
-      const merged = { ...ss[i], text: `${ss[i].text}\n\n${ss[i + 1].text}` };
-      return [...ss.slice(0, i), merged, ...ss.slice(i + 2)];
-    });
-  const add = () => setSections((ss) => [...ss, { label: "New section", text: "", key: keyRef.current++ }]);
 
   if (healthErr)
     return (
@@ -202,59 +195,22 @@ python -m spet serve`}
             </div>
           )}
 
-          {step === "sections" && (
-            <div className="max-w-[78ch]">
-              <h1 className="text-[28px] font-semibold tracking-[-0.015em]">Check the sections</h1>
-              <p className="mt-1 text-[14px] text-graphite">
-                {splitMethod === "model"
-                  ? "Split by the model, and checked to be word-for-word from your prompt."
-                  : "Split by paragraphs and headings. The model split wasn't available or didn't match your prompt word for word."}{" "}
-                Each section becomes one thing to remove, so merge anything that belongs together.
+          {step === "sections" && split && (
+            <div className="max-w-[86ch]">
+              <h1 className="text-[28px] font-semibold tracking-[-0.015em]">Choose the sections</h1>
+              <p className="mt-1 mb-6 text-[14px] text-graphite">
+                Each section gets removed on its own, so put a break wherever you want to test a part separately.
+                Switch a gap on to split there, or off to keep paragraphs together.{" "}
+                {splitMethod === "model" ? "The breaks start where the model grouped your prompt." : "The breaks start at every paragraph and heading."}
               </p>
-              <LayoutGroup>
-                <ul className="mt-6 flex flex-col gap-3">
-                  <AnimatePresence initial={false}>
-                    {sections.map((s, i) => (
-                      <motion.li
-                        key={s.key}
-                        layout
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={reduce ? instant : spring.layout}
-                        className="overflow-hidden"
-                      >
-                        <div className="rounded-lg border border-rule bg-sheet p-3">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 text-right text-[12px] text-graphite tabular-nums">{i + 1}</span>
-                            <label htmlFor={`label-${s.key}`} className="sr-only">Section {i + 1} label</label>
-                            <input id={`label-${s.key}`} value={s.label} onChange={(e) => update(s.key, { label: e.target.value })} className={`${input} py-1 font-medium`} />
-                            <button type="button" className="shrink-0 rounded px-2 py-1 text-[12.5px] text-graphite hover:text-ink disabled:opacity-30" disabled={i === sections.length - 1} onClick={() => mergeDown(i)}>
-                              Merge with next
-                            </button>
-                            <button type="button" className="shrink-0 rounded px-2 py-1 text-[12.5px] text-graphite hover:text-ink" onClick={() => remove(s.key)} aria-label={`Delete section ${i + 1}`}>
-                              Delete
-                            </button>
-                          </div>
-                          <div className="pl-8">
-                          <label htmlFor={`text-${s.key}`} className="sr-only">Section {i + 1} text</label>
-                          <textarea id={`text-${s.key}`} value={s.text} onChange={(e) => update(s.key, { text: e.target.value })} rows={Math.min(8, Math.max(2, Math.ceil(s.text.length / 90)))} className={`${input} mt-2 resize-y font-mono text-[12.5px] leading-relaxed`} />
-                          </div>
-                        </div>
-                      </motion.li>
-                    ))}
-                  </AnimatePresence>
-                </ul>
-              </LayoutGroup>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex gap-2">
-                  <button type="button" className={ghost} onClick={() => setStep("prompt")}>Back</button>
-                  <button type="button" className={ghost} onClick={add}>Add section</button>
-                </div>
-                <button type="button" className={primary} disabled={sections.length < 2 || sections.some((s) => !s.text.trim())} onClick={() => setStep("configure")}>
+              <SectionEditor key={split.map((x) => x.text).join("|").length + split.length} initial={split} onChange={onSections} />
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <button type="button" className={ghost} onClick={() => setStep("prompt")}>Back</button>
+                <button type="button" className={primary} disabled={sections.length < 2} onClick={() => setStep("configure")}>
                   Continue with {sections.length} sections
                 </button>
               </div>
+              {sections.length < 2 && <p className="mt-2 text-right text-[13px] text-graphite">Add at least one break: there&apos;s nothing to compare with a single section.</p>}
             </div>
           )}
 
