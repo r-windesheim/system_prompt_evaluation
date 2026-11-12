@@ -137,3 +137,4 @@ Each step lists its deliverable and the check that marks it done.
 
 ## Log
 - **Step 5 finding (2026-11-12).** With the legacy per-100-words rates, the planted stub test produced *spurious significant* effects. The apology section lengthened answers, which diluted the hedge rate (q = 0.003 for a section with no hedging instruction). The attribution metric is now **matches per response**. The planted test now requires the significant set to equal the planted set exactly, across 5 seeds.
+- **Step 7 decision.** No legacy-fixture bundle. The recorded CSVs hold about one with/without example per quirk, so they can't support paired effects, and a bundle built from them would show attributions the data can't back. The viewer is built against the synthetic planted-instruction demo (`examples/stub-demo.yaml` → `web/public/runs/stub-demo.json`), which is clearly badged as synthetic. Real showcase content comes from the first Modal run (Phase 6).
