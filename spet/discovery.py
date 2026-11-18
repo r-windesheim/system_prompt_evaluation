@@ -534,6 +534,7 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
     out = b.model_copy(deep=True)
     out.schema_version = SCHEMA_VERSION
     out.confirmation = None  # it retested the previous screen's statements; a new screen voids it
+    out.readout = None  # read from the old screen and confirmation
     out.discovery = Discovery(
         n_tests=len(tested), n_statements=len(statements), n_unreliable=n_unreliable, alpha=alpha,
         discovery_queries=disc_q, holdout_queries=hold_q, statements=statements, readings=readings,

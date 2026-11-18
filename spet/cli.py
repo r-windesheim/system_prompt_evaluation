@@ -6,6 +6,7 @@
     python -m spet discover runs/x.json -o runs/x.json     # judge calls only, no new answers
     python -m spet plan examples/sonnet35-july2024.yaml    # planned answers and judge calls, no model calls
     python -m spet confirm runs/x.json confirm.yaml -o runs/x-confirmed.json   # retest screen candidates
+    python -m spet readout runs/x.json -o runs/x-read.json --audit audit.yaml   # per-part reading, no model calls
 """
 
 from __future__ import annotations
@@ -309,6 +310,34 @@ def cmd_confirm(args) -> int:
     return 0
 
 
+def cmd_readout(args) -> int:
+    from . import readout as R
+
+    b = bundle.load(args.bundle)
+    audit = rec = None
+    try:
+        if args.audit:
+            audit, rec = R.load_audit(args.audit, b)
+        out_b = R.readout(b, audit, rec)
+    except ValueError as e:
+        raise SystemExit(f"readout: {e}")
+    out = Path(args.out)
+    bundle.dump(out_b, out)
+    ro = out_b.readout
+    print(f"wrote {out}" + (f" (audit {rec.file}: {len(rec.valid)} valid, {len(rec.invalid)} invalid)" if rec else ""),
+          file=sys.stderr)
+    for p in ro.parts:
+        print(f"  part {p.section + 1:>2} {b.sections[p.section].label:<30} {p.reading:<16} (was {p.adherence})",
+              file=sys.stderr)
+        for c in p.checks:
+            ci = f"[{c.rate_with_ci[0]:.2f}, {c.rate_with_ci[1]:.2f}]" if c.rate_with_ci else "[-]"
+            print(f"       {c.id:<7} {c.does:<9} {c.cause:<10} {c.rate_with:.2f} {ci} vs {c.rate_without:.2f}  "
+                  f"{c.n_questions} q, {c.n_answers} answers, {c.data}  {c.text[:60]}", file=sys.stderr)
+        for e in p.excluded:
+            print(f"       {e.id:<7} left out: {e.reason[:100]}", file=sys.stderr)
+    return 0
+
+
 def cmd_validate(args) -> int:
     bad = 0
     for p in args.paths:
@@ -400,6 +429,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="write the result even if judge calls failed (they count as unreadable, as in discovery). "
                          "Only for calls that failed on two identical reruns; see docs/discovery.md")
     cf.set_defaults(fn=cmd_confirm)
+    ro = sub.add_parser("readout", help="per-statement facts and per-part readings from a finished bundle (no model calls)")
+    ro.add_argument("bundle", help="a bundle with a discovery block, with or without a confirmation")
+    ro.add_argument("-o", "--out", required=True)
+    ro.add_argument("--audit", help="audit YAML: statements marked `valid: false` are left out of the reading")
+    ro.set_defaults(fn=cmd_readout)
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")
     v.set_defaults(fn=cmd_validate)

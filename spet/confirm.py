@@ -410,6 +410,7 @@ async def confirm(b: RunBundle, spec: ConfirmSpec, provider, judge, *, rule: Sel
     }
     out = b.model_copy(deep=True)
     out.schema_version = SCHEMA_VERSION
+    out.readout = None  # read without this confirmation; rerun `spet readout`
     out.confirmation = Confirmation(
         id=spec.id, created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"), seed=spec.seed, alpha=alpha,
         rule=rule.record(), n_per_query=spec.n_per_query, n_per_query_general=spec.n_per_query_general,

@@ -222,7 +222,7 @@ def test_bundle_roundtrip_and_old_bundles_load(tmp_path):
     b, d = _run(0)
     p = tmp_path / "d.json"
     B.dump(d, p)
-    assert B.load(p) == d and d.schema_version == 6 and d.discovery.test == "question"
+    assert B.load(p) == d and d.schema_version == B.SCHEMA_VERSION and d.discovery.test == "question"
     for old in sorted((ROOT / "web" / "public" / "runs").glob("*.json")):
         ob = B.load(old)
         assert ob.discovery is None and ob.schema_version in (1, 2)

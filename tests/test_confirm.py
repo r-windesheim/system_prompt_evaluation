@@ -98,7 +98,7 @@ def test_confirmation_end_to_end(tmp_path):
     out = _confirm(b, _spec(tmp_path))
     c = out.confirmation
     by = {s.id: s for s in c.candidates}
-    assert out.schema_version == 6 and c.seed == 1 and c.families == {"intended": 4, "discovered": 1} and c.n_tests == 5
+    assert out.schema_version == B.SCHEMA_VERSION and c.seed == 1 and c.families == {"intended": 4, "discovered": 1} and c.n_tests == 5
     assert out.discovery == b.discovery and out.responses == b.responses  # the screen is untouched
 
     # real effects replicate; the decoys are reported, with their numbers, as not confirmed
@@ -289,7 +289,7 @@ def test_old_bundles_still_load():
         if "screen" in p.name:
             continue
         b = B.load(p)
-        assert b.schema_version <= 6 and (b.schema_version == 6 or b.confirmation is None)
+        assert b.schema_version <= 7 and (b.schema_version >= 6 or b.confirmation is None) and (b.schema_version == 7 or b.readout is None)
 
 
 V2 = ROOT / "runs_out" / "sonnet35-july2024-v2.json"

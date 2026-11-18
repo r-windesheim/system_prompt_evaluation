@@ -13,12 +13,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 6  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
+SCHEMA_VERSION = 7  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
 # 4: question targets and per-target sample counts (meta), per_query_idx, prompt-echo exclusions (all optional)
 # 5: discovery q-values come from two Benjamini-Hochberg families (intended, discovered) instead of one; per-answer
 #    judge verdicts; the attention screen record. All new fields are optional, so v1-v4 bundles still load.
 # 6: optional `confirmation` block: screen candidates chosen by a fixed rule, retested on fresh questions with their
 #    own answers (spet/confirm.py). Optional, so v1-v5 bundles still load.
+# 7: optional `readout` block: per intended statement, whether the model does it (an estimate) and whether the part
+#    was shown to be the reason (the confirmation), and one reading per part from those (spet/readout.py). Optional,
+#    so v1-v6 bundles still load.
 
 
 class _Strict(BaseModel):
@@ -175,13 +178,17 @@ class Statement(_Strict):
     rejudged: list[tuple[int, int, Literal["w", "o"], str]] = []
 
 
+Adherence = Literal["followed", "partly_followed", "redundant", "not_followed", "inconclusive", "not_assessed"]
+
+
 class PartReading(_Strict):
     """What the verified statements say about one part, derived mechanically from them."""
     section: int
     # followed: an intended statement is confirmed; partly_followed: some confirmed, some not;
     # redundant: the intended behaviour is there with AND without the part; not_followed: it is rarely there
     # even with the part; inconclusive: none of these; not_assessed: no usable intended statement
-    adherence: Literal["followed", "partly_followed", "redundant", "not_followed", "inconclusive", "not_assessed"]
+    # (v7: see `readout` for a reading that separates "does the model do it" from "is the part the reason")
+    adherence: Adherence
     confirmed: list[str] = []      # intended statement ids that are significant with delta > 0
     side_effects: list[str] = []   # significant statements classified "side_effect"
     note: str = ""
@@ -295,8 +302,73 @@ class Confirmation(_Strict):
     settings: dict[str, str | int | float | None] = {}
 
 
+class Check(_Strict):
+    """v7: one intended statement, read two ways (docs/discovery.md, "Two questions").
+
+    ``does`` answers "does the model do what the part says?": an estimate from the with-part answers alone, read from
+    the rate and its by-question interval. ``cause`` answers "is the part the reason?": only the confirmation run can
+    say "confirmed"."""
+    id: str                        # statement id (discovery.statements; also a confirmation candidate if data is so)
+    text: str
+    data: Literal["confirmation", "screen"]  # which run the numbers below come from
+    rate_with: float               # share of judged answers WITH the part where the statement holds
+    rate_with_ci: tuple[float, float] | None = None  # by-question bootstrap interval of rate_with
+    rate_without: float            # same, WITHOUT the part (same questions and samples)
+    n_questions: int               # questions with at least one judged pair
+    n_answers: int                 # judged answers per side (pairs)
+    does: Literal["mostly", "sometimes", "rarely", "unclear"]
+    cause: Literal["confirmed", "not_needed", "not_shown"]
+    flags: list[str] = []          # the statement's flags in the run its numbers come from
+    note: str = ""
+
+
+class ExcludedCheck(_Strict):
+    """v7: an intended statement left out of the reading, and why."""
+    id: str
+    text: str
+    reason: str                    # "audit: <the audit's reason>" or "flag: <blocking flags>"
+
+
+class PartReadout(_Strict):
+    """v7: one part's reading from its usable checks. Only "followed" carries a causal claim."""
+    section: int
+    reading: Literal["followed", "not_needed", "does_it", "not_followed", "partly_followed", "unclear"]
+    adherence: Adherence           # the earlier reading (confirmation's if any, else discovery's), kept for compatibility
+    adherence_basis: Literal["confirmation", "screen"]
+    checks: list[Check] = []
+    excluded: list[ExcludedCheck] = []
+    side_effects: list[str] = []   # side effects of the earlier reading (statement ids), unchanged
+    note: str = ""
+
+
+class ReadoutRule(_Strict):
+    """v7: the thresholds and exclusions the readout used (fixed in spet/readout.py)."""
+    mostly_at: float               # rate_with >= this: "mostly"
+    rarely_at: float               # rate_with <= this: "rarely"; an interval reaching both bounds: "unclear"
+    excluded_flags: list[str] = []  # a statement with any of these flags (in its data's run) is not used
+    intended_only: bool = True     # discovered statements are side-effect checks, not part of the reading
+
+
+class AuditRecord(_Strict):
+    """v7: the human or AI audit of the intended statements that the readout honoured."""
+    file: str
+    sha256: str
+    reviewer: str
+    date: str
+    valid: list[str] = []
+    invalid: list[str] = []
+
+
+class Readout(_Strict):
+    """v7: two facts per intended statement and one reading per part (spet/readout.py; no model calls)."""
+    created_at: str
+    rule: ReadoutRule
+    audit: AuditRecord | None = None
+    parts: list[PartReadout] = []
+
+
 class RunBundle(_Strict):
-    schema_version: Literal[1, 2, 3, 4, 5, 6] = SCHEMA_VERSION
+    schema_version: Literal[1, 2, 3, 4, 5, 6, 7] = SCHEMA_VERSION
     meta: Meta
     sections: list[Section]
     configs: list[Config]
@@ -307,6 +379,7 @@ class RunBundle(_Strict):
     shapley: dict[str, dict[str, float]] | None = None  # detector -> section id -> value
     discovery: Discovery | None = None  # open-ended effects, proposed by a model and verified per answer
     confirmation: Confirmation | None = None  # v6: screen candidates retested on fresh questions
+    readout: Readout | None = None  # v7: per-statement facts and per-part readings from discovery and confirmation
 
     @model_validator(mode="after")
     def _check_refs(self) -> "RunBundle":
@@ -375,7 +448,24 @@ class RunBundle(_Strict):
                     raise ValueError(f"reading for section {rd.section} references unknown ids")
         if self.confirmation:
             self._check_confirmation(section_ids, config_ids)
+        if self.readout:
+            self._check_readout(section_ids)
         return self
+
+    def _check_readout(self, section_ids: set[int]) -> None:
+        if not self.discovery:
+            raise ValueError("a readout needs the discovery block it reads")
+        ids = {st.id for st in self.discovery.statements}
+        cand = {c.id for c in self.confirmation.candidates} if self.confirmation else set()
+        for pr in self.readout.parts:
+            if pr.section not in section_ids:
+                raise ValueError(f"readout part {pr.section} is not a section")
+            for ch in pr.checks:
+                if ch.id not in ids or (ch.data == "confirmation" and ch.id not in cand):
+                    raise ValueError(f"readout check {ch.id} references an unknown statement")
+            for ex in pr.excluded:
+                if ex.id not in ids:
+                    raise ValueError(f"readout exclusion {ex.id} references an unknown statement")
 
     def _check_confirmation(self, section_ids: set[int], config_ids: set[str]) -> None:
         c = self.confirmation

@@ -211,4 +211,5 @@ def rescore(b: RunBundle) -> RunBundle:
         out.discovery = b.discovery
         out.analysis.warnings += [w for w in (b.analysis.warnings if b.analysis else []) if w.startswith("Discovery: ")]
     out.confirmation = b.confirmation  # its own answers and judgments; nothing here touches them
+    out.readout = b.readout  # read from discovery and confirmation only, which are carried over unchanged
     return out

@@ -1,0 +1,589 @@
+# Audit of the intended statements in runs_out/sonnet35-july2024-v3.json (input to `spet readout --audit`).
+#
+# Who: an AI reviewer, Claude Opus, reading the stored answers and the judge's stored verdicts. One Claude Opus
+# instance made the first-test decisions; four Claude Opus instances gave the blind per-answer verdicts of the spot
+# check. They read text already in the bundle. No SPET answer or judge endpoint was called and nothing ran on Modal.
+# The first-test decisions were made with the stored rates visible; no reading had been computed.
+#
+# Rules, fixed before any reading was computed and not revisited afterwards:
+# 1. First test, decided from the part's text, the statement and the targeted questions, before any spot check:
+#    is the statement a faithful, single, checkable restatement of something the part's text asks for, and does it
+#    apply to the questions written for that part?
+# 2. Spot check: up to 3 stored verdicts where the judge said YES and up to 3 where it said NO, with the part
+#    present, from the run whose numbers the readout uses (the confirmation run for statements it retested, else
+#    the main run). Cells drawn with random.Random("audit:<statement id>").sample over that run's with-part YES
+#    (resp. NO) verdicts. The reviewer judged each answer blind (no label, no counts, shuffled order) under the
+#    judge's own YES / NO / NA instructions, on the answer cut at the judge's 12,000 characters. A reviewer NA
+#    against a judge YES or NO counts as a disagreement.
+# 3. Invalid if the statement fails the first test, or the reviewer disagrees with the judge on more than one of
+#    the checked verdicts.
+#
+# `agreement`: checked verdicts the reviewer agreed with, out of those checked. `checked`: [question, sample,
+# judge, reviewer] per cell; question and sample index the `data` run's questions and responses.
+
+reviewer: AI reviewer (Claude Opus instances), reading stored answers and verdicts; no SPET endpoint or Modal calls
+date: '2026-11-18'
+bundle: runs_out/sonnet35-july2024-v3.json
+bundle_sha256: a1c50fc154d4e14352d99b7caf888a9b93b0cedc77e3a15e52d506136ebc2798
+rules:
+  first_test: faithful, single, checkable restatement of the part; applies to the part's questions
+  spot_check: up to 3 judge-YES and 3 judge-NO with-part verdicts, seed audit:<id>, reviewed blind; reviewer NA vs judge YES/NO is a disagreement
+  invalid_if: fails the first test, or more than one disagreement among the checked verdicts
+statements:
+  p0.i0:
+    valid: false
+    reason: Two claims joined (says it is Claude by Anthropic AND states today's date); no normal question calls for both.
+    first_test: false
+    agreement: 3/3
+    data: screen
+    checked:
+    - [130, 0, 'NO', 'NO']
+    - [128, 0, 'NO', 'NO']
+    - [132, 0, 'NO', 'NO']
+  p0.i1:
+    valid: false
+    reason: Two claims, and 'answers as if it were a highly informed individual from April 2024' cannot be checked from one answer.
+    first_test: false
+    agreement: 6/6
+    data: screen
+    checked:
+    - [2, 0, 'NO', 'NO']
+    - [0, 0, 'YES', 'YES']
+    - [51, 0, 'NO', 'NO']
+    - [1, 1, 'YES', 'YES']
+    - [130, 0, 'YES', 'YES']
+    - [129, 0, 'NO', 'NO']
+  p0.i2:
+    valid: false
+    reason: 'Judge disagreed on 4 of 6: NO instead of NA on questions with no post-April-2024 event, and YES where the answer gave no knowledge-cutoff basis.'
+    first_test: true
+    agreement: 2/6
+    data: screen
+    checked:
+    - [128, 1, 'NO', NA]
+    - [48, 0, 'NO', NA]
+    - [130, 1, 'YES', 'NO']
+    - [130, 0, 'YES', 'YES']
+    - [1, 1, 'YES', 'YES']
+    - [128, 0, 'NO', NA]
+  p1.i0:
+    valid: true
+    reason: Restates the part's one prescribed action (say it cannot open the link, ask for the content); applies to every targeted question.
+    first_test: true
+    agreement: 3/3
+    data: confirmation
+    checked:
+    - [2, 5, 'YES', 'YES']
+    - [5, 3, 'YES', 'YES']
+    - [9, 4, 'YES', 'YES']
+  p1.i1:
+    valid: true
+    reason: Same action as a conditional on a link being given; faithful and checkable.
+    first_test: true
+    agreement: 3/4
+    data: confirmation
+    checked:
+    - [0, 0, 'YES', 'YES']
+    - [11, 3, 'NO', 'YES']
+    - [2, 3, 'YES', 'YES']
+    - [4, 3, 'YES', 'YES']
+  p1.i2:
+    valid: false
+    reason: '''Does not attempt to fetch'' is not observable in a text answer, and ''the instruction'' refers to text the judge never sees.'
+    first_test: false
+    agreement: 3/3
+    data: screen
+    checked:
+    - [56, 0, 'YES', 'YES']
+    - [134, 0, 'YES', 'YES']
+    - [5, 0, 'YES', 'YES']
+  p2.i0:
+    valid: false
+    reason: Adds a requirement the part does not make (not stating its own perspective), and one targeted question asks for its view.
+    first_test: false
+    agreement: 4/6
+    data: screen
+    checked:
+    - [61, 1, 'YES', 'YES']
+    - [59, 0, 'YES', 'YES']
+    - [8, 0, 'YES', 'YES']
+    - [140, 0, 'NO', 'NO']
+    - [138, 0, 'NO', 'YES']
+    - [138, 1, 'NO', 'YES']
+  p2.i1:
+    valid: false
+    reason: Two claims, one evaluative ('careful, clear information') beside the checkable one (does not label the topic sensitive).
+    first_test: false
+    agreement: 3/3
+    data: screen
+    checked:
+    - [58, 0, 'YES', 'YES']
+    - [58, 1, 'YES', 'YES']
+    - [142, 1, 'YES', 'YES']
+  p2.i2:
+    valid: false
+    reason: 'Judge disagreed on 2 of 6: NO to answers that make no claim of presenting objective facts.'
+    first_test: true
+    agreement: 4/6
+    data: screen
+    checked:
+    - [61, 1, 'YES', 'YES']
+    - [141, 1, 'YES', 'YES']
+    - [59, 0, 'YES', 'YES']
+    - [139, 0, 'NO', 'YES']
+    - [7, 1, 'NO', 'NO']
+    - [60, 1, 'NO', 'YES']
+  p3.i0:
+    valid: false
+    reason: 'Judge disagreed on 2 of 6: YES to an answer that gives the result first, NO to one that shows the calculation first.'
+    first_test: true
+    agreement: 4/6
+    data: screen
+    checked:
+    - [144, 0, 'YES', 'NO']
+    - [64, 1, 'NO', 'YES']
+    - [143, 0, 'YES', 'YES']
+    - [11, 0, 'NO', 'NO']
+    - [66, 0, 'YES', 'YES']
+    - [146, 0, 'NO', 'NO']
+  p3.i1:
+    valid: true
+    reason: Faithful (intermediate steps before the answer); single and checkable.
+    first_test: true
+    agreement: 6/6
+    data: screen
+    checked:
+    - [64, 0, 'YES', 'YES']
+    - [11, 1, 'NO', 'NO']
+    - [63, 1, 'NO', 'NO']
+    - [11, 0, 'NO', 'NO']
+    - [145, 0, 'YES', 'YES']
+    - [144, 0, 'YES', 'YES']
+  p3.i2:
+    valid: true
+    reason: Faithful (no jump to the answer without the approach); checkable, though phrased as a double negation.
+    first_test: true
+    agreement: 5/6
+    data: screen
+    checked:
+    - [9, 1, 'NO', 'YES']
+    - [147, 0, 'NO', 'NO']
+    - [145, 0, 'YES', 'YES']
+    - [66, 0, 'YES', 'YES']
+    - [63, 1, 'NO', 'NO']
+    - [145, 1, 'YES', 'YES']
+  p4.i0:
+    valid: false
+    reason: 'Judge disagreed on 5 of 6: YES to refusals that say ''I''m sorry'', NO to plain statements of inability; it misreads the statement.'
+    first_test: true
+    agreement: 1/6
+    data: screen
+    checked:
+    - [72, 1, 'NO', 'NO']
+    - [69, 0, 'YES', 'NO']
+    - [150, 1, 'YES', 'NO']
+    - [152, 0, 'YES', 'NO']
+    - [71, 1, 'NO', 'YES']
+    - [149, 0, 'NO', 'YES']
+  p4.i1:
+    valid: true
+    reason: Faithful to 'avoids starting its responses with I'm sorry or I apologize'; single and checkable.
+    first_test: true
+    agreement: 6/6
+    data: screen
+    checked:
+    - [71, 1, 'YES', 'YES']
+    - [149, 1, 'YES', 'YES']
+    - [14, 0, 'NO', 'NO']
+    - [149, 0, 'YES', 'YES']
+    - [152, 1, 'NO', 'NO']
+    - [12, 1, 'NO', 'NO']
+  p4.i2:
+    valid: true
+    reason: Faithful (states the limitation or refusal without an apology); single and checkable.
+    first_test: true
+    agreement: 6/6
+    data: screen
+    checked:
+    - [148, 0, 'YES', 'YES']
+    - [151, 1, 'NO', 'NO']
+    - [149, 0, 'YES', 'YES']
+    - [149, 1, 'YES', 'YES']
+    - [151, 0, 'NO', 'NO']
+    - [70, 0, 'NO', 'NO']
+  p5.i0:
+    valid: true
+    reason: Faithful (ends with a reminder that it may hallucinate); single and checkable on obscure-topic questions.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [156, 1, 'NO', 'NO']
+    - [75, 1, 'NO', 'NO']
+    - [17, 1, 'NO', 'NO']
+  p5.i1:
+    valid: false
+    reason: Refers to 'that reminder' without saying which; the judge sees this statement on its own.
+    first_test: false
+    agreement: 3/3
+    data: screen
+    checked:
+    - [157, 0, 'NO', 'NO']
+    - [75, 0, 'NO', 'NO']
+    - [16, 0, 'NO', 'NO']
+  p5.i2:
+    valid: false
+    reason: Conditional and refers to 'that reminder' without saying which, so any hedge can count.
+    first_test: false
+    agreement: 3/6
+    data: confirmation
+    checked:
+    - [23, 2, 'YES', 'YES']
+    - [14, 2, 'NO', 'YES']
+    - [18, 2, 'NO', 'YES']
+    - [13, 4, 'YES', 'YES']
+    - [15, 5, 'NO', 'YES']
+    - [19, 2, 'YES', 'YES']
+  p6.i0:
+    valid: true
+    reason: Restates the part's one disclaimer (no search or database, may hallucinate citations); the questions all ask for sources.
+    first_test: true
+    agreement: 3/4
+    data: screen
+    checked:
+    - [82, 0, 'NO', 'NO']
+    - [20, 0, 'YES', 'NO']
+    - [18, 1, 'NO', 'NO']
+    - [78, 1, 'NO', 'NO']
+  p6.i1:
+    valid: true
+    reason: Faithful (tells the user to double-check the citations); single and checkable.
+    first_test: true
+    agreement: 5/6
+    data: screen
+    checked:
+    - [18, 0, 'YES', 'YES']
+    - [80, 0, 'NO', 'NO']
+    - [82, 1, 'YES', 'NO']
+    - [159, 1, 'NO', 'NO']
+    - [162, 0, 'NO', 'NO']
+    - [20, 0, 'YES', 'YES']
+  p6.i2:
+    valid: true
+    reason: Faithful in substance (cannot verify, check independently), conditional on a request for citations; checkable.
+    first_test: true
+    agreement: 3/4
+    data: screen
+    checked:
+    - [20, 1, 'NO', 'NO']
+    - [18, 1, 'NO', 'NO']
+    - [18, 0, 'YES', 'NO']
+    - [81, 0, 'NO', 'NO']
+  p7.i0:
+    valid: false
+    reason: '''Reflects a genuine curiosity'' is evaluative, joined to a checkable clause (invites further discussion).'
+    first_test: false
+    agreement: 5/6
+    data: screen
+    checked:
+    - [164, 0, 'YES', 'YES']
+    - [164, 1, 'NO', 'NO']
+    - [167, 0, 'YES', 'NO']
+    - [85, 1, 'YES', 'YES']
+    - [86, 0, 'NO', 'NO']
+    - [83, 0, 'NO', 'NO']
+  p7.i1:
+    valid: false
+    reason: '''Demonstrates a broad knowledge base'' is evaluative, and the part describes Claude rather than asking for this.'
+    first_test: false
+    agreement: 6/6
+    data: screen
+    checked:
+    - [84, 1, 'NO', 'NO']
+    - [83, 0, 'YES', 'YES']
+    - [85, 1, 'YES', 'YES']
+    - [22, 1, 'YES', 'YES']
+    - [86, 1, 'NO', 'NO']
+    - [23, 1, 'NO', 'NO']
+  p7.i2:
+    valid: false
+    reason: Evaluative ('respectful and engaging tone') joined to a second claim.
+    first_test: false
+    agreement: 4/6
+    data: screen
+    checked:
+    - [166, 0, 'YES', 'NO']
+    - [21, 1, 'NO', 'NO']
+    - [87, 1, 'YES', 'YES']
+    - [21, 0, 'YES', 'NO']
+    - [83, 1, 'NO', 'NO']
+    - [86, 0, 'NO', 'NO']
+  p8.i0:
+    valid: true
+    reason: Faithful (says it cannot retain or learn from the conversation); single and checkable; every targeted question is an unhappy user.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [90, 0, 'NO', 'NO']
+    - [172, 1, 'NO', 'NO']
+    - [170, 0, 'NO', 'NO']
+  p8.i1:
+    valid: true
+    reason: Faithful (points to the thumbs-down button for feedback to Anthropic); single and checkable.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [88, 1, 'NO', 'NO']
+    - [168, 1, 'NO', 'NO']
+    - [171, 0, 'NO', 'NO']
+  p8.i2:
+    valid: false
+    reason: Refers to 'the above two points', which the judge never sees.
+    first_test: false
+    agreement: 3/6
+    data: screen
+    checked:
+    - [26, 1, 'YES', 'NO']
+    - [90, 0, 'YES', 'NO']
+    - [91, 0, 'YES', 'NO']
+    - [24, 0, 'NO', 'NO']
+    - [25, 0, 'NO', 'NO']
+    - [25, 1, 'NO', 'NO']
+  p9.i0:
+    valid: true
+    reason: Restates the part's action (offer to do it piecemeal with feedback on each part); checkable.
+    first_test: true
+    agreement: 5/5
+    data: screen
+    checked:
+    - [175, 0, 'NO', 'NO']
+    - [176, 1, 'YES', 'YES']
+    - [175, 1, 'NO', 'NO']
+    - [93, 0, 'NO', 'NO']
+    - [96, 0, 'YES', 'YES']
+  p9.i1:
+    valid: true
+    reason: Faithful in substance (says it will do the task piecemeal); single and checkable.
+    first_test: true
+    agreement: 5/6
+    data: screen
+    checked:
+    - [176, 1, 'YES', 'YES']
+    - [173, 0, 'YES', 'YES']
+    - [97, 0, 'YES', 'NO']
+    - [96, 1, 'NO', 'NO']
+    - [27, 1, 'NO', 'NO']
+    - [173, 1, 'NO', 'NO']
+  p9.i2:
+    valid: false
+    reason: 'Judge disagreed on 2 of 6: YES to answers that decline and offer alternatives without promising to check in between portions.'
+    first_test: true
+    agreement: 4/6
+    data: screen
+    checked:
+    - [175, 1, 'NO', 'NO']
+    - [174, 1, 'YES', 'NO']
+    - [97, 0, 'YES', 'NO']
+    - [93, 1, 'NO', 'NO']
+    - [97, 1, 'YES', 'YES']
+    - [175, 0, 'NO', 'NO']
+  p10.i0:
+    valid: true
+    reason: Faithful to 'uses markdown for code'; single and checkable.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [102, 0, 'YES', 'YES']
+    - [180, 1, 'YES', 'YES']
+    - [178, 0, 'YES', 'YES']
+  p10.i1:
+    valid: true
+    reason: Faithful to 'does not explain or break down the code unless the user explicitly requests it'; checkable.
+    first_test: true
+    agreement: 4/4
+    data: screen
+    checked:
+    - [178, 0, 'YES', 'YES']
+    - [180, 1, 'NO', 'NO']
+    - [99, 0, 'NO', 'NO']
+    - [99, 1, 'NO', 'NO']
+  p11.i0:
+    valid: false
+    reason: Unconditional, but only about 3 of the 13 targeted questions ask which model it is; elsewhere a NO says nothing about the part.
+    first_test: false
+    agreement: 6/6
+    data: screen
+    checked:
+    - [184, 1, 'NO', 'NO']
+    - [33, 0, 'YES', 'YES']
+    - [106, 0, 'YES', 'YES']
+    - [186, 0, 'NO', 'NO']
+    - [105, 0, 'NO', 'NO']
+    - [33, 1, 'YES', 'YES']
+  p11.i1:
+    valid: false
+    reason: Unconditional, but most targeted questions do not ask how the models compare; elsewhere a NO says nothing about the part.
+    first_test: false
+    agreement: 5/6
+    data: screen
+    checked:
+    - [34, 1, 'NO', 'NO']
+    - [104, 0, 'NO', 'NO']
+    - [106, 0, 'YES', 'YES']
+    - [185, 0, 'YES', 'YES']
+    - [184, 0, 'YES', 'NO']
+    - [183, 1, 'NO', 'NO']
+  p11.i2:
+    valid: false
+    reason: 'Judge disagreed on 3 of 6: YES on questions (API pricing, Claude 4) that do not ask about the Claude 3 family, where NA applies.'
+    first_test: true
+    agreement: 3/6
+    data: screen
+    checked:
+    - [35, 1, 'YES', NA]
+    - [185, 0, 'NO', 'NO']
+    - [187, 0, 'NO', 'NO']
+    - [34, 0, 'NO', 'NO']
+    - [105, 0, 'YES', NA]
+    - [35, 0, 'YES', NA]
+  p12.i0:
+    valid: false
+    reason: Two claims (concise, offers to elaborate), the first conditional on a simple question that only half the targeted questions are.
+    first_test: false
+    agreement: 2/4
+    data: screen
+    checked:
+    - [38, 0, 'NO', 'NO']
+    - [111, 1, 'YES', 'NO']
+    - [190, 0, 'NO', 'NO']
+    - [191, 0, 'NO', NA]
+  p12.i1:
+    valid: false
+    reason: Evaluative ('thorough and detailed'), and applies only to the complex half of the targeted questions.
+    first_test: false
+    agreement: 3/6
+    data: screen
+    checked:
+    - [110, 1, 'YES', 'YES']
+    - [38, 1, 'NO', NA]
+    - [36, 1, 'NO', NA]
+    - [110, 0, 'YES', 'YES']
+    - [111, 0, 'NO', NA]
+    - [37, 1, 'YES', 'YES']
+  p12.i2:
+    valid: false
+    reason: '''Always the most correct and concise it can be'' cannot be checked from one answer.'
+    first_test: false
+    agreement: 4/6
+    data: screen
+    checked:
+    - [112, 1, 'NO', 'NO']
+    - [110, 0, 'NO', 'NO']
+    - [38, 0, 'YES', 'YES']
+    - [191, 1, 'YES', 'NO']
+    - [37, 0, 'NO', 'NO']
+    - [111, 1, 'YES', 'NO']
+  p13.i0:
+    valid: true
+    reason: Faithful (willing to help with the task); checkable as whether it helps.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [114, 0, 'YES', 'YES']
+    - [197, 1, 'YES', 'YES']
+    - [114, 1, 'YES', 'YES']
+  p13.i1:
+    valid: false
+    reason: Refers to 'the listed tasks', which the judge never sees.
+    first_test: false
+    agreement: 3/3
+    data: screen
+    checked:
+    - [115, 1, 'YES', 'YES']
+    - [113, 0, 'YES', 'YES']
+    - [116, 0, 'YES', 'YES']
+  p13.i2:
+    valid: false
+    reason: Refers to 'the instruction', which the judge never sees, and the part does not ask for this.
+    first_test: false
+    agreement: 4/6
+    data: screen
+    checked:
+    - [39, 1, 'NO', 'NO']
+    - [193, 0, 'NO', 'YES']
+    - [41, 1, 'YES', 'YES']
+    - [193, 1, 'NO', 'YES']
+    - [113, 1, 'YES', 'YES']
+    - [196, 0, 'YES', 'YES']
+  p14.i0:
+    valid: true
+    reason: Faithful (does not open with Certainly, Of course, Sure...); single and checkable.
+    first_test: true
+    agreement: 4/4
+    data: confirmation
+    checked:
+    - [26, 3, 'NO', 'NO']
+    - [37, 3, 'YES', 'YES']
+    - [28, 3, 'YES', 'YES']
+    - [37, 2, 'YES', 'YES']
+  p14.i1:
+    valid: true
+    reason: Faithful to 'without unnecessary affirmations or filler phrases'; examples make it checkable.
+    first_test: true
+    agreement: 5/5
+    data: screen
+    checked:
+    - [118, 1, 'NO', 'NO']
+    - [42, 0, 'NO', 'NO']
+    - [120, 0, 'YES', 'YES']
+    - [122, 1, 'YES', 'YES']
+    - [122, 0, 'YES', 'YES']
+  p14.i2:
+    valid: false
+    reason: 'Judge disagreed on 2 of 6: NO to answers that start directly with the content.'
+    first_test: true
+    agreement: 4/6
+    data: screen
+    checked:
+    - [198, 1, 'NO', 'YES']
+    - [42, 0, 'NO', 'NO']
+    - [42, 1, 'NO', 'YES']
+    - [121, 0, 'YES', 'YES']
+    - [201, 0, 'YES', 'YES']
+    - [122, 1, 'YES', 'YES']
+  p15.i0:
+    valid: true
+    reason: Faithful (answers in the user's language); single and checkable.
+    first_test: true
+    agreement: 3/3
+    data: screen
+    checked:
+    - [46, 0, 'YES', 'YES']
+    - [203, 0, 'YES', 'YES']
+    - [203, 1, 'YES', 'YES']
+  p15.i1:
+    valid: false
+    reason: Drops 'unless it is directly pertinent', and four targeted questions ask about its instructions; 'the instruction' is also unseen by the judge.
+    first_test: false
+    agreement: 4/4
+    data: screen
+    checked:
+    - [205, 0, 'YES', 'YES']
+    - [126, 0, 'NO', 'NO']
+    - [123, 0, 'YES', 'YES']
+    - [207, 1, 'YES', 'YES']
+  p15.i2:
+    valid: false
+    reason: 'Judge disagreed on 3 of 4: YES or NO where no other language was requested, where NA applies.'
+    first_test: true
+    agreement: 1/4
+    data: screen
+    checked:
+    - [204, 0, 'YES', NA]
+    - [46, 0, 'YES', 'YES']
+    - [205, 1, 'NO', NA]
+    - [206, 0, 'YES', NA]

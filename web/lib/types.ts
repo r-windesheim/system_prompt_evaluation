@@ -1,4 +1,4 @@
-// Mirrors spet/bundle.py (schema_version 1-6). docs/run-bundle.schema.json is the source of truth.
+// Mirrors spet/bundle.py (schema_version 1-7). docs/run-bundle.schema.json is the source of truth.
 // Fields added after v1 are optional here, because older bundles lack them.
 
 export type Meta = {
@@ -238,8 +238,69 @@ export type Confirmation = {
   settings?: Record<string, string | number | null>;
 };
 
+/** v7: one intended statement read two ways. `does`: does the model do it (an estimate from the with-part answers);
+ * `cause`: is the part the reason ("confirmed" only from the confirmation run). */
+export type Check = {
+  id: string;
+  text: string;
+  /** which run the numbers come from */
+  data: "confirmation" | "screen";
+  rate_with: number;
+  /** by-question bootstrap interval of rate_with */
+  rate_with_ci?: [number, number] | null;
+  rate_without: number;
+  n_questions: number;
+  /** judged answers per side */
+  n_answers: number;
+  does: "mostly" | "sometimes" | "rarely" | "unclear";
+  cause: "confirmed" | "not_needed" | "not_shown";
+  flags?: string[];
+  note?: string;
+};
+
+/** v7: an intended statement left out of the reading; reason starts "audit: " or "flag in the ... run: ". */
+export type ExcludedCheck = { id: string; text: string; reason: string };
+
+/** v7: one part's reading. Only "followed" carries a causal claim; "does_it" means the model does this but the part
+ * was not shown to be the reason. */
+export type PartReadout = {
+  section: number;
+  reading: "followed" | "not_needed" | "does_it" | "not_followed" | "partly_followed" | "unclear";
+  /** the earlier reading (confirmation's if any, else discovery's), kept for compatibility */
+  adherence: PartReading["adherence"];
+  adherence_basis: "confirmation" | "screen";
+  checks?: Check[];
+  excluded?: ExcludedCheck[];
+  side_effects?: string[];
+  note?: string;
+};
+
+export type ReadoutRule = {
+  mostly_at: number;
+  rarely_at: number;
+  excluded_flags?: string[];
+  intended_only?: boolean;
+};
+
+export type AuditRecord = {
+  file: string;
+  sha256: string;
+  reviewer: string;
+  date: string;
+  valid?: string[];
+  invalid?: string[];
+};
+
+/** v7: two facts per intended statement and one reading per part (no model calls). */
+export type Readout = {
+  created_at: string;
+  rule: ReadoutRule;
+  audit?: AuditRecord | null;
+  parts?: PartReadout[];
+};
+
 export type RunBundle = {
-  schema_version: 1 | 2 | 3 | 4 | 5 | 6;
+  schema_version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   meta: Meta;
   sections: Section[];
   configs: Config[];
@@ -251,6 +312,8 @@ export type RunBundle = {
   discovery?: Discovery | null;
   /** v6 */
   confirmation?: Confirmation | null;
+  /** v7 */
+  readout?: Readout | null;
 };
 
 export type RunSummary = {

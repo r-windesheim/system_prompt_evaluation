@@ -188,7 +188,7 @@ A significant difference in the other direction is **not** confirmed and gets th
 
 **Resuming.** Answers and verdicts are cached (`.spet_cache/`). If any judge call fails after the provider's retries, the command writes nothing and exits non-zero, and you rerun the same command. If the same calls still fail on two identical reruns (a call that fails every time, not an outage), run the same command once more with `--keep-failed-calls`. The failed calls then count as unreadable, as in discovery, and `n_errors` and a warning report them. This fallback was fixed before the July 2024 confirmation ran. Run the confirmation once. If the result disappoints, do not change the rule, the questions, the seed, the test or alpha, and do not run it again.
 
-**Bundle.** The combined bundle is schema 6: the run and its screen, unchanged, plus `confirmation`. `spet rescore` keeps it. `spet discover` drops it, because a new screen voids it.
+**Bundle.** The combined bundle is schema 6: the run and its screen, unchanged, plus `confirmation`. `spet rescore` keeps it. `spet discover` drops it, because a new screen voids it. For a per-part reading that separates "does the model do it" from "is the part the reason", run `spet readout` on it (see [Two questions](#two-questions-the-readout)).
 
 **Cost of the July 2024 example:**
 
@@ -260,6 +260,52 @@ Reliability is measured, not assumed.
 | `not_assessed` | no intended statement has a reliable judge |
 
 `side_effects` lists significant statements classified as side effects. **Caution:** `not_followed` and `redundant` rest on the judge's absolute yes-rate, not on a paired difference. A judge that is biased toward yes or toward no shifts both arms equally, which leaves the difference intact but moves the rates. Trust these two readings less than `followed`.
+
+`adherence` mixes two questions: a part is `inconclusive` unless the causal one is settled, even where the model plainly does or does not do what the part says. It is kept for compatibility; the readout below replaces it.
+
+## Two questions: the readout
+
+```
+python -m spet readout runs/x.json -o runs/x-read.json [--audit audit.yaml]   # stored data only, no model calls
+```
+
+Code: `spet/readout.py`. It works on a finished bundle, with or without a confirmation block, and writes `readout` (schema 7). Each intended statement answers two separate questions.
+
+**1. Does the model do what the part says?** This is an **estimate**, not a test. It is the share of answers, with the full prompt, on the questions written for that part, where the judge said the statement holds (`rate_with`), with its by-question bootstrap interval. It needs no comparison and no multiple-testing correction. It rests on the judge being right about single answers, which is why statements can be audited (below). Reading (`does`):
+
+| `does` | rule |
+|---|---|
+| `unclear` | the interval reaches both 0.2 and 0.8 (lo ≤ 0.2 and hi ≥ 0.8); checked first |
+| `mostly` | rate ≥ 0.8 (the engine's `redundant_rate`) |
+| `rarely` | rate ≤ 0.2 |
+| `sometimes` | otherwise |
+
+**2. Is the part the reason?** This is the **causal claim**. It rests on the paired by-question test, and in this project only the confirmation run supports a claim. Reading (`cause`):
+
+| `cause` | rule |
+|---|---|
+| `confirmed` | the confirmation block confirmed the statement |
+| `not_needed` | mostly done both with and without the part (both rates ≥ 0.8) |
+| `not_shown` | otherwise |
+
+**Which numbers.** A statement retested in the confirmation run takes its rates, interval, question and answer counts **and flags** from there (more samples, fresh questions); `data` says which run. Otherwise the main run, on the part's targeted questions. A candidate the confirmation flags `judge_unreliable` is left out; it does not fall back to its main-run numbers.
+
+**Which statements.** Intended statements only; discovered ones are side-effect checks. A statement is left out (`excluded`, with the reason) if an audit marks it invalid, or if it carries `judge_unreliable`, `judge_unchecked`, `unparseable`, `exclusion_asymmetry` or `few_pairs` in the run its numbers come from. `ceiling` and `never_seen` are kept: a behaviour that always or never happens is what question 1 measures. Where the re-judge sample held one class only (`rejudge_one_class`), the check's note says the judge's ability to give the other verdict was not tested.
+
+**Per part** (`reading`), from its usable checks, in this order:
+
+| `reading` | rule | what it claims |
+|---|---|---|
+| `unclear` | no usable check, or every check `unclear` | nothing |
+| `followed` | every check `mostly`, at least one `confirmed` | the model does this **and the part is the reason** |
+| `not_needed` | every check `mostly` and `not_needed` | the model does this with or without the part |
+| `does_it` | every check `mostly`, cause not shown | the model does this; **the part was not shown to be the reason** |
+| `not_followed` | every check `rarely` | even with the part, the model rarely does this |
+| `partly_followed` | anything else: a mix, all `sometimes`, or a mix that includes `unclear` | the model does some of it, or some of the time |
+
+**Only `followed` carries a causal claim.** Every other reading describes what answers with the part look like. `not_followed` and `not_needed` rest on the judge's absolute yes-rate, so a judge biased toward yes or no moves them.
+
+**The audit** (`--audit`) is a YAML file keyed by statement id under `statements:`, each with `valid` and `reason`, plus `reviewer` and `date`. It must cover every intended statement of the bundle. Its file name, sha256, reviewer and the valid and invalid ids are stored in `readout.audit`. The July 2024 audit is `examples/sonnet35-july2024-audit.yaml`; its header gives the rules. `spet discover` and `spet confirm` drop the readout (the data under it changes); `spet rescore` keeps it.
 
 ## What a small judge (gpt-oss-20b) can and cannot be trusted with
 

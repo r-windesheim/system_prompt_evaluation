@@ -32,6 +32,52 @@
       "title": "Analysis",
       "type": "object"
     },
+    "AuditRecord": {
+      "additionalProperties": false,
+      "description": "v7: the human or AI audit of the intended statements that the readout honoured.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "reviewer": {
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "valid": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Valid",
+          "type": "array"
+        },
+        "invalid": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Invalid",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "reviewer",
+        "date"
+      ],
+      "title": "AuditRecord",
+      "type": "object"
+    },
     "Candidate": {
       "additionalProperties": false,
       "description": "v6: a screen statement retested on the confirmation's fresh questions. The Statement fields hold the\nconfirmation's numbers (verified_on, per_query_idx, verdicts and examples index confirmation.queries and\nconfirmation.responses); the screen_* fields copy the screen's, for comparison.",
@@ -398,6 +444,111 @@
         "confirmed"
       ],
       "title": "Candidate",
+      "type": "object"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "description": "v7: one intended statement, read two ways (docs/discovery.md, \"Two questions\").\n\n``does`` answers \"does the model do what the part says?\": an estimate from the with-part answers alone, read from\nthe rate and its by-question interval. ``cause`` answers \"is the part the reason?\": only the confirmation run can\nsay \"confirmed\".",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "data": {
+          "enum": [
+            "confirmation",
+            "screen"
+          ],
+          "title": "Data",
+          "type": "string"
+        },
+        "rate_with": {
+          "title": "Rate With",
+          "type": "number"
+        },
+        "rate_with_ci": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate With Ci"
+        },
+        "rate_without": {
+          "title": "Rate Without",
+          "type": "number"
+        },
+        "n_questions": {
+          "title": "N Questions",
+          "type": "integer"
+        },
+        "n_answers": {
+          "title": "N Answers",
+          "type": "integer"
+        },
+        "does": {
+          "enum": [
+            "mostly",
+            "sometimes",
+            "rarely",
+            "unclear"
+          ],
+          "title": "Does",
+          "type": "string"
+        },
+        "cause": {
+          "enum": [
+            "confirmed",
+            "not_needed",
+            "not_shown"
+          ],
+          "title": "Cause",
+          "type": "string"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "data",
+        "rate_with",
+        "rate_without",
+        "n_questions",
+        "n_answers",
+        "does",
+        "cause"
+      ],
+      "title": "Check",
       "type": "object"
     },
     "Config": {
@@ -1083,6 +1234,31 @@
       "title": "Effect",
       "type": "object"
     },
+    "ExcludedCheck": {
+      "additionalProperties": false,
+      "description": "v7: an intended statement left out of the reading, and why.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "reason"
+      ],
+      "title": "ExcludedCheck",
+      "type": "object"
+    },
     "Meta": {
       "additionalProperties": false,
       "properties": {
@@ -1287,6 +1463,156 @@
         "adherence"
       ],
       "title": "PartReading",
+      "type": "object"
+    },
+    "PartReadout": {
+      "additionalProperties": false,
+      "description": "v7: one part's reading from its usable checks. Only \"followed\" carries a causal claim.",
+      "properties": {
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "reading": {
+          "enum": [
+            "followed",
+            "not_needed",
+            "does_it",
+            "not_followed",
+            "partly_followed",
+            "unclear"
+          ],
+          "title": "Reading",
+          "type": "string"
+        },
+        "adherence": {
+          "enum": [
+            "followed",
+            "partly_followed",
+            "redundant",
+            "not_followed",
+            "inconclusive",
+            "not_assessed"
+          ],
+          "title": "Adherence",
+          "type": "string"
+        },
+        "adherence_basis": {
+          "enum": [
+            "confirmation",
+            "screen"
+          ],
+          "title": "Adherence Basis",
+          "type": "string"
+        },
+        "checks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Check"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "excluded": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ExcludedCheck"
+          },
+          "title": "Excluded",
+          "type": "array"
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Side Effects",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "reading",
+        "adherence",
+        "adherence_basis"
+      ],
+      "title": "PartReadout",
+      "type": "object"
+    },
+    "Readout": {
+      "additionalProperties": false,
+      "description": "v7: two facts per intended statement and one reading per part (spet/readout.py; no model calls).",
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "rule": {
+          "$ref": "#/$defs/ReadoutRule"
+        },
+        "audit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuditRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "parts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PartReadout"
+          },
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "created_at",
+        "rule"
+      ],
+      "title": "Readout",
+      "type": "object"
+    },
+    "ReadoutRule": {
+      "additionalProperties": false,
+      "description": "v7: the thresholds and exclusions the readout used (fixed in spet/readout.py).",
+      "properties": {
+        "mostly_at": {
+          "title": "Mostly At",
+          "type": "number"
+        },
+        "rarely_at": {
+          "title": "Rarely At",
+          "type": "number"
+        },
+        "excluded_flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Flags",
+          "type": "array"
+        },
+        "intended_only": {
+          "default": true,
+          "title": "Intended Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mostly_at",
+        "rarely_at"
+      ],
+      "title": "ReadoutRule",
       "type": "object"
     },
     "Response": {
@@ -1840,14 +2166,15 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": 6,
+      "default": 7,
       "enum": [
         1,
         2,
         3,
         4,
         5,
-        6
+        6,
+        7
       ],
       "title": "Schema Version",
       "type": "integer"
@@ -1934,6 +2261,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Confirmation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "readout": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Readout"
         },
         {
           "type": "null"
