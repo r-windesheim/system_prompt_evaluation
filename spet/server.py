@@ -23,6 +23,8 @@ from pydantic import BaseModel, Field
 
 from . import bundle as B
 from . import schedule
+from .cli import _parse_queries
+from .discovery import discover, make_judge
 from .providers import OpenAICompatible
 from .run import RunSpec, execute
 from .split import split_heuristic, split_with_model
@@ -52,14 +54,26 @@ class SectionIn(BaseModel):
     text: str
 
 
+class QueryIn(BaseModel):
+    text: str
+    # the parts this question was written for: section labels or 0-based ids; [] = none (docs/discovery.md)
+    targets: list[str | int] = []
+
+
 class RunIn(BaseModel):
     title: str = "Untitled prompt"
     sections: list[SectionIn] = Field(min_length=1, max_length=40)
-    queries: list[str] = Field(default_factory=lambda: list(DEFAULT_QUERIES), min_length=1, max_length=20)
+    # plain strings, or {text, targets}; with targets, intended checks use the questions written for each part
+    queries: list[str | QueryIn] = Field(default_factory=lambda: list(DEFAULT_QUERIES), min_length=1, max_length=20)
     n_per_query: int = Field(8, ge=2, le=50)
+    # samples where a question does not target the removed part (needs targets); None = n_per_query everywhere
+    n_per_query_untargeted: int | None = Field(None, ge=1, le=50)
     temperature: float = Field(0.7, ge=0, le=2)
     seed: int = 0
     endpoint: EndpointIn | None = None
+    # also run the discovery stage after the answers (judge calls; see docs/discovery.md). The judge is
+    # SPET_JUDGE_BASE_URL / SPET_JUDGE_MODEL if set, else this run's endpoint and model.
+    discover: bool = False
 
 
 def _extra() -> dict:
@@ -109,16 +123,28 @@ def create_app(runs_dir: Path) -> FastAPI:
         base, model = endpoint(body.endpoint)
         slug = re.sub(r"[^a-z0-9]+", "-", body.title.lower()).strip("-")[:40] or "run"
         rid = f"{slug}-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
-        n_cfg = len(body.sections) + 1
-        total = n_cfg * len(body.queries) * body.n_per_query
+        labels = [s.label for s in body.sections]
+        try:
+            texts, targets = _parse_queries([q if isinstance(q, str) else q.model_dump(exclude_unset=True) for q in body.queries], labels)
+            spec = RunSpec(id=rid, title=body.title, sections=[s.text for s in body.sections], section_labels=labels,
+                           queries=texts, query_targets=targets, n_per_query_untargeted=body.n_per_query_untargeted,
+                           n_per_query=body.n_per_query, temperature=body.temperature, seed=body.seed)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        # sample counts differ by config and question once targets and an untargeted count are given
+        per_cfg = {c: sum(schedule.n_samples(r, q, spec.n_per_query, targets, spec.n_per_query_untargeted)
+                          for q in range(len(texts)))
+                   for c, r in schedule.config_ids(len(body.sections))}
+        total = sum(per_cfg.values())
         job = {"id": rid, "state": "running", "done": 0, "total": total, "error": None, "title": body.title,
-               "configs": [c for c, _ in schedule.config_ids(len(body.sections))],
-               "per_config": {c: 0 for c, _ in schedule.config_ids(len(body.sections))},
-               "per_config_total": len(body.queries) * body.n_per_query, "started": time.time()}
+               "configs": list(per_cfg), "per_config": {c: 0 for c in per_cfg},
+               # per_config_total is the largest config's count (all equal without an untargeted count);
+               # per_config_totals has each one
+               "per_config_total": max(per_cfg.values()), "per_config_totals": per_cfg, "started": time.time(),
+               # "answers" while answers are generated, then "discovery" (judge calls) if requested;
+               # discovery_total grows as each stage's number of calls becomes known
+               "phase": "answers", "discover": body.discover, "discovery_done": 0, "discovery_total": 0}
         jobs[rid] = job
-        spec = RunSpec(id=rid, title=body.title, sections=[s.text for s in body.sections],
-                       section_labels=[s.label for s in body.sections], queries=body.queries,
-                       n_per_query=body.n_per_query, temperature=body.temperature, seed=body.seed)
 
         async def work():
             prov = OpenAICompatible(base, model, extra=_extra(), max_tokens=int(os.environ.get("SPET_MAX_TOKENS", "4000")))
@@ -127,6 +153,16 @@ def create_app(runs_dir: Path) -> FastAPI:
                     job["done"] += 1
                     job["per_config"][j.config] += 1
                 b = await execute(spec, prov, on_job=on_done)
+                if body.discover:
+                    job["phase"] = "discovery"
+                    judge = make_judge(run_base_url=base, run_model=model)
+
+                    def on_judge(done: int, total: int):
+                        job["discovery_done"], job["discovery_total"] = done, total
+                    try:
+                        b = await discover(b, judge, progress=on_judge)
+                    finally:
+                        await judge.aclose()
                 B.dump(b, runs_dir / f"{rid}.json")
                 job["state"] = "done"
             except Exception as e:  # noqa: BLE001

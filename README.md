@@ -22,7 +22,7 @@ The full write-up is on the viewer's Method page and in [`docs/OVERHAUL_PLAN.md`
 ### How it is checked
 - **Planted-instruction test** (`tests/test_attribution.py`): a stub model whose behaviours are switched on by specific sentences. The pipeline must flag exactly those (quirk, section) pairs and nothing else, across five seeds. This test is what caught the length-normalisation bug that per-100-words rates caused.
 - **Detector precision audit** ([`docs/detector-precision.md`](docs/detector-precision.md)): 262 hits sampled from real gpt-4o-mini responses, labelled by an independent LLM annotator (a separate Claude agent, blind to the detector code; not human-validated). The detectors that failed were rewritten, and they show as unmeasured until a fresh sample is labelled.
-- **Viewer** (`web/scripts/audit.mjs`): axe shows 0 WCAG 2.1 AA violations in light and dark. Frames during an ablation toggle hold 60 fps at 4× CPU throttle. A reduced-motion path is included.
+- **Viewer** (`web/scripts/audit.mjs`): axe shows 0 WCAG 2.1 AA violations across every state of the tool, the run pages, the runs list and the method page, at 1440 and 390 wide. With reduced motion, opening a part and its detail changes at once.
 
 ### What it does not claim
 Underlined phrases are detector matches, not proof of which section produced them. Leave-one-out misses interactions. A Shapley estimator exists (`spet.attribution.shapley_values`), but the runner doesn't execute subset configurations yet. Effects describe these messages on this model.
@@ -43,6 +43,28 @@ npm run build                          # static export in web/out
 NEXT_PUBLIC_BASE_PATH=/projects/spet npm run build   # to host under a sub-path
 ```
 
+### Discovery: effects no detector covers
+The detectors see a fixed list of habits. `spet discover` looks for anything else a part changes. A model proposes yes/no statements about a single answer: "intended" ones from the instruction text, "discovered" ones from paired answers with the part's identity hidden. A blinded judge then checks every answer, and only paired differences that survive the by-question test and the false-discovery correction count. Intended and discovered statements are corrected as separate families. Details, limits and costs are in [`docs/discovery.md`](docs/discovery.md).
+
+```bash
+python -m spet plan examples/sonnet35-july2024.yaml      # answers, call bounds, test floors; no model calls
+python -m spet run examples/sonnet35-july2024.yaml --discover -o runs/x.json
+python -m spet discover runs/x.json -o runs/x.json       # or on an existing bundle (judge calls only)
+```
+
+A run spec can say which part each question was written for. Intended behaviour is then checked only where it applies, and pairs that only feed side-effect checks can get fewer samples:
+
+```yaml
+n_per_query: 2              # samples where the question targets the removed part
+n_per_query_untargeted: 1   # everywhere else
+queries:
+  - text: "Write a JavaScript function that debounces another function."
+    targets: ["Code formatting"]
+  - "A plain string targets no part."
+```
+
+**Attention screen (optional).** `modal run deploy/modal_attention.py::screen` samples answers on gpt-oss-20b with the prompt laid out as vLLM sends it, and measures how much each part draws the model's attention on each question, relative to that part's usual share ("lift"). `spet discover --screen <file>` then shows the proposer the pairs with the highest lift for each part first. It only changes what gets proposed; verification is the same.
+
 ### Real models
 The engine talks to any OpenAI-compatible `/chat/completions` endpoint, for example vLLM on Modal. Copy `examples/modal-template.yaml`, set `base_url` and `model`, export `SPET_API_KEY` if the endpoint needs one, and run it the same way. Responses are cached in `.spet_cache/`.
 
@@ -54,7 +76,8 @@ tests/      pytest, including the planted-instruction test
 web/        static viewer (Next 16, React 19, Tailwind 4, Motion); reads web/public/runs/*.json
 docs/       plan and audit, detector precision, bundle JSON Schema, screenshots
 examples/   run specs and source prompts
-scripts/    detector-audit tooling
+scripts/    detector-audit tooling, attention pilot report
+deploy/     Modal apps: the vLLM endpoint, the attention pilot and screen
 ```
 
 The pre-2026 version (FastAPI + Next 14 UI) is on the `wip/pre-overhaul` branch.

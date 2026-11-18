@@ -42,15 +42,34 @@ def config_ids(n_sections: int, skip: set[int] = frozenset()) -> list[tuple[str,
     return [("full", None)] + [(f"without_{k}", k) for k in range(n_sections) if k not in skip]
 
 
+def n_samples(removed: int | None, query_idx: int, n_per_query: int,
+              targets: list[list[int]] | None = None, n_untargeted: int | None = None) -> int:
+    """Samples for one (config, question).
+
+    Without targets or ``n_untargeted``: ``n_per_query`` everywhere (the classic grid). Otherwise a question gets
+    ``n_per_query`` samples in ``without_k`` if it targets k, and in ``full`` if it targets any part, so that every
+    targeted pair has the full count; everywhere else it gets ``n_untargeted``. Pairs use the shared sample
+    indices, so a pair always exists for the smaller of the two counts.
+    """
+    if targets is None or n_untargeted is None:
+        return n_per_query
+    t = targets[query_idx]
+    hit = bool(t) if removed is None else removed in t
+    return n_per_query if hit else n_untargeted
+
+
 def build(sections: list[str], queries: list[str], n_per_query: int, run_seed: int,
-          skip: set[int] = frozenset()) -> list[Job]:
+          skip: set[int] = frozenset(), targets: list[list[int]] | None = None,
+          n_untargeted: int | None = None) -> list[Job]:
     if not sections:
         raise ValueError("need at least one section")
+    if targets is not None and len(targets) != len(queries):
+        raise ValueError("need one target list per query")
     jobs: list[Job] = []
     for cfg, removed in config_ids(len(sections), skip):
         kept = [s for i, s in enumerate(sections) if i != removed]
         system = join_sections(kept)
         for qi, q in enumerate(queries):
-            for si in range(n_per_query):
+            for si in range(n_samples(removed, qi, n_per_query, targets, n_untargeted)):
                 jobs.append(Job(cfg, removed, qi, si, system, q, cell_seed(run_seed, qi, si)))
     return jobs

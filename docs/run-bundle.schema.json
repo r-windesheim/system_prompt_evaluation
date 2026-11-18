@@ -137,6 +137,134 @@
       "title": "Detector",
       "type": "object"
     },
+    "Discovery": {
+      "additionalProperties": false,
+      "properties": {
+        "n_tests": {
+          "title": "N Tests",
+          "type": "integer"
+        },
+        "n_statements": {
+          "title": "N Statements",
+          "type": "integer"
+        },
+        "n_unreliable": {
+          "default": 0,
+          "title": "N Unreliable",
+          "type": "integer"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "discovery_queries": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Discovery Queries",
+          "type": "array"
+        },
+        "holdout_queries": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Holdout Queries",
+          "type": "array"
+        },
+        "statements": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Statement"
+          },
+          "title": "Statements",
+          "type": "array"
+        },
+        "readings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PartReading"
+          },
+          "title": "Readings",
+          "type": "array"
+        },
+        "calls": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Calls",
+          "type": "object"
+        },
+        "n_unparseable": {
+          "default": 0,
+          "title": "N Unparseable",
+          "type": "integer"
+        },
+        "n_errors": {
+          "default": 0,
+          "title": "N Errors",
+          "type": "integer"
+        },
+        "prompt_echoes": {
+          "default": [],
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Prompt Echoes",
+          "type": "array"
+        },
+        "test": {
+          "default": "cell",
+          "enum": [
+            "cell",
+            "question"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "families": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Families",
+          "type": "object"
+        },
+        "screen": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScreenUse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "n_tests",
+        "n_statements",
+        "alpha",
+        "discovery_queries",
+        "holdout_queries"
+      ],
+      "title": "Discovery",
+      "type": "object"
+    },
     "Effect": {
       "additionalProperties": false,
       "properties": {
@@ -227,6 +355,14 @@
             "type": "number"
           },
           "title": "Per Query",
+          "type": "array"
+        },
+        "per_query_idx": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Per Query Idx",
           "type": "array"
         },
         "mde": {
@@ -338,6 +474,37 @@
           "default": {},
           "title": "Settings",
           "type": "object"
+        },
+        "query_targets": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query Targets"
+        },
+        "n_per_query_untargeted": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Per Query Untargeted"
         }
       },
       "required": [
@@ -352,6 +519,92 @@
         "queries"
       ],
       "title": "Meta",
+      "type": "object"
+    },
+    "PairExample": {
+      "additionalProperties": false,
+      "description": "One paired cell where the judge said yes on one side and no on the other.",
+      "properties": {
+        "query_idx": {
+          "minimum": 0,
+          "title": "Query Idx",
+          "type": "integer"
+        },
+        "sample_idx": {
+          "minimum": 0,
+          "title": "Sample Idx",
+          "type": "integer"
+        },
+        "with_config": {
+          "default": "full",
+          "title": "With Config",
+          "type": "string"
+        },
+        "without_config": {
+          "title": "Without Config",
+          "type": "string"
+        },
+        "with_yes": {
+          "title": "With Yes",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "query_idx",
+        "sample_idx",
+        "without_config",
+        "with_yes"
+      ],
+      "title": "PairExample",
+      "type": "object"
+    },
+    "PartReading": {
+      "additionalProperties": false,
+      "description": "What the verified statements say about one part, derived mechanically from them.",
+      "properties": {
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "adherence": {
+          "enum": [
+            "followed",
+            "partly_followed",
+            "redundant",
+            "not_followed",
+            "inconclusive",
+            "not_assessed"
+          ],
+          "title": "Adherence",
+          "type": "string"
+        },
+        "confirmed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Confirmed",
+          "type": "array"
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Side Effects",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "adherence"
+      ],
+      "title": "PartReading",
       "type": "object"
     },
     "Response": {
@@ -403,6 +656,116 @@
         "text"
       ],
       "title": "Response",
+      "type": "object"
+    },
+    "ScreenPick": {
+      "additionalProperties": false,
+      "description": "One pair the attention screen put in front of the proposer.",
+      "properties": {
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "query_idx": {
+          "minimum": 0,
+          "title": "Query Idx",
+          "type": "integer"
+        },
+        "sample_idx": {
+          "minimum": 0,
+          "title": "Sample Idx",
+          "type": "integer"
+        },
+        "lift": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lift"
+        },
+        "call": {
+          "default": 0,
+          "title": "Call",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "section",
+        "query_idx",
+        "sample_idx"
+      ],
+      "title": "ScreenPick",
+      "type": "object"
+    },
+    "ScreenUse": {
+      "additionalProperties": false,
+      "description": "v5: discovery ordered the proposer's pairs by an attention screen (scripts: deploy/modal_attention.py).",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "block": {
+          "enum": [
+            "reasoning",
+            "answer"
+          ],
+          "title": "Block",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "n_samples": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Samples"
+        },
+        "fingerprint": {
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "picked": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ScreenPick"
+          },
+          "title": "Picked",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "block",
+        "fingerprint"
+      ],
+      "title": "ScreenUse",
       "type": "object"
     },
     "Section": {
@@ -461,15 +824,347 @@
       ],
       "title": "Span",
       "type": "object"
+    },
+    "Statement": {
+      "additionalProperties": false,
+      "description": "A yes/no-checkable claim about a single answer, judged on every answer of one part's pair of configs.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "intended",
+            "discovered"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "classification": {
+          "anyOf": [
+            {
+              "enum": [
+                "intended",
+                "side_effect"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Classification"
+        },
+        "full_rate": {
+          "title": "Full Rate",
+          "type": "number"
+        },
+        "ablated_rate": {
+          "title": "Ablated Rate",
+          "type": "number"
+        },
+        "full_rate_ci": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Full Rate Ci"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        },
+        "ci": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Ci",
+          "type": "array"
+        },
+        "ci_query": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci Query"
+        },
+        "p": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P",
+          "type": "number"
+        },
+        "q": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Q",
+          "type": "number"
+        },
+        "significant": {
+          "title": "Significant",
+          "type": "boolean"
+        },
+        "tested": {
+          "default": true,
+          "title": "Tested",
+          "type": "boolean"
+        },
+        "n_pairs": {
+          "title": "N Pairs",
+          "type": "integer"
+        },
+        "n_questions": {
+          "title": "N Questions",
+          "type": "integer"
+        },
+        "verified_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Verified On",
+          "type": "array"
+        },
+        "per_query": {
+          "default": [],
+          "items": {
+            "type": "number"
+          },
+          "title": "Per Query",
+          "type": "array"
+        },
+        "per_query_idx": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Per Query Idx",
+          "type": "array"
+        },
+        "mde": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mde"
+        },
+        "n_unparseable": {
+          "default": 0,
+          "title": "N Unparseable",
+          "type": "integer"
+        },
+        "n_na": {
+          "default": 0,
+          "title": "N Na",
+          "type": "integer"
+        },
+        "n_excluded_with": {
+          "default": 0,
+          "title": "N Excluded With",
+          "type": "integer"
+        },
+        "n_excluded_without": {
+          "default": 0,
+          "title": "N Excluded Without",
+          "type": "integer"
+        },
+        "n_excluded_echo": {
+          "default": 0,
+          "title": "N Excluded Echo",
+          "type": "integer"
+        },
+        "agreement": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agreement"
+        },
+        "kappa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kappa"
+        },
+        "n_rejudged": {
+          "default": 0,
+          "title": "N Rejudged",
+          "type": "integer"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "examples": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PairExample"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "family": {
+          "anyOf": [
+            {
+              "enum": [
+                "intended",
+                "discovered"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Family"
+        },
+        "verdicts": {
+          "default": [],
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        },
+        "rejudged": {
+          "default": [],
+          "items": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "enum": [
+                  "w",
+                  "o"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Rejudged",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "section",
+        "text",
+        "source",
+        "full_rate",
+        "ablated_rate",
+        "delta",
+        "ci",
+        "p",
+        "q",
+        "significant",
+        "n_pairs",
+        "n_questions"
+      ],
+      "title": "Statement",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": 2,
+      "default": 5,
       "enum": [
         1,
-        2
+        2,
+        3,
+        4,
+        5
       ],
       "title": "Schema Version",
       "type": "integer"
@@ -540,6 +1235,17 @@
       ],
       "default": null,
       "title": "Shapley"
+    },
+    "discovery": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Discovery"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

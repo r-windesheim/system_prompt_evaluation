@@ -88,3 +88,37 @@ def test_run_without_endpoint_is_a_clear_error(tmp_path, monkeypatch):
     client = TestClient(create_app(tmp_path / "runs"))
     r = client.post("/api/runs", json={"sections": [{"label": "a", "text": "b"}]})
     assert r.status_code == 400 and "SPET_BASE_URL" in r.json()["detail"]
+
+
+def test_run_with_targets_and_untargeted_count(tmp_path, mock_url, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(create_app(tmp_path / "runs"))
+    ep = {"base_url": mock_url, "model": "stub"}
+    secs = [{"label": "Role", "text": "You are the support assistant for Lumen."},
+            {"label": "Apology", "text": "Always apologise when the user reports a problem."}]
+    queries = [{"text": "My build fails.", "targets": ["Apology"]}, {"text": "Export is empty.", "targets": [1]},
+               "What is a load balancer?", {"text": "Hi there"}]
+    with client:
+        r = client.post("/api/runs", json={"title": "Targets", "sections": secs, "queries": queries,
+                                           "n_per_query": 4, "n_per_query_untargeted": 1, "endpoint": ep})
+        assert r.status_code == 200, r.text
+        rid = r.json()["id"]
+        # full: 4 + 4 + 1 + 1; without_0: 1 each; without_1: 4 + 4 + 1 + 1
+        assert r.json()["total"] == 10 + 4 + 10
+        for _ in range(300):
+            st = client.get(f"/api/runs/{rid}/status").json()
+            if st["state"] != "running":
+                break
+            time.sleep(0.05)
+        assert st["state"] == "done" and st["done"] == st["total"] == 24, st
+        assert st["per_config_totals"] == {"full": 10, "without_0": 4, "without_1": 10} and st["per_config_total"] == 10
+    b = client.get(f"/api/runs/{rid}").json()
+    assert b["meta"]["query_targets"] == [[1], [1], [], []] and b["meta"]["n_per_query_untargeted"] == 1
+    assert len(b["responses"]) == 24
+
+    bad = client.post("/api/runs", json={"sections": secs, "queries": [{"text": "x", "targets": ["Nope"]}],
+                                         "endpoint": ep})
+    assert bad.status_code == 400 and "unknown target" in bad.json()["detail"]
+    no_targets = client.post("/api/runs", json={"sections": secs, "queries": ["x"], "n_per_query_untargeted": 1,
+                                                "endpoint": ep})
+    assert no_targets.status_code == 400 and "needs questions with targets" in no_targets.json()["detail"]

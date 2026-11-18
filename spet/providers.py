@@ -58,9 +58,12 @@ class OpenAICompatible:
 
         self.base_url = base_url.rstrip("/")
         self.model = model
-        key = api_key or os.environ.get("SPET_API_KEY", "")
+        key = os.environ.get("SPET_API_KEY", "") if api_key is None else api_key  # "" means: send no key
         headers = {"Authorization": f"Bearer {key}"} if key else {}
-        self._client = httpx.AsyncClient(headers=headers, timeout=timeout)
+        # keep one connection alive per concurrent request: reopening connections at this rate
+        # got refused intermittently by the endpoint's edge during long runs
+        self._client = httpx.AsyncClient(headers=headers, timeout=timeout, limits=httpx.Limits(
+            max_connections=max_concurrency, max_keepalive_connections=max_concurrency, keepalive_expiry=120))
         self._sem = asyncio.Semaphore(max_concurrency)
         self.max_tokens = max_tokens
         # provider-specific request fields, e.g. {"reasoning_effort": "low"} for gpt-oss on vLLM
@@ -95,7 +98,7 @@ class OpenAICompatible:
         if key in self._cache:
             return Completion(*self._cache[key])
         async with self._sem:
-            for attempt in range(4):
+            for attempt in range(14):  # rides out ~5 min of endpoint or network trouble before failing the run
                 try:
                     r = await self._client.post(f"{self.base_url}/chat/completions", json=payload)
                     if r.status_code in (429, 500, 502, 503, 504):
@@ -106,9 +109,9 @@ class OpenAICompatible:
                     finish = choice.get("finish_reason")
                     break
                 except Exception:
-                    if attempt == 3:
+                    if attempt == 13:
                         raise
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(min(2 ** attempt, 30))
         self._cache[key] = (text, finish)
         if self._cache_path:
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)

@@ -14,9 +14,13 @@ the comparison is paired:
 
 Every section is reported, not only the arg-max (audit M3–M5).
 
-Caveat: cells within the same query are not independent. With few queries the
-CI is optimistic about generalising to *other* queries. It describes these
-queries.
+Caveat: cells within the same query are not independent. The cell-level test is
+valid for "removing k changes answers to *these* queries" (under that null every
+cell is exchangeable on its own), but one question can carry it. With few queries
+the CI is optimistic about generalising to *other* queries. It describes these
+queries. ``paired_stats(..., cluster=True)`` (used by discovery) instead flips
+signs per question, bootstraps questions and sizes the MDE by question, so a
+result must hold across questions, not within one.
 """
 
 from __future__ import annotations
@@ -46,8 +50,9 @@ class EffectResult:
     n_pairs: int
     tested: bool = True                       # False when both arms are all-zero: excluded from the correction
     ci_query: tuple[float, float] | None = None  # bootstrap over questions (clusters), not cells
-    per_query: tuple[float, ...] = ()         # mean paired difference for each question
+    per_query: tuple[float, ...] = ()         # mean paired difference for each question in per_query_idx
     mde: float | None = None                  # smallest change detectable 80% of the time at alpha=MDE_ALPHA
+    per_query_idx: tuple[int, ...] = ()       # the question index of each per_query entry (questions with no pair are absent)
 
 
 def bootstrap_ci(diffs: np.ndarray, rng: np.random.Generator, n_boot: int = 4000,
@@ -62,7 +67,10 @@ def bootstrap_ci(diffs: np.ndarray, rng: np.random.Generator, n_boot: int = 4000
     return (float(np.quantile(means, a)), float(np.quantile(means, 1 - a)))
 
 
-def sign_flip_p(diffs: np.ndarray, rng: np.random.Generator, n_perm: int = 10000) -> float:
+N_PERM = 10000  # Monte Carlo draws above 16 units; the smallest p it can return is 1 / (N_PERM + 1)
+
+
+def sign_flip_p(diffs: np.ndarray, rng: np.random.Generator, n_perm: int = N_PERM) -> float:
     """Two-sided paired permutation p-value. Exact for n <= 16."""
     n = len(diffs)
     if n == 0 or np.all(diffs == 0):
@@ -110,11 +118,70 @@ def cluster_bootstrap_ci(diffs: np.ndarray, groups: np.ndarray, rng: np.random.G
     return (float(np.quantile(means, a)), float(np.quantile(means, 1 - a)))
 
 
+def cluster_sign_flip_p(diffs: np.ndarray, groups: np.ndarray, rng: np.random.Generator,
+                        n_perm: int = N_PERM) -> float:
+    """Two-sided sign-flip test that flips whole questions: the cells of a question keep their signs together.
+
+    Statistic: |sum of signed per-question sums|, i.e. the pooled mean difference. Valid when cells within a
+    question are correlated. With G questions the smallest possible p is 2 / 2**G. Exact for G <= 16.
+    """
+    if len(diffs) == 0 or np.all(diffs == 0):
+        return 1.0
+    sums = np.array([diffs[groups == g].sum() for g in np.unique(groups)])
+    return sign_flip_p(sums, rng, n_perm)
+
+
+def cluster_p_floor(n_questions: int) -> float:
+    """Smallest p the cluster sign-flip test can return with this many questions, when the test is exact (G <= 16).
+
+    Above 16 questions the test is Monte Carlo and cannot go below 1 / (N_PERM + 1); this function does not model
+    that (the ``too_few_questions`` flag uses it as is, which is harmless while alpha / m > 1 / (N_PERM + 1)).
+    """
+    return 1.0 if n_questions < 1 else min(1.0, 2.0 / 2 ** n_questions)
+
+
 def min_detectable(diffs: np.ndarray, alpha: float = MDE_ALPHA) -> float | None:
     if len(diffs) < 2:
         return None
     sd = float(np.std(diffs, ddof=1))
     return (_Z[alpha] + _Z80) * sd / np.sqrt(len(diffs)) if sd > 0 else 0.0
+
+
+def cluster_min_detectable(diffs: np.ndarray, groups: np.ndarray, alpha: float = MDE_ALPHA) -> float | None:
+    """MDE from the spread of per-question mean differences. None if the cluster test can never reach alpha."""
+    ids = np.unique(groups)
+    if len(ids) < 2 or cluster_p_floor(len(ids)) > alpha:
+        return None
+    return min_detectable(np.array([diffs[groups == g].mean() for g in ids]), alpha)
+
+
+def paired_stats(f: np.ndarray, a: np.ndarray, groups: np.ndarray, rng: np.random.Generator,
+                 *, cluster: bool = False) -> dict:
+    """Everything but q/significance for one paired comparison (with-part ``f`` vs without ``a``, per cell).
+
+    Shared by the habit effects and the discovery statements. ``cluster=True`` makes p, ci and mde treat the
+    question as the unit (sign flips and bootstrap over whole questions), so cells from the same question
+    are not counted as independent evidence.
+    """
+    diffs = f - a
+    n = len(diffs)
+    tested = bool(n) and not (np.all(f == 0) and np.all(a == 0))
+    ids = np.unique(groups) if n else np.array([], dtype=int)
+    per_q = tuple(float(diffs[groups == g].mean()) for g in ids)
+    if cluster:
+        ci_query = cluster_bootstrap_ci(diffs, groups, rng) if tested else None
+        p = cluster_sign_flip_p(diffs, groups, rng) if tested else 1.0
+        ci = ci_query if ci_query is not None else bootstrap_ci(diffs, rng)
+        mde = cluster_min_detectable(diffs, groups) if tested else None
+    else:  # same RNG order as before, so habit results are unchanged
+        ci = bootstrap_ci(diffs, rng)
+        p = sign_flip_p(diffs, rng) if tested else 1.0
+        ci_query = cluster_bootstrap_ci(diffs, groups, rng) if tested else None
+        mde = min_detectable(diffs) if tested else None
+    return dict(full_mean=float(f.mean()) if n else 0.0, ablated_mean=float(a.mean()) if n else 0.0,
+                delta=float(diffs.mean()) if n else 0.0,
+                ci=ci, p=p, n_pairs=n, tested=tested, ci_query=ci_query,
+                per_query=per_q, per_query_idx=tuple(int(g) for g in ids), mde=mde)
 
 
 def section_effects(
@@ -137,17 +204,7 @@ def section_effects(
         for d in detectors:
             f = np.array([full[c].get(d, 0.0) for c in cells])
             a = np.array([abl[c].get(d, 0.0) for c in cells])
-            diffs = f - a
-            groups = np.array([c[0] for c in cells])
-            tested = bool(len(cells)) and not (np.all(f == 0) and np.all(a == 0))
-            per_q = tuple(float(diffs[groups == g].mean()) for g in np.unique(groups)) if len(cells) else ()
-            raw.append(dict(detector=d, section=k, full_mean=float(f.mean()) if len(f) else 0.0,
-                            ablated_mean=float(a.mean()) if len(a) else 0.0,
-                            delta=float(diffs.mean()) if len(diffs) else 0.0,
-                            ci=bootstrap_ci(diffs, rng), p=sign_flip_p(diffs, rng) if tested else 1.0,
-                            n_pairs=len(cells), tested=tested,
-                            ci_query=cluster_bootstrap_ci(diffs, groups, rng) if tested else None,
-                            per_query=per_q, mde=min_detectable(diffs) if tested else None))
+            raw.append(dict(detector=d, section=k, **paired_stats(f, a, np.array([c[0] for c in cells]), rng)))
     # Benjamini–Hochberg over the tests that could fire (all-zero tests are reported, not counted)
     idx = [i for i, r in enumerate(raw) if r["tested"]]
     qs = benjamini_hochberg([raw[i]["p"] for i in idx])

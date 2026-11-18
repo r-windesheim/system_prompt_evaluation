@@ -45,10 +45,28 @@ class RunSpec:
     notes: str = ""
     fixture: bool = False
     settings: dict = field(default_factory=dict)
+    # section ids each question was written for (None: not given). With targets, discovery checks intended
+    # statements for part k only on the questions that target k (docs/discovery.md).
+    query_targets: list[list[int]] | None = None
+    # samples for pairs where the question does not target the removed part (None: n_per_query everywhere)
+    n_per_query_untargeted: int | None = None
+
+    def __post_init__(self):
+        if self.query_targets is not None:
+            if len(self.query_targets) != len(self.queries):
+                raise ValueError("query_targets needs one entry per query")
+            if any(k not in range(len(self.sections)) for t in self.query_targets for k in t):
+                raise ValueError("query_targets references a section that does not exist")
+        if self.n_per_query_untargeted is not None:
+            if self.query_targets is None or not any(self.query_targets):
+                raise ValueError("n_per_query_untargeted needs questions with targets")
+            if not 1 <= self.n_per_query_untargeted <= self.n_per_query:
+                raise ValueError("n_per_query_untargeted must be between 1 and n_per_query")
 
 
 async def execute(spec: RunSpec, provider: Provider, *, progress=None, on_job=None) -> RunBundle:
-    jobs = schedule.build(spec.sections, spec.queries, spec.n_per_query, spec.seed)
+    jobs = schedule.build(spec.sections, spec.queries, spec.n_per_query, spec.seed,
+                          targets=spec.query_targets, n_untargeted=spec.n_per_query_untargeted)
     done = 0
 
     async def one(job: schedule.Job) -> str:
@@ -145,6 +163,10 @@ def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.
                         "Instructions about length, formatting or claims may never come into play.")
     if dropped:
         warnings.append(f"{dropped} answers were cut off or empty and were left out of the comparison.")
+    if spec.n_per_query_untargeted is not None and spec.n_per_query_untargeted < spec.n_per_query:
+        warnings.append(f"Questions have {spec.n_per_query} samples where they target the removed part and "
+                        f"{spec.n_per_query_untargeted} elsewhere. Habit effects pool every pair, so they lean on "
+                        "each part's targeted questions.")
     if len(spec.queries) < 10:
         warnings.append(f"Effects describe these {len(spec.queries)} questions; with few questions they may not generalise.")
 
@@ -155,7 +177,8 @@ def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.
         meta=Meta(id=spec.id, title=spec.title, created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                   model=model, provider=provider_name, temperature=spec.temperature,
                   n_per_query=spec.n_per_query, seed=spec.seed, queries=spec.queries,
-                  fixture=spec.fixture, notes=spec.notes, settings=settings),
+                  fixture=spec.fixture, notes=spec.notes, settings=settings,
+                  query_targets=spec.query_targets, n_per_query_untargeted=spec.n_per_query_untargeted),
         sections=[Section(id=i, label=labels[i], text=t, notes=notes[i]) for i, t in enumerate(spec.sections)],
         configs=[Config(id=c, removed=r) for c, r in schedule.config_ids(len(spec.sections))],
         responses=responses,
@@ -165,7 +188,8 @@ def assemble(spec: RunSpec, provider_name: str, model: str, jobs: list[schedule.
                    for d in detectors.DETECTORS]
                   + [Detector(id=m.id, label=m.label, group=m.group, description=m.description, kind="metric", unit=m.unit)
                      for m in detectors.METRICS],
-        effects=[Effect(**{**e.__dict__, "per_query": list(e.per_query)}, flags=flags(e)) for e in habit_fx + metric_fx],
+        effects=[Effect(**{**e.__dict__, "per_query": list(e.per_query), "per_query_idx": list(e.per_query_idx)},
+                        flags=flags(e)) for e in habit_fx + metric_fx],
         analysis=Analysis(n_tests=sum(e.tested for e in habit_fx), alpha=spec.alpha,
                           mde_alpha=attribution.MDE_ALPHA, warnings=warnings),
     )
@@ -178,8 +202,12 @@ def rescore(b: RunBundle) -> RunBundle:
     spec = RunSpec(id=b.meta.id, title=b.meta.title, sections=[s.text for s in b.sections],
                    section_labels=[s.label for s in b.sections], queries=b.meta.queries,
                    n_per_query=b.meta.n_per_query, temperature=b.meta.temperature, seed=b.meta.seed,
-                   notes=b.meta.notes, fixture=b.meta.fixture, settings=dict(b.meta.settings))
+                   notes=b.meta.notes, fixture=b.meta.fixture, settings=dict(b.meta.settings),
+                   query_targets=b.meta.query_targets, n_per_query_untargeted=b.meta.n_per_query_untargeted)
     out = assemble(spec, b.meta.provider, b.meta.model, jobs, [r.text for r in b.responses],
                    finish=[r.finish_reason for r in b.responses])
     out.meta.created_at = b.meta.created_at
+    if b.discovery:  # judge results don't depend on the detectors: carry them over with their warnings
+        out.discovery = b.discovery
+        out.analysis.warnings += [w for w in (b.analysis.warnings if b.analysis else []) if w.startswith("Discovery: ")]
     return out
