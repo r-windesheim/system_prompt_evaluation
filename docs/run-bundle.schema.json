@@ -78,6 +78,101 @@
       "title": "AuditRecord",
       "type": "object"
     },
+    "Authored": {
+      "additionalProperties": false,
+      "description": "v8: author-written statements judged on the run's stored answers (spet/authored.py, docs/discovery.md).\n\nEstimates for the readout's first question. Not in any Benjamini-Hochberg family and never a confirmation\ncandidate: each statement's p is for information only, its q is fixed at 1 and `significant` is false.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "reviewer": {
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "statements": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Statement"
+          },
+          "title": "Statements",
+          "type": "array"
+        },
+        "calls": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Calls",
+          "type": "object"
+        },
+        "n_unparseable": {
+          "default": 0,
+          "title": "N Unparseable",
+          "type": "integer"
+        },
+        "n_errors": {
+          "default": 0,
+          "title": "N Errors",
+          "type": "integer"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "settings": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Settings",
+          "type": "object"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "reviewer",
+        "date",
+        "created_at"
+      ],
+      "title": "Authored",
+      "type": "object"
+    },
     "Candidate": {
       "additionalProperties": false,
       "description": "v6: a screen statement retested on the confirmation's fresh questions. The Statement fields hold the\nconfirmation's numbers (verified_on, per_query_idx, verdicts and examples index confirmation.queries and\nconfirmation.responses); the screen_* fields copy the screen's, for comparison.",
@@ -97,7 +192,8 @@
         "source": {
           "enum": [
             "intended",
-            "discovered"
+            "discovered",
+            "authored"
           ],
           "title": "Source",
           "type": "string"
@@ -388,6 +484,27 @@
           "title": "Rejudged",
           "type": "array"
         },
+        "polarity": {
+          "default": "positive",
+          "enum": [
+            "positive",
+            "reverse"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "measure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Measure"
+        },
         "screen_p": {
           "maximum": 1,
           "minimum": 0,
@@ -461,7 +578,8 @@
         "data": {
           "enum": [
             "confirmation",
-            "screen"
+            "screen",
+            "authored"
           ],
           "title": "Data",
           "type": "string"
@@ -535,6 +653,27 @@
           "default": "",
           "title": "Note",
           "type": "string"
+        },
+        "polarity": {
+          "default": "positive",
+          "enum": [
+            "positive",
+            "reverse"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "rate_with_raw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate With Raw"
         }
       },
       "required": [
@@ -1852,7 +1991,8 @@
         "source": {
           "enum": [
             "intended",
-            "discovered"
+            "discovered",
+            "authored"
           ],
           "title": "Source",
           "type": "string"
@@ -2142,6 +2282,27 @@
           },
           "title": "Rejudged",
           "type": "array"
+        },
+        "polarity": {
+          "default": "positive",
+          "enum": [
+            "positive",
+            "reverse"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "measure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Measure"
         }
       },
       "required": [
@@ -2166,7 +2327,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": 7,
+      "default": 8,
       "enum": [
         1,
         2,
@@ -2174,7 +2335,8 @@
         4,
         5,
         6,
-        7
+        7,
+        8
       ],
       "title": "Schema Version",
       "type": "integer"
@@ -2272,6 +2434,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Readout"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "authored": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Authored"
         },
         {
           "type": "null"

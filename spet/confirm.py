@@ -69,7 +69,8 @@ def select(b: RunBundle, rule: SelectionRule = RULE) -> list[Statement]:
     """The screen statements the rule picks, in the screen's order."""
     if not b.discovery:
         raise ValueError("the bundle has no discovery block to confirm")
-    return [st for st in b.discovery.statements if rule.picks(st)]
+    # only the screen's own families; author-written statements (v8) are estimates and are never candidates
+    return [st for st in b.discovery.statements if st.source in FAMILIES and rule.picks(st)]
 
 
 # ---- the spec: fresh questions -----------------------------------------------------------------------

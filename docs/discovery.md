@@ -290,7 +290,7 @@ Code: `spet/readout.py`. It works on a finished bundle, with or without a confir
 
 **Which numbers.** A statement retested in the confirmation run takes its rates, interval, question and answer counts **and flags** from there (more samples, fresh questions); `data` says which run. Otherwise the main run, on the part's targeted questions. A candidate the confirmation flags `judge_unreliable` is left out; it does not fall back to its main-run numbers.
 
-**Which statements.** Intended statements only; discovered ones are side-effect checks. A statement is left out (`excluded`, with the reason) if an audit marks it invalid, or if it carries `judge_unreliable`, `judge_unchecked`, `unparseable`, `exclusion_asymmetry` or `few_pairs` in the run its numbers come from. `ceiling` and `never_seen` are kept: a behaviour that always or never happens is what question 1 measures. Where the re-judge sample held one class only (`rejudge_one_class`), the check's note says the judge's ability to give the other verdict was not tested.
+**Which statements.** Intended statements, and author-written ones if the bundle has them (see [Author-written statements](#author-written-statements)); discovered ones are side-effect checks. A statement is left out (`excluded`, with the reason) if an audit marks it invalid, or if it carries `judge_unreliable`, `judge_unchecked`, `unparseable`, `exclusion_asymmetry` or `few_pairs` in the run its numbers come from. `ceiling` and `never_seen` are kept: a behaviour that always or never happens is what question 1 measures. Where the re-judge sample held one class only (`rejudge_one_class`), the check's note says the judge's ability to give the other verdict was not tested.
 
 **Per part** (`reading`), from its usable checks, in this order:
 
@@ -306,6 +306,23 @@ Code: `spet/readout.py`. It works on a finished bundle, with or without a confir
 **Only `followed` carries a causal claim.** Every other reading describes what answers with the part look like. `not_followed` and `not_needed` rest on the judge's absolute yes-rate, so a judge biased toward yes or no moves them.
 
 **The audit** (`--audit`) is a YAML file keyed by statement id under `statements:`, each with `valid` and `reason`, plus `reviewer` and `date`. It must cover every intended statement of the bundle. Its file name, sha256, reviewer and the valid and invalid ids are stored in `readout.audit`. The July 2024 audit is `examples/sonnet35-july2024-audit.yaml`; its header gives the rules. `spet discover` and `spet confirm` drop the readout (the data under it changes); `spet rescore` keeps it.
+
+## Author-written statements
+
+```
+python -m spet authored runs/x.json statements.yaml -o runs/x-auth.json --plan                  # plan, no model calls
+python -m spet authored runs/x.json statements.yaml -o runs/x-auth.json --max-judge-calls 3000
+python -m spet readout runs/x-auth.json -o runs/x-read.json --audit audit.yaml
+```
+
+When the judge model's intended statements for a part all fail the audit, a reviewer can write replacements from the instruction text alone, blind to the answers, and save them **before** anything is judged. Code: `spet/authored.py`. The statement file (example: `examples/sonnet35-july2024-authored.yaml`) has `reviewer`, `date` and `statements`, each with `id`, `section` (label or id), `text`, `polarity` (`positive` or `reverse`), and optionally `queries` (a subset of the part's questions) or `measure` (`{metric: words, min and/or max}`). Its sha256 is stored.
+
+- **Judged like intended statements:** the main run's stored answers, `full` and `without_k`, on the part's targeted questions; the blinded judge prompt, NA handling, recited-prompt exclusion, the stratified re-judge (seeded by statement id) and the same flags. No answer is generated. The judge must be the screen's (`confirm.check_judge`), so set `SPET_JUDGE_MAX_TOKENS` and `SPET_JUDGE_REASONING_EFFORT` as for the screen. If any call fails after the provider's retries, nothing is written; rerun the same command (verdicts are cached).
+- **Measured statements** (`measure`) use the engine's word count instead of a judge: no judge call, no re-judge, no judge flags (`few_pairs`, `never_seen` and `ceiling` still apply). A cut-off answer with text counts with the words it has; an empty one is left out with its pair.
+- **Estimates, not tests.** They are stored in the bundle's `authored` block (schema 8), with `source: "authored"`, not in `discovery.statements`. They are in no Benjamini-Hochberg family and never confirmation candidates. Each keeps its paired by-question p for information; `q` is fixed at 1 and `significant` is false.
+- **The readout** reads them like intended statements, with `data: "authored"`. A `reverse` statement describes what the part asks the model **not** to do ("The answer starts with 'I'm sorry'"), so the readout reports `rate_with`, its interval and `rate_without` as 1 − the share judged yes, and keeps the raw share in `rate_with_raw`.
+- **The audit** needs an `authored_statements:` section covering exactly the bundle's authored ids, in the same form as `statements:`.
+- `spet rescore`, `spet discover` and `spet confirm` keep the block; a new `spet authored` replaces it and drops the readout.
 
 ## What a small judge (gpt-oss-20b) can and cannot be trusted with
 

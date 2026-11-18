@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 7  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
+SCHEMA_VERSION = 8  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
 # 4: question targets and per-target sample counts (meta), per_query_idx, prompt-echo exclusions (all optional)
 # 5: discovery q-values come from two Benjamini-Hochberg families (intended, discovered) instead of one; per-answer
 #    judge verdicts; the attention screen record. All new fields are optional, so v1-v4 bundles still load.
@@ -22,6 +22,9 @@ SCHEMA_VERSION = 7  # 3: optional `discovery` block (spet/discovery.py, docs/dis
 # 7: optional `readout` block: per intended statement, whether the model does it (an estimate) and whether the part
 #    was shown to be the reason (the confirmation), and one reading per part from those (spet/readout.py). Optional,
 #    so v1-v6 bundles still load.
+# 8: optional `authored` block: statements written by a reviewer from the instruction text, judged on the run's stored
+#    answers (spet/authored.py); `Statement.source` may be "authored", with `polarity` and `measure`; the readout's
+#    `Check` gains `data: "authored"`, `polarity` and `rate_with_raw`. Optional, so v1-v7 bundles still load.
 
 
 class _Strict(BaseModel):
@@ -133,7 +136,9 @@ class Statement(_Strict):
     id: str
     section: int
     text: str
-    source: Literal["intended", "discovered"]  # intended: from the instruction text; discovered: from paired answers
+    # intended: from the instruction text (by the judge model); discovered: from paired answers; authored (v8): written
+    # by a reviewer from the instruction text, blind to the answers, and judged later (the `authored` block)
+    source: Literal["intended", "discovered", "authored"]
     classification: Literal["intended", "side_effect"] | None = None  # None: discovered but not significant
     full_rate: float          # share of judged answers WITH the part where the judge said yes
     ablated_rate: float       # same, WITHOUT the part
@@ -176,6 +181,11 @@ class Statement(_Strict):
     # v5: the re-judged sample, as (query_idx, sample_idx, side, verdict under the second prompt); side is
     # "w" (with-part answer) or "o" (without); compare with the first letter set in `verdicts`.
     rejudged: list[tuple[int, int, Literal["w", "o"], str]] = []
+    # v8, authored statements: "reverse" means the statement describes what the part asks the model NOT to do, so
+    # compliance is 1 - full_rate (the readout reads it that way round); the rates here are always the share judged yes
+    polarity: Literal["positive", "reverse"] = "positive"
+    # v8, authored statements: decided by an engine metric instead of the judge, e.g. "words <= 60"; None = judged
+    measure: str | None = None
 
 
 Adherence = Literal["followed", "partly_followed", "redundant", "not_followed", "inconclusive", "not_assessed"]
@@ -310,8 +320,11 @@ class Check(_Strict):
     say "confirmed"."""
     id: str                        # statement id (discovery.statements; also a confirmation candidate if data is so)
     text: str
-    data: Literal["confirmation", "screen"]  # which run the numbers below come from
-    rate_with: float               # share of judged answers WITH the part where the statement holds
+    # which run the numbers below come from; "authored" (v8): the main run's answers, judged with an authored statement
+    data: Literal["confirmation", "screen", "authored"]
+    # share of judged answers WITH the part that do what the part asks: the share judged yes, or for a reverse-coded
+    # statement (polarity "reverse") 1 - that share. rate_with_ci and rate_without are oriented the same way.
+    rate_with: float
     rate_with_ci: tuple[float, float] | None = None  # by-question bootstrap interval of rate_with
     rate_without: float            # same, WITHOUT the part (same questions and samples)
     n_questions: int               # questions with at least one judged pair
@@ -320,6 +333,8 @@ class Check(_Strict):
     cause: Literal["confirmed", "not_needed", "not_shown"]
     flags: list[str] = []          # the statement's flags in the run its numbers come from
     note: str = ""
+    polarity: Literal["positive", "reverse"] = "positive"  # v8
+    rate_with_raw: float | None = None  # v8: the share judged yes WITH the part, before any reversal
 
 
 class ExcludedCheck(_Strict):
@@ -346,7 +361,8 @@ class ReadoutRule(_Strict):
     mostly_at: float               # rate_with >= this: "mostly"
     rarely_at: float               # rate_with <= this: "rarely"; an interval reaching both bounds: "unclear"
     excluded_flags: list[str] = []  # a statement with any of these flags (in its data's run) is not used
-    intended_only: bool = True     # discovered statements are side-effect checks, not part of the reading
+    # discovered statements are side-effect checks, not part of the reading; authored statements (v8) are read
+    intended_only: bool = True
 
 
 class AuditRecord(_Strict):
@@ -367,8 +383,27 @@ class Readout(_Strict):
     parts: list[PartReadout] = []
 
 
+class Authored(_Strict):
+    """v8: author-written statements judged on the run's stored answers (spet/authored.py, docs/discovery.md).
+
+    Estimates for the readout's first question. Not in any Benjamini-Hochberg family and never a confirmation
+    candidate: each statement's p is for information only, its q is fixed at 1 and `significant` is false."""
+    file: str                      # the statement file, as given
+    sha256: str                    # of the statement file
+    reviewer: str
+    date: str                      # when the statements were written
+    created_at: str                # when they were judged
+    statements: list[Statement] = []  # source "authored"; verdicts index the run's questions and responses
+    calls: dict[str, int] = {}
+    n_unparseable: int = 0
+    n_errors: int = 0
+    warnings: list[str] = []
+    settings: dict[str, str | int | float | None] = {}
+    note: str = ""
+
+
 class RunBundle(_Strict):
-    schema_version: Literal[1, 2, 3, 4, 5, 6, 7] = SCHEMA_VERSION
+    schema_version: Literal[1, 2, 3, 4, 5, 6, 7, 8] = SCHEMA_VERSION
     meta: Meta
     sections: list[Section]
     configs: list[Config]
@@ -380,6 +415,7 @@ class RunBundle(_Strict):
     discovery: Discovery | None = None  # open-ended effects, proposed by a model and verified per answer
     confirmation: Confirmation | None = None  # v6: screen candidates retested on fresh questions
     readout: Readout | None = None  # v7: per-statement facts and per-part readings from discovery and confirmation
+    authored: Authored | None = None  # v8: author-written statements judged on the stored answers
 
     @model_validator(mode="after")
     def _check_refs(self) -> "RunBundle":
@@ -448,23 +484,52 @@ class RunBundle(_Strict):
                     raise ValueError(f"reading for section {rd.section} references unknown ids")
         if self.confirmation:
             self._check_confirmation(section_ids, config_ids)
+        if self.authored:
+            self._check_authored(section_ids, config_ids)
         if self.readout:
             self._check_readout(section_ids)
         return self
+
+    def _check_authored(self, section_ids: set[int], config_ids: set[str]) -> None:
+        have = {(r.config, r.query_idx, r.sample_idx) for r in self.responses}
+        seen = {st.id for st in self.discovery.statements} if self.discovery else set()
+        for st in self.authored.statements:
+            if st.source != "authored" or st.significant or st.family is not None:
+                raise ValueError(f"authored statement {st.id}: source must be authored, not significant, no family")
+            if st.id in seen:
+                raise ValueError(f"authored statement {st.id}: duplicate id")
+            seen.add(st.id)
+            wo = f"without_{st.section}"
+            if st.section not in section_ids or wo not in config_ids:
+                raise ValueError(f"authored statement {st.id} references an unknown part")
+            if st.per_query_idx and len(st.per_query_idx) != len(st.per_query):
+                raise ValueError(f"authored statement {st.id}: per_query_idx and per_query differ in length")
+            for ex in st.examples:
+                for cfg in (ex.with_config, ex.without_config):
+                    if (cfg, ex.query_idx, ex.sample_idx) not in have:
+                        raise ValueError(f"authored statement {st.id} example references a missing answer")
+            for q, s_, v in st.verdicts:
+                if len(v) != 2 or set(v) - set("ynau") or ("full", q, s_) not in have or (wo, q, s_) not in have:
+                    raise ValueError(f"authored statement {st.id}: bad verdict entry {(q, s_, v)}")
+            for q, s_, _side, v in st.rejudged:
+                if v not in tuple("ynau") or ("full", q, s_) not in have:
+                    raise ValueError(f"authored statement {st.id}: bad re-judge entry {(q, s_, v)}")
 
     def _check_readout(self, section_ids: set[int]) -> None:
         if not self.discovery:
             raise ValueError("a readout needs the discovery block it reads")
         ids = {st.id for st in self.discovery.statements}
+        authored = {st.id for st in self.authored.statements} if self.authored else set()
         cand = {c.id for c in self.confirmation.candidates} if self.confirmation else set()
         for pr in self.readout.parts:
             if pr.section not in section_ids:
                 raise ValueError(f"readout part {pr.section} is not a section")
             for ch in pr.checks:
-                if ch.id not in ids or (ch.data == "confirmation" and ch.id not in cand):
+                if (ch.data == "authored") != (ch.id in authored) or ch.id not in ids | authored \
+                        or (ch.data == "confirmation" and ch.id not in cand):
                     raise ValueError(f"readout check {ch.id} references an unknown statement")
             for ex in pr.excluded:
-                if ex.id not in ids:
+                if ex.id not in ids | authored:
                     raise ValueError(f"readout exclusion {ex.id} references an unknown statement")
 
     def _check_confirmation(self, section_ids: set[int], config_ids: set[str]) -> None:

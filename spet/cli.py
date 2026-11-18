@@ -7,6 +7,7 @@
     python -m spet plan examples/sonnet35-july2024.yaml    # planned answers and judge calls, no model calls
     python -m spet confirm runs/x.json confirm.yaml -o runs/x-confirmed.json   # retest screen candidates
     python -m spet readout runs/x.json -o runs/x-read.json --audit audit.yaml   # per-part reading, no model calls
+    python -m spet authored runs/x.json statements.yaml -o runs/x-auth.json   # judge author-written statements
 """
 
 from __future__ import annotations
@@ -310,6 +311,73 @@ def cmd_confirm(args) -> int:
     return 0
 
 
+def cmd_authored(args) -> int:
+    from . import authored as A
+    from . import confirm as C
+
+    b = bundle.load(args.bundle)
+    if not b.discovery:
+        raise SystemExit("authored: the bundle has no discovery block (its judge settings are the reference)")
+    try:
+        spec = A.load(args.statements, b)
+        if b.meta.provider == "stub":
+            pcfg = {"kind": "stub"}
+        else:
+            base = args.judge_base_url or os.environ.get("SPET_JUDGE_BASE_URL") or os.environ.get("SPET_BASE_URL")
+            if not base:
+                raise ValueError("no judge endpoint: give --judge-base-url or set SPET_JUDGE_BASE_URL")
+            pcfg = {"kind": "openai", "base_url": base, "model": b.meta.model}
+        judge = make_judge(pcfg, args)
+        js = C.check_judge(judge, b)
+    except ValueError as e:
+        raise SystemExit(f"authored: {e}")
+    print("judge (matches the screen): " + ", ".join(f"{k}={v}" for k, v in js.items()), file=sys.stderr)
+    p = A.plan(spec, b)
+    print(f"{spec.file} (sha256 {spec.sha256[:12]}, {spec.reviewer}, {spec.date}): {len(spec.items)} statements, "
+          f"{p['judged_statements']} judged, {p['measured_statements']} measured", file=sys.stderr)
+    for it in spec.items:
+        how = A.measure_text(it.measure) if it.measure else "judge"
+        print(f"  {it.id:<7} part {it.section + 1:>2} {it.polarity:<8} {how:<14} {p['pairs'][it.id]:>3} pairs  "
+              f"{it.text[:70]}", file=sys.stderr)
+    total = p["judge"] + p["rejudge"]
+    print(f"plan: judge calls <= {p['judge']}, re-judge calls <= {p['rejudge']} (total <= {total}); "
+          f"{p['measured']} answers measured without a judge; no answers generated", file=sys.stderr)
+    if args.max_judge_calls is not None and total > args.max_judge_calls:
+        raise SystemExit(f"authored: over budget: {total} judge calls > {args.max_judge_calls}")
+    if args.plan:
+        if hasattr(judge, "aclose"):
+            asyncio.run(judge.aclose())
+        return 0
+
+    def progress(done, total):
+        if done == total or done % max(1, total // 20) == 0:
+            print(f"\r  {done}/{total} judge calls", end="", file=sys.stderr, flush=True)
+
+    async def go():
+        try:
+            return await A.judge_authored(b, spec, judge, progress=progress)
+        finally:
+            print(file=sys.stderr)
+            if hasattr(judge, "aclose"):
+                await judge.aclose()
+
+    out_b = asyncio.run(go())
+    a = out_b.authored
+    if a.n_errors and not args.keep_failed_calls:
+        raise SystemExit(f"authored: {a.n_errors} judge calls failed; nothing written. Rerun the same command to resume.")
+    out = Path(args.out)
+    bundle.dump(out_b, out)
+    print(f"wrote {out}: calls {a.calls}", file=sys.stderr)
+    for st in a.statements:
+        ci = f"[{st.full_rate_ci[0]:.2f}, {st.full_rate_ci[1]:.2f}]" if st.full_rate_ci else "[-]"
+        print(f"  {st.id:<7} yes {st.full_rate:.2f} {ci} vs {st.ablated_rate:.2f} ({st.polarity}), p={st.p:.3g} "
+              f"(information only), {st.n_questions} q, {st.n_pairs} pairs, agreement {st.agreement}, "
+              f"flags {st.flags}", file=sys.stderr)
+    for w in a.warnings:
+        print(f"  warning: {w}", file=sys.stderr)
+    return 0
+
+
 def cmd_readout(args) -> int:
     from . import readout as R
 
@@ -434,6 +502,19 @@ def main(argv: list[str] | None = None) -> int:
     ro.add_argument("-o", "--out", required=True)
     ro.add_argument("--audit", help="audit YAML: statements marked `valid: false` are left out of the reading")
     ro.set_defaults(fn=cmd_readout)
+    au = sub.add_parser("authored", help="judge author-written statements on a finished bundle's stored answers")
+    au.add_argument("bundle", help="a finished bundle with a discovery block (its judge settings must be matched)")
+    au.add_argument("statements", help="YAML of pre-registered statements (see docs/discovery.md)")
+    au.add_argument("-o", "--out", required=True)
+    au.add_argument("--plan", action="store_true", help="print the plan, make no model calls")
+    au.add_argument("--max-judge-calls", type=int, help="refuse to run if judge plus re-judge calls may exceed this")
+    au.add_argument("--judge-base-url")
+    au.add_argument("--judge-model")
+    au.add_argument("--stub-judge", action="store_true")
+    au.add_argument("--keep-failed-calls", action="store_true",
+                    help="write the result even if some judge calls failed (they count as unreadable)")
+    au.set_defaults(fn=cmd_authored)
+
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")
     v.set_defaults(fn=cmd_validate)

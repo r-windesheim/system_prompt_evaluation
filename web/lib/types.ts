@@ -1,4 +1,4 @@
-// Mirrors spet/bundle.py (schema_version 1-7). docs/run-bundle.schema.json is the source of truth.
+// Mirrors spet/bundle.py (schema_version 1-8). docs/run-bundle.schema.json is the source of truth.
 // Fields added after v1 are optional here, because older bundles lack them.
 
 export type Meta = {
@@ -89,7 +89,8 @@ export type Statement = {
   id: string;
   section: number;
   text: string;
-  source: "intended" | "discovered";
+  /** v8: "authored" = written by a reviewer from the instruction text, blind to the answers (RunBundle.authored) */
+  source: "intended" | "discovered" | "authored";
   classification?: "intended" | "side_effect" | null;
   full_rate: number;
   ablated_rate: number;
@@ -125,6 +126,10 @@ export type Statement = {
   verdicts?: [number, number, string][];
   /** v5: [query_idx, sample_idx, side ("w" with the part, "o" without), verdict under the second prompt]. */
   rejudged?: [number, number, "w" | "o", string][];
+  /** v8, authored: "reverse" = the statement says what the part asks the model NOT to do; rates stay the share judged yes. */
+  polarity?: "positive" | "reverse";
+  /** v8, authored: decided by an engine metric instead of the judge, e.g. "words <= 60"; null = judged. */
+  measure?: string | null;
 };
 
 export type PartReading = {
@@ -243,8 +248,9 @@ export type Confirmation = {
 export type Check = {
   id: string;
   text: string;
-  /** which run the numbers come from */
-  data: "confirmation" | "screen";
+  /** which run the numbers come from; v8 "authored": the main run's answers, judged with an authored statement */
+  data: "confirmation" | "screen" | "authored";
+  /** share WITH the part that does what the part asks: for a reverse-coded statement, 1 - the share judged yes */
   rate_with: number;
   /** by-question bootstrap interval of rate_with */
   rate_with_ci?: [number, number] | null;
@@ -256,6 +262,10 @@ export type Check = {
   cause: "confirmed" | "not_needed" | "not_shown";
   flags?: string[];
   note?: string;
+  /** v8 */
+  polarity?: "positive" | "reverse";
+  /** v8: the share judged yes WITH the part, before any reversal */
+  rate_with_raw?: number | null;
 };
 
 /** v7: an intended statement left out of the reading; reason starts "audit: " or "flag in the ... run: ". */
@@ -299,8 +309,24 @@ export type Readout = {
   parts?: PartReadout[];
 };
 
+/** v8: author-written statements judged on the run's stored answers. Estimates only: not in any BH family, q = 1. */
+export type Authored = {
+  file: string;
+  sha256: string;
+  reviewer: string;
+  date: string;
+  created_at: string;
+  statements?: Statement[];
+  calls?: Record<string, number>;
+  n_unparseable?: number;
+  n_errors?: number;
+  warnings?: string[];
+  settings?: Record<string, string | number | null>;
+  note?: string;
+};
+
 export type RunBundle = {
-  schema_version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  schema_version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   meta: Meta;
   sections: Section[];
   configs: Config[];
@@ -314,6 +340,8 @@ export type RunBundle = {
   confirmation?: Confirmation | null;
   /** v7 */
   readout?: Readout | null;
+  /** v8 */
+  authored?: Authored | null;
 };
 
 export type RunSummary = {

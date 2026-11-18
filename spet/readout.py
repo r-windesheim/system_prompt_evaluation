@@ -12,8 +12,10 @@ part says. The readout separates them:
    "not_needed" if it is mostly done both with and without the part (both rates >= 0.8); otherwise "not_shown".
 
 A statement's numbers come from the confirmation run when it was retested there (more samples, fresh questions), else
-from the main run (targeted questions only). Only intended statements are read. A statement is left out if an audit
-marks it invalid, or if it carries a flag in ``EXCLUDED`` in the run its numbers come from.
+from the main run (targeted questions only). Intended statements are read, and so are author-written ones (the
+bundle's ``authored`` block, v8), on the main run's answers. A statement is left out if an audit marks it invalid, or if
+it carries a flag in ``EXCLUDED`` in the run its numbers come from. A reverse-coded authored statement describes what
+the part asks the model not to do, so its rates are read as 1 - the share judged yes.
 
 Per part, from its usable checks, in this order:
 
@@ -101,7 +103,8 @@ def part_reading(checks: list[Check]) -> str:
 
 def load_audit(path: str | Path, b: RunBundle) -> tuple[dict[str, tuple[bool, str]], AuditRecord]:
     """Read an audit YAML: ``reviewer``, ``date`` and ``statements: {id: {valid, reason, ...}}``. It must cover every
-    intended statement of the bundle and name no other."""
+    intended statement of the bundle and name no other. If the bundle has authored statements (v8), the audit also
+    needs ``authored_statements: {id: {valid, reason, ...}}`` covering exactly those."""
     path = Path(path)
     data = path.read_bytes()
     raw = yaml.safe_load(data) or {}
@@ -114,8 +117,17 @@ def load_audit(path: str | Path, b: RunBundle) -> tuple[dict[str, tuple[bool, st
         raise ValueError(f"{path.name}: not intended statements of this bundle: {', '.join(sorted(unknown))}")
     if missing:
         raise ValueError(f"{path.name}: no audit entry for {', '.join(sorted(missing))}")
+    auth_ids = {s.id for s in b.authored.statements} if b.authored else set()
+    auth = raw.get("authored_statements") or {}
+    if not isinstance(auth, dict):
+        raise ValueError(f"{path.name}: `authored_statements` must map statement ids to entries")
+    unknown, missing = set(auth) - auth_ids, auth_ids - set(auth)
+    if unknown:
+        raise ValueError(f"{path.name}: not authored statements of this bundle: {', '.join(sorted(unknown))}")
+    if missing:
+        raise ValueError(f"{path.name}: no audit entry for authored {', '.join(sorted(missing))}")
     out = {}
-    for sid, e in sts.items():
+    for sid, e in {**sts, **auth}.items():
         if not isinstance(e, dict) or not isinstance(e.get("valid"), bool):
             raise ValueError(f"{path.name}: {sid} needs `valid: true|false`")
         out[sid] = (e["valid"], str(e.get("reason", "")))
@@ -127,15 +139,29 @@ def load_audit(path: str | Path, b: RunBundle) -> tuple[dict[str, tuple[bool, st
 
 # ---- the readout ------------------------------------------------------------------------------------------
 
+REVERSE_NOTE = "Reverse-coded: the statement says what the part asks the model not to do; the rate is 1 - the share judged yes."
+MEASURE_NOTE = "Decided by the engine's {m}, not by the judge."
+
+
 def _check(st: Statement, data: str, confirmed: bool) -> Check:
-    rate_w, rate_o = st.full_rate, st.ablated_rate
-    note = ONE_CLASS_NOTE if "rejudge_one_class" in st.flags else ""
+    rate_w, rate_o, ci = st.full_rate, st.ablated_rate, st.full_rate_ci
+    rev = st.polarity == "reverse"
+    if rev:  # read compliance the right way round: the share of answers that do NOT do what the statement says
+        rate_w, rate_o = 1 - rate_w, 1 - rate_o
+        ci = (1 - ci[1], 1 - ci[0]) if ci is not None else None
+    notes = []
+    if rev:
+        notes.append(REVERSE_NOTE)
+    if st.measure:
+        notes.append(MEASURE_NOTE.format(m=st.measure))
+    if "rejudge_one_class" in st.flags:
+        notes.append(ONE_CLASS_NOTE)
     if "untargeted" in st.flags:
-        note = (note + " No question targets this part, so the rate counts questions where it may not apply.").strip()
-    return Check(id=st.id, text=st.text, data=data, rate_with=rate_w, rate_with_ci=st.full_rate_ci,
+        notes.append("No question targets this part, so the rate counts questions where it may not apply.")
+    return Check(id=st.id, text=st.text, data=data, rate_with=rate_w, rate_with_ci=ci,
                  rate_without=rate_o, n_questions=st.n_questions, n_answers=st.n_pairs,
-                 does=does(rate_w, st.full_rate_ci), cause=cause(confirmed, rate_w, rate_o), flags=list(st.flags),
-                 note=note)
+                 does=does(rate_w, ci), cause=cause(confirmed, rate_w, rate_o), flags=list(st.flags),
+                 note=" ".join(notes), polarity=st.polarity, rate_with_raw=st.full_rate)
 
 
 def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
@@ -147,18 +173,22 @@ def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
     earlier = {r.section: r for r in b.discovery.readings}
     conf_rd = {r.section: r for r in b.confirmation.readings} if b.confirmation else {}
     parts = sorted({c.removed for c in b.configs if c.removed is not None} & {s.id for s in b.sections})
+    authored = list(b.authored.statements) if b.authored else []
     out_parts = []
     for k in parts:
         checks, excluded = [], []
-        for st in (s for s in b.discovery.statements if s.section == k and s.source == "intended"):
+        mine = [s for s in b.discovery.statements if s.section == k and s.source == "intended"]
+        mine += [s for s in authored if s.section == k]
+        for st in mine:
             if audit is not None and not audit[st.id][0]:
                 excluded.append(ExcludedCheck(id=st.id, text=st.text, reason="audit: " + audit[st.id][1]))
                 continue
-            src = cands.get(st.id)
-            use, data = (src, "confirmation") if src is not None else (st, "screen")
+            src = cands.get(st.id) if st.source == "intended" else None
+            use, data = (src, "confirmation") if src is not None else (st, "authored" if st.source == "authored" else "screen")
             bad = [f for f in EXCLUDED if f in use.flags]
             if bad:
-                where = "in the confirmation run" if data == "confirmation" else "in the main run"
+                where = {"confirmation": "in the confirmation run", "screen": "in the main run",
+                         "authored": "when judged as an authored statement"}[data]
                 excluded.append(ExcludedCheck(id=st.id, text=st.text, reason=f"flag {where}: " + ", ".join(bad)))
                 continue
             checks.append(_check(use, data, bool(src is not None and src.confirmed)))

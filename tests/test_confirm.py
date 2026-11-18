@@ -289,7 +289,9 @@ def test_old_bundles_still_load():
         if "screen" in p.name:
             continue
         b = B.load(p)
-        assert b.schema_version <= 7 and (b.schema_version >= 6 or b.confirmation is None) and (b.schema_version == 7 or b.readout is None)
+        assert b.schema_version <= B.SCHEMA_VERSION and (b.schema_version >= 6 or b.confirmation is None)
+        assert b.schema_version >= 7 or b.readout is None
+        assert b.schema_version >= 8 or b.authored is None
 
 
 V2 = ROOT / "runs_out" / "sonnet35-july2024-v2.json"

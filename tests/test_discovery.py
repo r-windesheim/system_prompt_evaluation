@@ -224,8 +224,9 @@ def test_bundle_roundtrip_and_old_bundles_load(tmp_path):
     B.dump(d, p)
     assert B.load(p) == d and d.schema_version == B.SCHEMA_VERSION and d.discovery.test == "question"
     for old in sorted((ROOT / "web" / "public" / "runs").glob("*.json")):
-        ob = B.load(old)
-        assert ob.discovery is None and ob.schema_version in (1, 2)
+        ob = B.load(old)  # every bundle the viewer serves loads
+        if old.stem in ("stub-demo", "lumen-original-probes"):  # the legacy fixtures stay old
+            assert ob.discovery is None and ob.schema_version in (1, 2)
     # v1 shape (no analysis block) still loads, and discovery can be added to it
     raw = json.loads(b.model_dump_json())
     raw.update(schema_version=1, analysis=None)

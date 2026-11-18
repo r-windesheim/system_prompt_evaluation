@@ -100,7 +100,7 @@ def test_flags_and_audit_decide_what_is_used():
     assert [c.id for c in p0.checks] == ["p0.i0", "p0.i1"]
     assert p0.reading == "not_needed" and all(c.cause == "not_needed" for c in p0.checks)
     assert [e.reason for e in p0.excluded] == ["flag in the main run: few_pairs", "flag in the main run: unparseable"]
-    assert out.readout.audit is None and out.schema_version == B.SCHEMA_VERSION == 7
+    assert out.readout.audit is None and out.schema_version == B.SCHEMA_VERSION == 8
 
     # an audit leaves invalid statements out, with its reason; a part with nothing left reads unclear
     ids = [s.id for s in b.discovery.statements if s.source == "intended"]
@@ -151,7 +151,7 @@ def test_old_bundles_and_lifecycle(tmp_path):
     old = B.RunBundle.model_validate(raw)  # a v6 bundle without a readout loads
     assert old.readout is None
     out = R.readout(old)  # a screen without confirmation is read too
-    assert out.schema_version == 7 and len(out.readout.parts) == len(old.sections)
+    assert out.schema_version == 8 and len(out.readout.parts) == len(old.sections)
     assert all(c.data == "screen" and c.cause != "confirmed" for p in out.readout.parts for c in p.checks)
     p = tmp_path / "r.json"
     B.dump(out, p)

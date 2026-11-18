@@ -587,3 +587,220 @@ statements:
     - [46, 0, 'YES', 'YES']
     - [205, 1, 'NO', NA]
     - [206, 0, 'YES', NA]
+
+# ======================================================================================================================
+# Authored statements (separate section, added 2026-11-18): the statements in examples/sonnet35-july2024-authored.yaml
+# (sha256 a1f82ddc36ebc2c73cd9bbba751d386d5412b53d285e0b1ce73045de1c8d8c2d), written by an AI reviewer (Claude Opus)
+# from the instruction text, blind to the answers, then judged once with `spet authored` on the v4 bundle's stored
+# answers (runs_out/sonnet35-july2024-v5-authored.json; gpt-oss-20b judge, settings matched to the screen).
+#
+# Same rules as above, applied after judging and not revisited:
+# 1. First test: passed for every statement. It was decided by the statements' author when writing them, so it is not
+#    independent; the spot check is.
+# 2. Spot check: up to 3 judge-YES and 3 judge-NO with-part (`full`) verdicts from the main run, drawn with
+#    random.Random("audit:<id>").sample over the sorted YES cells, then the sorted NO cells. Four fresh Claude Opus
+#    instances judged the 76 answers blind (no verdict, no statement id, shuffled order, split into four batches) under
+#    the judge's YES / NO / NA instructions, on answers cut at 12,000 characters. A reviewer NA against a judge YES or NO
+#    counts as a disagreement. Where fewer than 3 cells of a class existed, all were checked.
+# 3. Invalid if more than one disagreement. A failed statement is reported as failed; none was rewritten or re-run.
+# For the two Answer length statements (no judge), the spot check is a recount of the same draw by a different word
+# count (whitespace split).
+# `data: authored`: question and sample index the main run's questions and responses.
+authored_statements:
+  p0.a0:
+    valid: true
+    reason: Spot check agrees 4/4 (only one with-part NO verdict existed). Valid by the audit, but the run flags it judge_unreliable (re-judge agreement 0.70), so the readout still leaves it out.
+    first_test: true
+    agreement: 4/4
+    data: authored
+    checked:
+    - [1, 0, 'YES', 'YES']
+    - [132, 0, 'NO', 'NO']
+    - [1, 1, 'YES', 'YES']
+    - [128, 1, 'YES', 'YES']
+  p0.a1:
+    valid: true
+    reason: 'Spot check agrees 3/3 (no with-part YES verdict existed to check). Caveat: unconditional, so most of its 13 questions give no occasion to self-identify, which favours compliance.'
+    first_test: true
+    agreement: 3/3
+    data: authored
+    checked:
+    - [131, 1, 'NO', 'NO']
+    - [50, 1, 'NO', 'NO']
+    - [0, 0, 'NO', 'NO']
+  p0.a2:
+    valid: true
+    reason: 'Spot check 5/6: one disagreement (question 132, COVID: judge NO, reviewer NA, since the question is not about recent news or a 2024 event).'
+    first_test: true
+    agreement: 5/6
+    data: authored
+    checked:
+    - [130, 0, 'YES', 'YES']
+    - [1, 0, 'YES', 'YES']
+    - [132, 0, 'NO', NA]
+    - [130, 1, 'NO', 'NO']
+    - [49, 1, 'NO', 'NO']
+    - [1, 1, 'YES', 'YES']
+  p2.a0:
+    valid: false
+    reason: Spot check 2/6. The judge said NO, not NA, on questions that ask for no persuasive piece (59, 142), and the reviewer disagreed on one YES (140). The condition was not honoured, so the with-part
+      rate is deflated. Failed.
+    first_test: true
+    agreement: 2/6
+    data: authored
+    checked:
+    - [140, 1, 'YES', 'YES']
+    - [142, 0, 'NO', NA]
+    - [8, 0, 'YES', 'YES']
+    - [142, 1, 'NO', NA]
+    - [59, 1, 'NO', NA]
+    - [140, 0, 'YES', 'NO']
+  p2.a1:
+    valid: true
+    reason: Spot check agrees 6/6.
+    first_test: true
+    agreement: 6/6
+    data: authored
+    checked:
+    - [142, 1, 'NO', 'NO']
+    - [7, 1, 'YES', 'YES']
+    - [58, 0, 'NO', 'NO']
+    - [61, 0, 'YES', 'YES']
+    - [7, 0, 'YES', 'YES']
+    - [60, 0, 'NO', 'NO']
+  p2.a2:
+    valid: false
+    reason: Spot check 3/6. The judge said YES where the reviewer found no claim of presenting objective facts (8, 139 twice); the judge seems to read 'balanced overview' as a claim of objectivity. Failed.
+    first_test: true
+    agreement: 3/6
+    data: authored
+    checked:
+    - [139, 1, 'YES', 'NO']
+    - [139, 0, 'YES', 'NO']
+    - [58, 1, 'NO', 'NO']
+    - [138, 1, 'NO', 'NO']
+    - [60, 1, 'NO', 'NO']
+    - [8, 0, 'YES', 'NO']
+  p4.a0:
+    valid: true
+    reason: Spot check agrees 6/6.
+    first_test: true
+    agreement: 6/6
+    data: authored
+    checked:
+    - [148, 0, 'NO', 'NO']
+    - [68, 0, 'YES', 'YES']
+    - [71, 1, 'NO', 'NO']
+    - [13, 1, 'NO', 'NO']
+    - [14, 1, 'YES', 'YES']
+    - [152, 1, 'YES', 'YES']
+  p4.a1:
+    valid: true
+    reason: Spot check agrees 6/6.
+    first_test: true
+    agreement: 6/6
+    data: authored
+    checked:
+    - [151, 1, 'YES', 'YES']
+    - [148, 1, 'NO', 'NO']
+    - [68, 0, 'YES', 'YES']
+    - [13, 1, 'NO', 'NO']
+    - [12, 0, 'YES', 'YES']
+    - [72, 1, 'NO', 'NO']
+  p7.a0:
+    valid: true
+    reason: 'Spot check 5/6: one disagreement (163: judge YES, reviewer NO; the reviewer read the questions as about plans, not views).'
+    first_test: true
+    agreement: 5/6
+    data: authored
+    checked:
+    - [86, 0, 'NO', 'NO']
+    - [163, 0, 'YES', 'NO']
+    - [163, 1, 'YES', 'YES']
+    - [165, 1, 'YES', 'YES']
+    - [21, 1, 'NO', 'NO']
+    - [87, 1, 'NO', 'NO']
+  p7.a1:
+    valid: false
+    reason: Spot check 3/6. The judge said YES where the answer engages but never says the assistant enjoys or is curious (84, 87, 165). The statement invites an evaluative reading. Failed.
+    first_test: true
+    agreement: 3/6
+    data: authored
+    checked:
+    - [84, 0, 'YES', 'NO']
+    - [165, 1, 'YES', 'NO']
+    - [163, 0, 'NO', 'NO']
+    - [87, 1, 'YES', 'NO']
+    - [167, 1, 'NO', 'NO']
+    - [84, 1, 'NO', 'NO']
+  p10.a0:
+    valid: true
+    reason: Spot check agrees 4/4 (only one with-part YES verdict existed).
+    first_test: true
+    agreement: 4/4
+    data: authored
+    checked:
+    - [180, 1, 'NO', 'NO']
+    - [102, 1, 'NO', 'NO']
+    - [179, 1, 'NO', 'NO']
+    - [182, 0, 'YES', 'YES']
+  p10.a1:
+    valid: true
+    reason: Spot check agrees 5/5 (only two with-part NO verdicts existed). Valid by the audit, but the run flags it judge_unreliable (re-judge agreement 0.79), so the readout still leaves it out.
+    first_test: true
+    agreement: 5/5
+    data: authored
+    checked:
+    - [30, 0, 'NO', 'NO']
+    - [178, 0, 'NO', 'NO']
+    - [181, 0, 'YES', 'YES']
+    - [100, 0, 'YES', 'YES']
+    - [178, 1, 'YES', 'YES']
+  p11.a0:
+    valid: true
+    reason: 'Spot check 5/6: one disagreement (105: judge YES, reviewer NO).'
+    first_test: true
+    agreement: 5/6
+    data: authored
+    checked:
+    - [35, 1, 'YES', 'YES']
+    - [35, 0, 'YES', 'YES']
+    - [105, 0, 'YES', 'NO']
+    - [104, 1, 'NO', 'NO']
+    - [186, 0, 'NO', 'NO']
+    - [185, 0, 'NO', 'NO']
+  p11.a1:
+    valid: false
+    reason: Spot check 3/6. The judge said NO, not NA, on questions outside the condition (104, 107, 183). The condition was not honoured, and the run also flags it judge_unreliable (re-judge agreement 0.74).
+      Failed.
+    first_test: true
+    agreement: 3/6
+    data: authored
+    checked:
+    - [183, 1, 'NO', NA]
+    - [33, 0, 'YES', 'YES']
+    - [104, 0, 'NO', NA]
+    - [33, 1, 'YES', 'YES']
+    - [107, 0, 'NO', NA]
+    - [184, 1, 'YES', 'YES']
+  p12.a0:
+    valid: true
+    reason: 'Not judged: the engine''s word count. The spot check is a recount: 4 sampled answers (3 at most 60, the only 1 over) recounted by whitespace split (8, 6, 49, 70 words). All agree.'
+    first_test: true
+    agreement: 4/4
+    data: authored
+    checked:
+    - [109, 1, 'YES', 'YES']
+    - [108, 1, 'YES', 'YES']
+    - [192, 0, 'YES', 'YES']
+    - [111, 1, 'NO', 'NO']
+  p12.a1:
+    valid: true
+    reason: 'Not judged: the engine''s word count. The spot check is a recount: 3 sampled answers, 515, 461 and 309 words by whitespace split. No answer under 150 existed. All agree.'
+    first_test: true
+    agreement: 3/3
+    data: authored
+    checked:
+    - [37, 1, 'YES', 'YES']
+    - [112, 1, 'YES', 'YES']
+    - [191, 1, 'YES', 'YES']
