@@ -32,6 +32,374 @@
       "title": "Analysis",
       "type": "object"
     },
+    "Candidate": {
+      "additionalProperties": false,
+      "description": "v6: a screen statement retested on the confirmation's fresh questions. The Statement fields hold the\nconfirmation's numbers (verified_on, per_query_idx, verdicts and examples index confirmation.queries and\nconfirmation.responses); the screen_* fields copy the screen's, for comparison.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "intended",
+            "discovered"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "classification": {
+          "anyOf": [
+            {
+              "enum": [
+                "intended",
+                "side_effect"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Classification"
+        },
+        "full_rate": {
+          "title": "Full Rate",
+          "type": "number"
+        },
+        "ablated_rate": {
+          "title": "Ablated Rate",
+          "type": "number"
+        },
+        "full_rate_ci": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Full Rate Ci"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        },
+        "ci": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Ci",
+          "type": "array"
+        },
+        "ci_query": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci Query"
+        },
+        "p": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P",
+          "type": "number"
+        },
+        "q": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Q",
+          "type": "number"
+        },
+        "significant": {
+          "title": "Significant",
+          "type": "boolean"
+        },
+        "tested": {
+          "default": true,
+          "title": "Tested",
+          "type": "boolean"
+        },
+        "n_pairs": {
+          "title": "N Pairs",
+          "type": "integer"
+        },
+        "n_questions": {
+          "title": "N Questions",
+          "type": "integer"
+        },
+        "verified_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Verified On",
+          "type": "array"
+        },
+        "per_query": {
+          "default": [],
+          "items": {
+            "type": "number"
+          },
+          "title": "Per Query",
+          "type": "array"
+        },
+        "per_query_idx": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Per Query Idx",
+          "type": "array"
+        },
+        "mde": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mde"
+        },
+        "n_unparseable": {
+          "default": 0,
+          "title": "N Unparseable",
+          "type": "integer"
+        },
+        "n_na": {
+          "default": 0,
+          "title": "N Na",
+          "type": "integer"
+        },
+        "n_excluded_with": {
+          "default": 0,
+          "title": "N Excluded With",
+          "type": "integer"
+        },
+        "n_excluded_without": {
+          "default": 0,
+          "title": "N Excluded Without",
+          "type": "integer"
+        },
+        "n_excluded_echo": {
+          "default": 0,
+          "title": "N Excluded Echo",
+          "type": "integer"
+        },
+        "agreement": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agreement"
+        },
+        "kappa": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kappa"
+        },
+        "n_rejudged": {
+          "default": 0,
+          "title": "N Rejudged",
+          "type": "integer"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "examples": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PairExample"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "family": {
+          "anyOf": [
+            {
+              "enum": [
+                "intended",
+                "discovered"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Family"
+        },
+        "verdicts": {
+          "default": [],
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        },
+        "rejudged": {
+          "default": [],
+          "items": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "enum": [
+                  "w",
+                  "o"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Rejudged",
+          "type": "array"
+        },
+        "screen_p": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Screen P",
+          "type": "number"
+        },
+        "screen_q": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Screen Q",
+          "type": "number"
+        },
+        "screen_full_rate": {
+          "title": "Screen Full Rate",
+          "type": "number"
+        },
+        "screen_ablated_rate": {
+          "title": "Screen Ablated Rate",
+          "type": "number"
+        },
+        "screen_delta": {
+          "title": "Screen Delta",
+          "type": "number"
+        },
+        "screen_n_questions": {
+          "title": "Screen N Questions",
+          "type": "integer"
+        },
+        "confirmed": {
+          "title": "Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "section",
+        "text",
+        "source",
+        "full_rate",
+        "ablated_rate",
+        "delta",
+        "ci",
+        "p",
+        "q",
+        "significant",
+        "n_pairs",
+        "n_questions",
+        "screen_p",
+        "screen_q",
+        "screen_full_rate",
+        "screen_ablated_rate",
+        "screen_delta",
+        "screen_n_questions",
+        "confirmed"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
     "Config": {
       "additionalProperties": false,
       "properties": {
@@ -56,6 +424,320 @@
         "id"
       ],
       "title": "Config",
+      "type": "object"
+    },
+    "ConfirmQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "targets": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Targets",
+          "type": "array"
+        },
+        "overlap": {
+          "default": 0.0,
+          "title": "Overlap",
+          "type": "number"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "ConfirmQuery",
+      "type": "object"
+    },
+    "ConfirmReading": {
+      "additionalProperties": false,
+      "description": "v6: the per-part reading after confirmation.",
+      "properties": {
+        "section": {
+          "title": "Section",
+          "type": "integer"
+        },
+        "adherence": {
+          "enum": [
+            "followed",
+            "partly_followed",
+            "redundant",
+            "not_followed",
+            "inconclusive",
+            "not_assessed"
+          ],
+          "title": "Adherence",
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "confirmation",
+            "screen"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "confirmed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Confirmed",
+          "type": "array"
+        },
+        "not_confirmed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Not Confirmed",
+          "type": "array"
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Side Effects",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "adherence",
+        "basis"
+      ],
+      "title": "ConfirmReading",
+      "type": "object"
+    },
+    "ConfirmRule": {
+      "additionalProperties": false,
+      "description": "v6: how the candidates were chosen from the screen and when one counts as confirmed. Fixed in code\n(spet/confirm.py) before any confirmation answer exists, and stored so the choice can be checked.",
+      "properties": {
+        "intended_p_below": {
+          "title": "Intended P Below",
+          "type": "number"
+        },
+        "discovered_p_below": {
+          "title": "Discovered P Below",
+          "type": "number"
+        },
+        "require_tested": {
+          "default": true,
+          "title": "Require Tested",
+          "type": "boolean"
+        },
+        "excluded_flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Flags",
+          "type": "array"
+        },
+        "test": {
+          "const": "question",
+          "default": "question",
+          "title": "Test",
+          "type": "string"
+        },
+        "two_sided": {
+          "default": true,
+          "title": "Two Sided",
+          "type": "boolean"
+        },
+        "confirmed_if": {
+          "default": "",
+          "title": "Confirmed If",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intended_p_below",
+        "discovered_p_below"
+      ],
+      "title": "ConfirmRule",
+      "type": "object"
+    },
+    "Confirmation": {
+      "additionalProperties": false,
+      "description": "v6: confirmation of screen candidates on fresh questions (docs/discovery.md, \"Confirmation\").",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "rule": {
+          "$ref": "#/$defs/ConfirmRule"
+        },
+        "n_per_query": {
+          "minimum": 1,
+          "title": "N Per Query",
+          "type": "integer"
+        },
+        "n_per_query_general": {
+          "minimum": 1,
+          "title": "N Per Query General",
+          "type": "integer"
+        },
+        "queries": {
+          "items": {
+            "$ref": "#/$defs/ConfirmQuery"
+          },
+          "title": "Queries",
+          "type": "array"
+        },
+        "configs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Configs",
+          "type": "array"
+        },
+        "responses": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Response"
+          },
+          "title": "Responses",
+          "type": "array"
+        },
+        "candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "families": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Families",
+          "type": "object"
+        },
+        "n_tests": {
+          "default": 0,
+          "title": "N Tests",
+          "type": "integer"
+        },
+        "readings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ConfirmReading"
+          },
+          "title": "Readings",
+          "type": "array"
+        },
+        "prompt_echoes": {
+          "default": [],
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Prompt Echoes",
+          "type": "array"
+        },
+        "calls": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Calls",
+          "type": "object"
+        },
+        "n_unparseable": {
+          "default": 0,
+          "title": "N Unparseable",
+          "type": "integer"
+        },
+        "n_errors": {
+          "default": 0,
+          "title": "N Errors",
+          "type": "integer"
+        },
+        "n_cut_off": {
+          "default": 0,
+          "title": "N Cut Off",
+          "type": "integer"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "settings": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Settings",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "created_at",
+        "seed",
+        "alpha",
+        "rule",
+        "n_per_query",
+        "n_per_query_general",
+        "queries",
+        "configs"
+      ],
+      "title": "Confirmation",
       "type": "object"
     },
     "Detector": {
@@ -1158,13 +1840,14 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": 5,
+      "default": 6,
       "enum": [
         1,
         2,
         3,
         4,
-        5
+        5,
+        6
       ],
       "title": "Schema Version",
       "type": "integer"
@@ -1240,6 +1923,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Discovery"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "confirmation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Confirmation"
         },
         {
           "type": "null"

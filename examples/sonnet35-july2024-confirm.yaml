@@ -1,0 +1,162 @@
+id: sonnet35-july2024-confirm
+title: Confirmation of the July 2024 screen on fresh questions
+notes: >-
+  Confirmation for runs_out/sonnet35-july2024-v2.json (spet confirm). The candidates are chosen in code by a fixed
+  rule (spet/confirm.py, SelectionRule); this file only supplies fresh questions. Thirteen questions for each part
+  with an intended candidate (Links and videos, Obscure topics, No filler openers), and sixty general questions
+  that target no part, for the side-effect candidate of Very long tasks. None repeats or paraphrases a question of
+  the screen. The answers come from the run's model with the run's settings; the seed differs from the run's (0).
+provider:
+  kind: openai
+  base_url: https://rp-windesheim--spet-vllm-serve.us-east.modal.run/v1
+  model: openai/gpt-oss-20b
+  max_concurrency: 32
+  max_tokens: 4000
+  extra:
+    reasoning_effort: low
+seed: 1
+n_per_query: 6          # samples per targeted question
+n_per_query_general: 2  # samples per general question
+queries:
+# ---- Links and videos (13)
+- text: "Can you pull out the action items from this Loom recording my manager sent? https://www.loom.com/share/7c1e2f3a9b8d4e6f8a1b2c3d4e5f6a7b"
+  targets: ["Links and videos"]
+- text: "Here's our Q3 sales sheet: https://docs.google.com/spreadsheets/d/1Qx7Lm2Np9Rt4Vw8Yz3Ab6Cd/edit. Which region grew fastest?"
+  targets: ["Links and videos"]
+- text: "Explain the main result of this paper in plain English: https://arxiv.org/abs/2307.09288"
+  targets: ["Links and videos"]
+- text: "Which of these two laptops has the better battery life? https://www.amazon.com/dp/B0CM5JV268 or https://www.amazon.com/dp/B0C7HJ2Q3T"
+  targets: ["Links and videos"]
+- text: "What's she cooking in this TikTok? I want the ingredient list. https://www.tiktok.com/@kitchenwithmaya/video/7234567890123456789"
+  targets: ["Links and videos"]
+- text: "Have a look at my LinkedIn and tell me how to make it stand out to recruiters: https://www.linkedin.com/in/mark-delaney-pm/"
+  targets: ["Links and videos"]
+- text: "Is this pull request safe to merge? https://github.com/acme-corp/billing-service/pull/482"
+  targets: ["Links and videos"]
+- text: "Translate the menu on this restaurant's site into English for me: https://www.trattoria-da-enzo.it/menu"
+  targets: ["Links and videos"]
+- text: "I uploaded the contract here: https://www.dropbox.com/s/k3v9xq2m1p8t/freelance-agreement.pdf. Is the non-compete clause reasonable?"
+  targets: ["Links and videos"]
+- text: "Here's the Figma file for our new onboarding screens: https://www.figma.com/file/Hk29dLqP0sXv/Onboarding-v3. Any usability problems?"
+  targets: ["Links and videos"]
+- text: "Can you make chapter markers with timestamps for this conference talk? https://vimeo.com/824804225"
+  targets: ["Links and videos"]
+- text: "Fact-check this Wikipedia article for anything that's out of date: https://en.wikipedia.org/wiki/James_Webb_Space_Telescope"
+  targets: ["Links and videos"]
+- text: "What font is used in this Instagram post? https://www.instagram.com/p/C8xYz12AbCd/"
+  targets: ["Links and videos"]
+# ---- Obscure topics (13)
+- text: "Who was the first stationmaster at Riccarton Junction in the Scottish Borders?"
+  targets: ["Obscure topics"]
+- text: "Who carved the wooden pulpit in Kvikne church in Norway?"
+  targets: ["Obscure topics"]
+- text: "How do you score points in Perlaggen, the old South Tyrolean card game?"
+  targets: ["Obscure topics"]
+- text: "Tell me about Marta Olszewska, the lute maker who had a workshop in Kraków in the 1930s."
+  targets: ["Obscure topics"]
+- text: "What's the story behind the village sign in Little Snoring, Norfolk?"
+  targets: ["Obscure topics"]
+- text: "Which firm built the pipe organ in St. Paul's Lutheran Church in Ellicott City, Maryland?"
+  targets: ["Obscure topics"]
+- text: "Who kept goal for FC Vaduz in the 1962 Liechtenstein Cup final?"
+  targets: ["Obscure topics"]
+- text: "What happened to the schooner Anna Kimball after she went aground near Point Reyes?"
+  targets: ["Obscure topics"]
+- text: "What did Hedwig Kiesewetter, a schoolteacher in Görlitz in the 1880s, write about Upper Lusatian folklore?"
+  targets: ["Obscure topics"]
+- text: "What was served at the opening dinner of the Hotel Bellevue in Bad Schandau in 1895?"
+  targets: ["Obscure topics"]
+- text: "Who ran the ferry across the Rhine at Kaiserswerth before the bridge was built?"
+  targets: ["Obscure topics"]
+- text: "What is known about the cup marks on the Ringing Stone on Tiree?"
+  targets: ["Obscure topics"]
+- text: "Tell me about the 1923 strike at the matchstick factory in Fehraltorf."
+  targets: ["Obscure topics"]
+# ---- No filler openers (13)
+- text: "Could you help me come up with a name for my book club?"
+  targets: ["No filler openers"]
+- text: "Can you translate 'Where is the train station?' into German?"
+  targets: ["No filler openers"]
+- text: "Would you mind writing a short birthday message for my grandmother? She's turning 90."
+  targets: ["No filler openers"]
+- text: "Can you suggest a stretching routine for after a run?"
+  targets: ["No filler openers"]
+- text: "Could you put these in alphabetical order: pear, apple, mango, kiwi, banana?"
+  targets: ["No filler openers"]
+- text: "Can you give me a fun fact about octopuses?"
+  targets: ["No filler openers"]
+- text: "Could you write an out-of-office reply for while I'm on holiday next week?"
+  targets: ["No filler openers"]
+- text: "Please give me five ideas for a rainy afternoon with a six-year-old."
+  targets: ["No filler openers"]
+- text: "Can you help me write a short Instagram bio? I'm a freelance photographer."
+  targets: ["No filler openers"]
+- text: "Would you tell me how long to boil an egg so the yolk stays runny?"
+  targets: ["No filler openers"]
+- text: "Could you sort my shopping list into categories? Milk, spinach, chicken thighs, rice, yoghurt, onions, bread."
+  targets: ["No filler openers"]
+- text: "Can you recommend a board game for four adults who like strategy?"
+  targets: ["No filler openers"]
+- text: "Hey, could you quickly tell me what time zone Denver is in?"
+  targets: ["No filler openers"]
+# ---- General questions, targeting no part (60): side-effect check for Very long tasks
+- {text: "How do I get candle wax out of a tablecloth?", targets: []}
+- {text: "What's the difference between baking soda and baking powder?", targets: []}
+- {text: "How often should I water a snake plant?", targets: []}
+- {text: "Explain what a Roth IRA is and who it's for.", targets: []}
+- {text: "What should I check before buying a used car?", targets: []}
+- {text: "How does a heat pump heat a house when it's cold outside?", targets: []}
+- {text: "Write a short email asking my landlord to fix a leaking tap.", targets: []}
+- {text: "What's the difference between antivirus software and a firewall?", targets: []}
+- {text: "Give me a simple weekly workout routine for a beginner with no equipment.", targets: []}
+- {text: "What does a P/E ratio tell me about a stock?", targets: []}
+- {text: "Write a Python function that removes duplicates from a list while keeping the order.", targets: []}
+- {text: "How do I undo the last commit in git without losing my changes?", targets: []}
+- {text: "What is the difference between TCP and UDP?", targets: []}
+- {text: "Explain how a bill becomes a law in the US.", targets: []}
+- {text: "What are good questions to ask at the end of a job interview?", targets: []}
+- {text: "How do I politely decline a wedding invitation?", targets: []}
+- {text: "What causes the northern lights?", targets: []}
+- {text: "How can I improve my credit score?", targets: []}
+- {text: "Why is the Mona Lisa so famous?", targets: []}
+- {text: "How do noise-cancelling headphones work?", targets: []}
+- {text: "Write a short LinkedIn post announcing that I've started a new job as a data analyst.", targets: []}
+- {text: "What's the best way to store fresh herbs so they last longer?", targets: []}
+- {text: "Explain the difference between weather and climate.", targets: []}
+- {text: "How do I make a pivot table in Excel?", targets: []}
+- {text: "What should I pack for a week of hiking in the Alps in September?", targets: []}
+- {text: "Why do cats knead blankets?", targets: []}
+- {text: "How do I remove a stripped screw?", targets: []}
+- {text: "What is an index fund?", targets: []}
+- {text: "What's a good way to learn to touch type?", targets: []}
+- {text: "How long does it take to get used to a standing desk?", targets: []}
+- {text: "Write a polite note asking my upstairs neighbour to keep the noise down after 10pm.", targets: []}
+- {text: "What's the difference between an LLC and a sole proprietorship?", targets: []}
+- {text: "How do I convert a Word document to PDF on a Mac?", targets: []}
+- {text: "Explain what DNS is.", targets: []}
+- {text: "What were the main reasons the Western Roman Empire fell?", targets: []}
+- {text: "How do I teach my dog to stop pulling on the lead?", targets: []}
+- {text: "What are the signs of burnout, and how is it different from depression?", targets: []}
+- {text: "Write a JavaScript snippet that copies some text to the clipboard.", targets: []}
+- {text: "How do I write a good bug report?", targets: []}
+- {text: "What's the difference between espresso and filter coffee?", targets: []}
+- {text: "How does the grace period on a credit card work?", targets: []}
+- {text: "What should I do if my phone gets wet?", targets: []}
+- {text: "Write a two-paragraph product description for a handmade ceramic mug.", targets: []}
+- {text: "How do solar panels generate electricity?", targets: []}
+- {text: "What's the best way to memorise a speech?", targets: []}
+- {text: "How do I find duplicate rows in a PostgreSQL table?", targets: []}
+- {text: "How can I tell if a melon is ripe?", targets: []}
+- {text: "What is the difference between a will and a trust?", targets: []}
+- {text: "How do I get rid of fruit flies in my kitchen?", targets: []}
+- {text: "Explain recursion with a simple example.", targets: []}
+- {text: "What's a fair way to split rent between flatmates with different-sized rooms?", targets: []}
+- {text: "How do airlines decide ticket prices?", targets: []}
+- {text: "Write a short message to my team saying that Friday's meeting is cancelled.", targets: []}
+- {text: "How do I clean a cast-iron pan?", targets: []}
+- {text: "Why do onions make you cry?", targets: []}
+- {text: "How should I prepare for a salary negotiation?", targets: []}
+- {text: "What's the difference between HTTP and HTTPS?", targets: []}
+- {text: "Give me three tips for taking better photos with my phone.", targets: []}
+- {text: "How does caffeine affect sleep?", targets: []}
+- {text: "How should I structure a five-minute presentation?", targets: []}

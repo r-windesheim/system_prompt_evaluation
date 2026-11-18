@@ -1,4 +1,4 @@
-// Mirrors spet/bundle.py (schema_version 1-5). docs/run-bundle.schema.json is the source of truth.
+// Mirrors spet/bundle.py (schema_version 1-6). docs/run-bundle.schema.json is the source of truth.
 // Fields added after v1 are optional here, because older bundles lack them.
 
 export type Meta = {
@@ -170,8 +170,76 @@ export type Discovery = {
   screen?: ScreenUse | null;
 };
 
+/** v6: how candidates were chosen from the screen, and when one counts as confirmed (fixed before any answer). */
+export type ConfirmRule = {
+  intended_p_below: number;
+  discovered_p_below: number;
+  require_tested?: boolean;
+  excluded_flags?: string[];
+  test?: "question";
+  two_sided?: boolean;
+  confirmed_if?: string;
+};
+
+export type ConfirmQuery = {
+  text: string;
+  /** the part it was written for; [] = a general question (side-effect checks) */
+  targets?: number[];
+  /** largest word overlap (Jaccard) with any question of the screen */
+  overlap?: number;
+};
+
+/** v6: a screen statement retested on fresh questions. The Statement fields hold the confirmation's numbers, and
+ * their question and sample indices refer to confirmation.queries and confirmation.responses. */
+export type Candidate = Statement & {
+  screen_p: number;
+  screen_q: number;
+  screen_full_rate: number;
+  screen_ablated_rate: number;
+  screen_delta: number;
+  screen_n_questions: number;
+  confirmed: boolean;
+};
+
+export type ConfirmReading = {
+  section: number;
+  adherence: PartReading["adherence"];
+  /** "screen": no candidate of this part was confirmed, so the main run's reading stands */
+  basis: "confirmation" | "screen";
+  confirmed?: string[];
+  not_confirmed?: string[];
+  side_effects?: string[];
+  note?: string;
+};
+
+/** v6: screen candidates, chosen by a fixed rule, retested on fresh questions with their own answers. */
+export type Confirmation = {
+  id: string;
+  created_at: string;
+  seed: number;
+  alpha: number;
+  rule: ConfirmRule;
+  n_per_query: number;
+  n_per_query_general: number;
+  queries: ConfirmQuery[];
+  configs: string[];
+  /** query_idx indexes confirmation.queries */
+  responses?: Response[];
+  candidates?: Candidate[];
+  families?: Partial<Record<"intended" | "discovered", number>>;
+  n_tests?: number;
+  readings?: ConfirmReading[];
+  prompt_echoes?: [string, number, number][];
+  calls?: Record<string, number>;
+  n_unparseable?: number;
+  n_errors?: number;
+  n_cut_off?: number;
+  warnings?: string[];
+  settings?: Record<string, string | number | null>;
+};
+
 export type RunBundle = {
-  schema_version: 1 | 2 | 3 | 4 | 5;
+  schema_version: 1 | 2 | 3 | 4 | 5 | 6;
   meta: Meta;
   sections: Section[];
   configs: Config[];
@@ -181,6 +249,8 @@ export type RunBundle = {
   analysis?: Analysis | null;
   shapley?: Record<string, Record<string, number>> | null;
   discovery?: Discovery | null;
+  /** v6 */
+  confirmation?: Confirmation | null;
 };
 
 export type RunSummary = {

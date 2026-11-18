@@ -5,6 +5,7 @@
     python -m spet schema > docs/run-bundle.schema.json
     python -m spet discover runs/x.json -o runs/x.json     # judge calls only, no new answers
     python -m spet plan examples/sonnet35-july2024.yaml    # planned answers and judge calls, no model calls
+    python -m spet confirm runs/x.json confirm.yaml -o runs/x-confirmed.json   # retest screen candidates
 """
 
 from __future__ import annotations
@@ -233,6 +234,81 @@ def cmd_plan(args) -> int:
     return 0
 
 
+def cmd_confirm(args) -> int:
+    from . import confirm as C
+
+    b = bundle.load(args.bundle)
+    try:
+        cands = C.select(b)
+        spec = C.load_spec(args.spec, b)
+        C.check_spec(spec, b, cands)
+        C.check_provider(spec.provider, b)
+        pcfg = spec.provider if spec.provider.get("kind", "stub") != "stub" else {"kind": "stub"}
+        judge = make_judge(pcfg, args)
+        js = C.check_judge(judge, b)
+    except ValueError as e:
+        raise SystemExit(f"confirm: {e}")
+    print("judge (matches the screen): " + ", ".join(f"{k}={v}" for k, v in js.items()), file=sys.stderr)
+    r = C.RULE
+    print(f"rule: intended p < {r.intended_p_below}, discovered p < {r.discovered_p_below}, tested, none of "
+          f"{', '.join(r.excluded_flags)}", file=sys.stderr)
+    print(f"selected {len(cands)} candidates:", file=sys.stderr)
+    for st in cands:
+        print(f"  {st.id:<8} {st.source:<10} part {st.section + 1} ({b.sections[st.section].label}): "
+              f"{st.full_rate:.2f} vs {st.ablated_rate:.2f}, p={st.p:.3g}, q={st.q:.3g}  {st.text}", file=sys.stderr)
+    p = C.plan(spec, b, cands)
+    n_t = sum(bool(t) for t in spec.targets)
+    print(f"plan: {len(spec.queries)} fresh questions ({n_t} targeted x {spec.n_per_query} samples, "
+          f"{len(spec.queries) - n_t} general x {spec.n_per_query_general}), seed {spec.seed}; "
+          f"answers {p['answers']}, judge calls <= {p['judge']}, re-judge calls <= {p['rejudge']}", file=sys.stderr)
+    over = []
+    if args.max_answers is not None and p["answers"] > args.max_answers:
+        over.append(f"{p['answers']} answers > {args.max_answers}")
+    if args.max_judge_calls is not None and p["judge"] + p["rejudge"] > args.max_judge_calls:
+        over.append(f"{p['judge'] + p['rejudge']} judge calls > {args.max_judge_calls}")
+    if over:
+        raise SystemExit("confirm: over budget: " + "; ".join(over))
+    if args.plan:
+        if hasattr(judge, "aclose"):
+            asyncio.run(judge.aclose())
+        return 0
+    provider = make_provider(spec.provider)
+
+    def progress(what):
+        def f(done, total):
+            if done == total or done % max(1, total // 20) == 0:
+                print(f"\r  {done}/{total} {what}", end="", file=sys.stderr, flush=True)
+        return f
+
+    async def go():
+        try:
+            return await C.confirm(b, spec, provider, judge, progress=progress("answers"),
+                                   judge_progress=progress("judge calls"))
+        finally:
+            print(file=sys.stderr)
+            for x in (provider, judge):
+                if hasattr(x, "aclose"):
+                    await x.aclose()
+
+    out_b = asyncio.run(go())
+    c = out_b.confirmation
+    if c.n_errors and not args.keep_failed_calls:
+        # resume = rerun the same command (answers and verdicts are cached); never write a partial result
+        raise SystemExit(f"confirm: {c.n_errors} judge calls failed; nothing written. Rerun the same command to resume.")
+    out = Path(args.out)
+    bundle.dump(out_b, out)
+    print(f"wrote {out}: {len(c.responses)} answers, calls {c.calls}", file=sys.stderr)
+    for st in c.candidates:
+        print(f"  {st.id:<8} {'CONFIRMED' if st.confirmed else 'not confirmed':<13} {st.full_rate:.2f} vs "
+              f"{st.ablated_rate:.2f} (screen {st.screen_full_rate:.2f} vs {st.screen_ablated_rate:.2f}), "
+              f"p={st.p:.3g}, q={st.q:.3g}, {st.n_questions} questions, flags {st.flags}", file=sys.stderr)
+    for rd in c.readings:
+        print(f"  part {rd.section + 1}: {rd.adherence} ({rd.basis})", file=sys.stderr)
+    for w in c.warnings:
+        print(f"  warning: {w}", file=sys.stderr)
+    return 0
+
+
 def cmd_validate(args) -> int:
     bad = 0
     for p in args.paths:
@@ -310,6 +386,20 @@ def main(argv: list[str] | None = None) -> int:
     for flag in ("--max-discovered", "--max-intended", "--proposal-calls", "--rejudge-per-class"):
         pl.add_argument(flag, type=int)
     pl.set_defaults(fn=cmd_plan)
+    cf = sub.add_parser("confirm", help="retest screen candidates, chosen by a fixed rule, on fresh questions")
+    cf.add_argument("bundle", help="a finished bundle with a discovery block (the screen)")
+    cf.add_argument("spec", help="YAML with the fresh questions, seed, sample counts and provider")
+    cf.add_argument("-o", "--out", required=True)
+    cf.add_argument("--plan", action="store_true", help="print the candidates and the plan, make no model calls")
+    cf.add_argument("--max-answers", type=int, help="refuse to run if the plan needs more answers")
+    cf.add_argument("--max-judge-calls", type=int, help="refuse to run if judge plus re-judge calls may exceed this")
+    cf.add_argument("--judge-base-url")
+    cf.add_argument("--judge-model")
+    cf.add_argument("--stub-judge", action="store_true")
+    cf.add_argument("--keep-failed-calls", action="store_true",
+                    help="write the result even if judge calls failed (they count as unreadable, as in discovery). "
+                         "Only for calls that failed on two identical reruns; see docs/discovery.md")
+    cf.set_defaults(fn=cmd_confirm)
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")
     v.set_defaults(fn=cmd_validate)

@@ -13,10 +13,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 5  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
+SCHEMA_VERSION = 6  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
 # 4: question targets and per-target sample counts (meta), per_query_idx, prompt-echo exclusions (all optional)
 # 5: discovery q-values come from two Benjamini-Hochberg families (intended, discovered) instead of one; per-answer
 #    judge verdicts; the attention screen record. All new fields are optional, so v1-v4 bundles still load.
+# 6: optional `confirmation` block: screen candidates chosen by a fixed rule, retested on fresh questions with their
+#    own answers (spet/confirm.py). Optional, so v1-v5 bundles still load.
 
 
 class _Strict(BaseModel):
@@ -226,8 +228,75 @@ class Discovery(_Strict):
     screen: ScreenUse | None = None  # v5: set when an attention screen ordered the proposer's pairs
 
 
+class ConfirmRule(_Strict):
+    """v6: how the candidates were chosen from the screen and when one counts as confirmed. Fixed in code
+    (spet/confirm.py) before any confirmation answer exists, and stored so the choice can be checked."""
+    intended_p_below: float        # intended statements with screen p below this...
+    discovered_p_below: float      # ...and discovered statements with screen p below this
+    require_tested: bool = True
+    excluded_flags: list[str] = []  # a statement with any of these screen flags is not a candidate
+    test: Literal["question"] = "question"  # sign flips over whole questions, two-sided
+    two_sided: bool = True
+    confirmed_if: str = ""         # the confirmation criterion in words
+
+
+class ConfirmQuery(_Strict):
+    text: str
+    targets: list[int] = []        # the part it was written for; [] = a general question (side-effect checks)
+    overlap: float = 0.0           # largest word overlap (Jaccard) with any question of the screen
+
+
+class Candidate(Statement):
+    """v6: a screen statement retested on the confirmation's fresh questions. The Statement fields hold the
+    confirmation's numbers (verified_on, per_query_idx, verdicts and examples index confirmation.queries and
+    confirmation.responses); the screen_* fields copy the screen's, for comparison."""
+    screen_p: float = Field(ge=0, le=1)
+    screen_q: float = Field(ge=0, le=1)
+    screen_full_rate: float
+    screen_ablated_rate: float
+    screen_delta: float
+    screen_n_questions: int
+    confirmed: bool                # q < alpha in its family, no blocking flag, and the same sign as in the screen
+
+
+class ConfirmReading(_Strict):
+    """v6: the per-part reading after confirmation."""
+    section: int
+    adherence: Literal["followed", "partly_followed", "redundant", "not_followed", "inconclusive", "not_assessed"]
+    basis: Literal["confirmation", "screen"]  # screen: no candidate was confirmed, the main run's reading stands
+    confirmed: list[str] = []      # candidate ids (intended) confirmed on fresh questions
+    not_confirmed: list[str] = []  # candidate ids (intended or discovered) that were retested and failed
+    side_effects: list[str] = []   # discovered candidate ids confirmed on fresh questions
+    note: str = ""
+
+
+class Confirmation(_Strict):
+    """v6: confirmation of screen candidates on fresh questions (docs/discovery.md, "Confirmation")."""
+    id: str
+    created_at: str
+    seed: int                      # sampling seed of the confirmation answers (differs from the run's)
+    alpha: float
+    rule: ConfirmRule
+    n_per_query: int = Field(ge=1)           # samples per targeted question
+    n_per_query_general: int = Field(ge=1)   # samples per general question
+    queries: list[ConfirmQuery]
+    configs: list[str]             # configs answered: full and each candidate part's without_k
+    responses: list[Response] = []  # query_idx indexes confirmation.queries
+    candidates: list[Candidate] = []
+    families: dict[str, int] = {}  # candidates per Benjamini-Hochberg family (m, fixed by the rule)
+    n_tests: int = 0
+    readings: list[ConfirmReading] = []
+    prompt_echoes: list[tuple[str, int, int]] = []
+    calls: dict[str, int] = {}
+    n_unparseable: int = 0
+    n_errors: int = 0
+    n_cut_off: int = 0             # answers cut off or empty, left out like in the run
+    warnings: list[str] = []
+    settings: dict[str, str | int | float | None] = {}
+
+
 class RunBundle(_Strict):
-    schema_version: Literal[1, 2, 3, 4, 5] = SCHEMA_VERSION
+    schema_version: Literal[1, 2, 3, 4, 5, 6] = SCHEMA_VERSION
     meta: Meta
     sections: list[Section]
     configs: list[Config]
@@ -237,6 +306,7 @@ class RunBundle(_Strict):
     analysis: Analysis | None = None
     shapley: dict[str, dict[str, float]] | None = None  # detector -> section id -> value
     discovery: Discovery | None = None  # open-ended effects, proposed by a model and verified per answer
+    confirmation: Confirmation | None = None  # v6: screen candidates retested on fresh questions
 
     @model_validator(mode="after")
     def _check_refs(self) -> "RunBundle":
@@ -303,7 +373,51 @@ class RunBundle(_Strict):
             for rd in self.discovery.readings:
                 if rd.section not in section_ids or not set(rd.confirmed + rd.side_effects) <= ids:
                     raise ValueError(f"reading for section {rd.section} references unknown ids")
+        if self.confirmation:
+            self._check_confirmation(section_ids, config_ids)
         return self
+
+    def _check_confirmation(self, section_ids: set[int], config_ids: set[str]) -> None:
+        c = self.confirmation
+        if not self.discovery:
+            raise ValueError("a confirmation needs the discovery block it retests")
+        screen_ids = {st.id for st in self.discovery.statements}
+        if "full" not in c.configs or not set(c.configs) <= config_ids:
+            raise ValueError("confirmation.configs must include 'full' and only the run's configs")
+        for qq in c.queries:
+            if not set(qq.targets) <= section_ids:
+                raise ValueError("a confirmation question targets an unknown section")
+        have = set()
+        for r in c.responses:
+            if r.config not in c.configs or r.query_idx >= len(c.queries):
+                raise ValueError(f"confirmation response {(r.config, r.query_idx, r.sample_idx)} is out of range")
+            have.add((r.config, r.query_idx, r.sample_idx))
+        cand_ids = set()
+        for st in c.candidates:
+            cand_ids.add(st.id)
+            if st.id not in screen_ids or st.section not in section_ids:
+                raise ValueError(f"candidate {st.id} is not a statement of the screen")
+            wo = f"without_{st.section}"
+            if wo not in c.configs:
+                raise ValueError(f"candidate {st.id}: config {wo} was not answered")
+            if st.per_query_idx and len(st.per_query_idx) != len(st.per_query):
+                raise ValueError(f"candidate {st.id}: per_query_idx and per_query differ in length")
+            for ex in st.examples:
+                for cfg in (ex.with_config, ex.without_config):
+                    if (cfg, ex.query_idx, ex.sample_idx) not in have:
+                        raise ValueError(f"candidate {st.id} example references a missing answer")
+            for q, s_, v in st.verdicts:
+                if len(v) != 2 or set(v) - set("ynau") or ("full", q, s_) not in have or (wo, q, s_) not in have:
+                    raise ValueError(f"candidate {st.id}: bad verdict entry {(q, s_, v)}")
+            for q, s_, _side, v in st.rejudged:
+                if v not in tuple("ynau") or ("full", q, s_) not in have:
+                    raise ValueError(f"candidate {st.id}: bad re-judge entry {(q, s_, v)}")
+        for ref in c.prompt_echoes:
+            if tuple(ref) not in have:
+                raise ValueError(f"confirmation prompt echo {ref} references a missing answer")
+        for rd in c.readings:
+            if rd.section not in section_ids or not set(rd.confirmed + rd.not_confirmed + rd.side_effects) <= cand_ids:
+                raise ValueError(f"confirmation reading for section {rd.section} references unknown ids")
 
 
 def load(path: str | Path) -> RunBundle:

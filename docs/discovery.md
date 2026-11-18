@@ -2,6 +2,8 @@
 
 The habit detectors only see 19 regex patterns and 6 shape metrics. Discovery looks for anything else a part changes, including side effects and instructions that are not followed. The rule is **propose, then verify**: a model may suggest an effect, but an effect is only reported if blinded per-answer judgments, run through the same paired statistics as the habits, confirm it. Code: `spet/discovery.py`. Prompts and parsers: `spet/prompts.py`.
 
+**The main run is a screen.** It tests every proposed statement (111 in the July 2024 run) and corrects within two large families. Its p-values are valid, but a statement that comes close is a candidate, not a finding. **Only the confirmation supports a claim** (see [Confirmation](#confirmation)): a few candidates, chosen by a fixed rule, retested on fresh questions in a small family.
+
 ```
 python -m spet plan spec.yaml                        # answers, call bounds and test floors; no model calls
 python -m spet discover runs/x.json -o runs/x.json   # judge calls only, no new answers
@@ -128,6 +130,71 @@ Some questions ("repeat your instructions word for word") make the model recite 
 - `too_few_questions` compares a statement's floor with the first threshold of its own family.
 - Candidates dropped before testing (by the cap or deduplication) were never tested, so they don't count.
 - Statements with unreliable judges **stay** in the family. They are only barred from being significant. That is conservative: the family is not chosen after seeing reliability.
+
+## Confirmation
+
+```
+python -m spet confirm runs/x.json confirm.yaml -o runs/x-v3.json --plan    # candidates and plan, no model calls
+python -m spet confirm runs/x.json confirm.yaml -o runs/x-v3.json --max-answers 1000 --max-judge-calls 4000
+```
+
+The screen picks candidates; the confirmation tests them once, on answers the screen never saw. Code: `spet/confirm.py`.
+
+**Selection rule** (`SelectionRule`, fixed in code and stored as `confirmation.rule`). A screen statement is a candidate if it was tested, none of `judge_unreliable`, `rejudge_one_class`, `ceiling`, `never_seen`, `few_pairs`, `too_few_questions` is set, and its screen p is below 0.1 (intended) or 0.01 (discovered). The rule is applied to the bundle by code; nobody picks candidates by hand. The command prints what it picked.
+
+**Fresh questions** (the confirm YAML). For each part with an intended candidate, questions that target that part (13 in the July 2024 example); for discovered candidates, general questions that target no part (`targets: []`, 60 in the example). The command refuses a spec that:
+
+- targets a part without an intended candidate, or misses one that has one;
+- has general questions without a discovered candidate, or the reverse;
+- repeats a screen question or nearly does (content-word Jaccard of 0.5 or more), or repeats itself. This is a backstop: the questions are written to differ from the screen's in task and object, and each one's largest overlap is stored (`queries[i].overlap`);
+- uses the run's seed, or a provider block that differs from the run's model, endpoint host, `max_tokens` or reasoning effort. The temperature is always the run's.
+
+The judge must also be the screen's: the same model, host, `max_tokens`, reasoning effort and judge prompts (`discovery_prompts_version`), compared with the bundle's `meta.settings` before anything runs. So `SPET_JUDGE_MAX_TOKENS` and `SPET_JUDGE_REASONING_EFFORT` must be set as they were for the screen.
+
+**Answers.** Only `full` and each candidate part's `without_k` are answered. Targeted questions get `n_per_query` samples (6) and general ones `n_per_query_general` (2). Samples share seeds across configs by (question, sample), from the confirmation's seed. Six samples, not two: a question whose differences sum to zero drops out of the by-question test, and with 2 samples the screen saw many such ties. The answers are stored in `confirmation.responses`, indexed into `confirmation.queries`, not in the run's `responses`.
+
+**Judging and test.** These follow discovery, with nothing changed:
+
+- the candidate's statement text, verbatim;
+- the blinded judge prompt;
+- the stratified re-judge with the second prompt, and the same flags (`judge_unreliable`, `judge_unchecked`, `unparseable`, `exclusion_asymmetry` block);
+- recited prompts left out before judging;
+- the two-sided by-question sign-flip test;
+- Benjamini-Hochberg at the run's alpha, intended and discovered as separate families.
+
+The family size *m* is the number of candidates in the family, fixed by the rule (4 and 1 in the example). A candidate that turns out untested stays in with p = 1, so *m* never depends on the data. The Monte Carlo test (above 16 questions) is seeded from the confirmation seed (`settings.test_rng_seed`).
+
+**Confirmed** means all three hold:
+
+- q < alpha;
+- no blocking flag;
+- a difference with the same sign as in the screen.
+
+A significant difference in the other direction is **not** confirmed and gets the flag `reversed`. The test stays two-sided; using the screen's direction to make it one-sided is not allowed.
+
+**Reported, never dropped.** Every candidate is stored as a `Candidate` with:
+
+- the screen's p, q and rates (`screen_*`);
+- the confirmation's rates, interval, p and q;
+- `confirmed`;
+- its flags, verdicts, re-judge sample and example pairs.
+
+**Readings** (`confirmation.readings`, one per part, with `basis`):
+
+- A part whose intended candidates are all confirmed reads `followed`. If some of them fail, it reads `partly_followed`.
+- A part with no confirmed intended candidate keeps the main run's reading (`basis: screen`). Its failed candidates are listed in `not_confirmed`. Failing to confirm is not evidence that the instruction is not followed.
+- A confirmed discovered candidate is a side effect of its part. This is by rule; no model classifies it.
+- Parts with no candidate keep the main run's reading (`basis: screen`).
+
+**Resuming.** Answers and verdicts are cached (`.spet_cache/`). If any judge call fails after the provider's retries, the command writes nothing and exits non-zero, and you rerun the same command. If the same calls still fail on two identical reruns (a call that fails every time, not an outage), run the same command once more with `--keep-failed-calls`. The failed calls then count as unreadable, as in discovery, and `n_errors` and a warning report them. This fallback was fixed before the July 2024 confirmation ran. Run the confirmation once. If the result disappoints, do not change the rule, the questions, the seed, the test or alpha, and do not run it again.
+
+**Bundle.** The combined bundle is schema 6: the run and its screen, unchanged, plus `confirmation`. `spet rescore` keeps it. `spet discover` drops it, because a new screen voids it.
+
+**Cost of the July 2024 example:**
+
+- answers: 3 parts × 13 questions × 6 samples × 2 configs + 60 × 2 × 2 = 708;
+- judge calls: ≤ 4 × 13 × 6 × 2 + 60 × 2 × 2 = 864;
+- re-judge calls: ≤ 100.
 
 ## Attention screen
 

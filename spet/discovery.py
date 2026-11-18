@@ -224,6 +224,29 @@ class _Calls:
         return out
 
 
+def judge_flags(stats: dict, pairs: list[tuple[bool, bool]], agreement: float | None, kappa: float | None,
+                n_cells: int, n_unparseable: int, asym: bool, opts: DiscoveryOptions) -> list[str]:
+    """Flags from one statement's judged pairs and its re-judge sample. Shared by discovery and confirmation."""
+    flags = []
+    if len(pairs) < opts.min_rejudged and stats["tested"]:
+        flags.append("judge_unchecked")
+    elif agreement is not None and (agreement < opts.min_agreement or (kappa is not None and kappa < opts.min_kappa)):
+        flags.append("judge_unreliable")
+    if n_cells and n_unparseable / (2 * n_cells) > opts.max_unparseable:
+        flags.append("unparseable")
+    if asym:
+        flags.append("exclusion_asymmetry")
+    if pairs and len({x for x, _ in pairs}) == 1:
+        flags.append("rejudge_one_class")  # agreement only shows the judge repeats one verdict
+    if not stats["tested"]:
+        flags.append("never_seen")
+    elif min(stats["full_mean"], stats["ablated_mean"]) >= 0.9:
+        flags.append("ceiling")
+    if stats["n_pairs"] < opts.min_pairs:
+        flags.append("few_pairs")
+    return flags
+
+
 def _kappa(a: list[bool], b: list[bool]) -> float | None:
     n = len(a)
     if n == 0:
@@ -404,23 +427,7 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
         pairs = [x for x in rejudge.get(si, []) if x is not None]
         agreement = sum(x == y for x, y in pairs) / len(pairs) if pairs else None
         kappa = _kappa([x for x, _ in pairs], [y for _, y in pairs])
-        flags = list(st["flags"])
-        if len(pairs) < opts.min_rejudged and stats["tested"]:
-            flags.append("judge_unchecked")
-        elif agreement is not None and (agreement < opts.min_agreement or (kappa is not None and kappa < opts.min_kappa)):
-            flags.append("judge_unreliable")
-        if st["cells"] and unp / (2 * len(st["cells"])) > opts.max_unparseable:
-            flags.append("unparseable")
-        if asym:
-            flags.append("exclusion_asymmetry")
-        if pairs and len({x for x, _ in pairs}) == 1:
-            flags.append("rejudge_one_class")  # agreement only shows the judge repeats one verdict
-        if not stats["tested"]:
-            flags.append("never_seen")
-        elif min(stats["full_mean"], stats["ablated_mean"]) >= 0.9:
-            flags.append("ceiling")
-        if len(f) < opts.min_pairs:
-            flags.append("few_pairs")
+        flags = list(st["flags"]) + judge_flags(stats, pairs, agreement, kappa, len(st["cells"]), unp, asym, opts)
         if k in length_shift:
             flags.append("length_shift")
         if k in context:
@@ -526,6 +533,7 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
 
     out = b.model_copy(deep=True)
     out.schema_version = SCHEMA_VERSION
+    out.confirmation = None  # it retested the previous screen's statements; a new screen voids it
     out.discovery = Discovery(
         n_tests=len(tested), n_statements=len(statements), n_unreliable=n_unreliable, alpha=alpha,
         discovery_queries=disc_q, holdout_queries=hold_q, statements=statements, readings=readings,
