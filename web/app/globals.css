@@ -295,3 +295,131 @@ mark { background: var(--accent-tint); color: inherit; border-radius: 2px; paddi
 .aside-block { display: block; }
 .aside-block .says { font-size: 13.5px; max-width: 17em; }
 .runlist .t .m { font-family: var(--sans); margin-left: 6px; }
+
+/* ==== one part at a time (components/spet/shell.tsx) ======================================================= */
+:root { --drew-1: #f1f3fc; --drew-2: #e2e7fa; --drew-3: #d6ddf8; }
+.spet-pending .shell { visibility: hidden; }
+.shell.focused .head { display: none; }
+.shell.focused .comp { margin-top: 40px; }
+.legend { color: var(--soft); margin: -16px 0 26px; font-size: 14px; }
+.legend .dot { display: inline-block; vertical-align: 1px; margin-right: 4px; }
+
+/* overview: each part cut to two lines, a thin line between parts, one button beside each */
+.shell .gaprow { height: 14px; }
+.shell .gaprow .line { grid-column: 3; align-self: center; height: 1px; background: var(--rule); }
+.shell .overview .para { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.shell .overview .row.result::before { top: -7px; bottom: -7px; }
+.shell .row > .note { align-self: start; margin: -2px 0 0; display: flex; align-items: flex-start; gap: 9px; }
+.shell .row > .note .dot { margin-top: 11.5px; }
+.shell .row.found .num { color: var(--accent); }
+.shell .focus .row { cursor: default; }
+.shell .focus .row > .detail { cursor: default; }
+.pill.strong { color: var(--ink); border-color: #a9a8a2; }
+.pill.dim { color: var(--faint); border-color: var(--rule); }
+.shell .focus .pill { cursor: pointer; }
+.shell .focus .pill svg { transform: rotate(90deg); }
+.shell .focus .pill.found { background: var(--accent); border-color: var(--accent); color: #fff; }
+.shell .focus .pill:not(.found) { background: var(--ink); border-color: var(--ink); color: #fff; }
+.shell .focus .pill:focus-visible { outline-offset: 2px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+/* the focused view: where you are, then the part */
+.where { position: relative; display: grid; grid-template-columns: var(--pad-l) var(--num) minmax(0, 1fr) var(--pad-r) var(--gap) var(--margin); }
+.where > .in {
+  grid-column: 3; display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  font-size: 13px; color: var(--faint); padding: 0 0 12px; margin-bottom: 18px; border-bottom: 1px solid var(--rule);
+}
+.where .here:focus { outline: none; }
+.where .here:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.where .label { color: var(--soft); }
+.where nav { display: flex; gap: 18px; flex: none; }
+.where nav button { color: var(--soft); }
+.where nav button:hover:not(:disabled) { color: var(--ink); }
+.where nav button:disabled { color: #b4b3ae; cursor: default; }
+.shell .detail-in { padding: 14px 0 0; }
+.shell .sentence { margin: 0 0 10px; }
+.lines { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 5px; max-width: 40em; font-size: 14px; color: var(--soft); }
+.lines li { padding-left: 14px; position: relative; }
+.lines li::before { content: ""; position: absolute; left: 2px; top: 0.66em; width: 4px; height: 4px; border-radius: 50%; background: var(--rule-2); }
+.empty { font-size: 14px; color: var(--faint); margin: 14px 0 0; }
+.unread { font-size: 13px; line-height: 1.45; color: var(--ink); margin: 0 0 8px; padding: 6px 10px; background: var(--hover); border-radius: 4px; }
+.answer .body.clamped {
+  max-height: 24em; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent); mask-image: linear-gradient(to bottom, #000 72%, transparent);
+}
+.whole { margin: 10px 0 0; }
+.shell .foot { margin-top: 18px; }
+
+/* a side effect: its own collapsed item; open, its pair takes the example's place */
+.also { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.also-btn { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink); }
+.also-btn svg { color: var(--faint); }
+.also-btn[aria-expanded="true"] svg { transform: rotate(90deg); }
+.also-in { padding: 10px 0 0 16px; }
+
+/* what it drew on: three parts as rows, tinted by strength */
+.caption { font-size: 13px; color: var(--faint); margin: 12px 0 6px; max-width: 42em; }
+.drew { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.drew button { display: grid; grid-template-columns: 22px 168px minmax(0, 1fr); gap: 8px; align-items: baseline; width: 100%; padding: 5px 10px 5px 8px; border-radius: 4px; }
+.drew button:disabled { cursor: default; }
+.drew button:hover:not(:disabled) .lbl { text-decoration: underline; text-decoration-color: var(--soft); text-underline-offset: 3px; }
+.drew .n { font-size: 12.5px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.drew .lbl { font-size: 13.5px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drew .lbl em { font-style: normal; font-weight: 400; color: var(--soft); }
+.drew .first { font: 14px/1.5 var(--serif); color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drew .d1 { background: var(--drew-1); }
+.drew .d2 { background: var(--drew-2); }
+.drew .d3 { background: var(--drew-3); }
+.shell .deep { max-width: 40em; }
+.shell .deep table { width: 100%; }
+.shell .deep td.n, .shell .deep th { white-space: nowrap; }
+.shell .deep .flag { margin-top: 2px; }
+.shell .deep td:first-child { padding-bottom: 8px; }
+
+/* ---- View Transitions: one duration and one easing per kind ---------------------------------------------- */
+html { --vt-d: 320ms; --vt-e: cubic-bezier(0.2, 0, 0, 1); }
+html[data-vt="step"], html[data-vt="toggle"] { --vt-d: 180ms; }
+::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: var(--vt-d); animation-timing-function: var(--vt-e); }
+/* the header never changes, so it is its own layer and stays put; what is under the sheet moves with its bottom edge */
+.top { view-transition-name: p-top; }
+.shell .below { view-transition-name: p-below; }
+/* the gliding part text carries the sheet's white, so it covers what it passes instead of mixing with it */
+::view-transition-group(p-text) { background: var(--sheet); }
+/* the sheet is drawn by its transition group, so its outline stays whole while it changes size */
+::view-transition-group(p-sheet) { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; box-sizing: border-box; z-index: 1; }
+::view-transition-old(p-sheet), ::view-transition-new(p-sheet) { display: none; }
+::view-transition-group(*) { z-index: 3; }
+::view-transition-group(root) { z-index: 0; }
+::view-transition-group(p-rows-old), ::view-transition-group(p-rows-new), ::view-transition-group(p-rows) { z-index: 2; }
+html[data-vt="toggle"]::view-transition-group(k-also) { background: var(--sheet); }
+/* toggles: a block that leaves is gone before one that arrives is half in */
+html[data-vt="toggle"]::view-transition-old(*):only-child { animation-name: vt-out; }
+html[data-vt="toggle"]::view-transition-new(*):only-child { animation-name: vt-in; }
+@keyframes vt-out { 0% { opacity: 1; } 40%, 100% { opacity: 0; } }
+@keyframes vt-in { 0%, 42% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes vt-in-late { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
+::view-transition-old(root), ::view-transition-old(p-rows-old) { animation-name: vt-out; }
+::view-transition-new(p-rows-new) { animation-name: vt-in; }
+::view-transition-new(root) { animation-name: vt-in-late; }
+@keyframes step-out-left { 0% { opacity: 1; transform: none; } 35%, 100% { opacity: 0; transform: translateX(-14px); } }
+@keyframes step-in-right { 0%, 18% { opacity: 0; transform: translateX(14px); } 100% { opacity: 1; transform: none; } }
+@keyframes step-out-right { 0% { opacity: 1; transform: none; } 35%, 100% { opacity: 0; transform: translateX(14px); } }
+@keyframes step-in-left { 0%, 18% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: none; } }
+html[data-dir="next"]::view-transition-old(p-rows-old) { animation-name: step-out-left; }
+html[data-dir="next"]::view-transition-new(p-rows-new) { animation-name: step-in-right; }
+html[data-dir="prev"]::view-transition-old(p-rows-old) { animation-name: step-out-right; }
+html[data-dir="prev"]::view-transition-new(p-rows-new) { animation-name: step-in-left; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* narrower screens: the where-line and the attention rows fold */
+@media (max-width: 1039px) {
+  .where { grid-template-columns: var(--pad-l) var(--num) minmax(0, 1fr) var(--pad-r); }
+  .shell .row > .note { margin: 6px 0 2px; }
+}
+@media (max-width: 640px) {
+  .where > .in { flex-direction: column; gap: 6px; }
+  .drew button { grid-template-columns: 22px minmax(0, 1fr); }
+  .drew .first { grid-column: 2; }
+}

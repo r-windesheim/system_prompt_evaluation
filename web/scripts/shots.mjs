@@ -36,6 +36,9 @@ const toTop = (p) => p.evaluate(() => window.scrollTo(0, 0));
 for (const [w, viewport] of sizes) {
   // the example, through all five states
   const { ctx, p } = await page(viewport, "/");
+  check((await p.locator(".shell .row.result").count()) === 16, `${w}: home opens on the recorded Claude prompt run, 16 parts`);
+  await snap(p, `0-home-${w}`);
+  await p.getByRole("button", { name: "Test your own prompt" }).click();
   check(await p.locator("textarea#prompt").isVisible(), `${w}: state 1 shows the editable prompt`);
   await snap(p, `1-start-${w}`);
   await p.getByRole("button", { name: "Split into parts" }).click();
@@ -67,15 +70,14 @@ for (const [w, viewport] of sizes) {
     await p.screenshot({ path: `${out}/4b-hover-${w}.png` });
   }
   await p.locator("#part-4 .text-btn").click();
-  await p.waitForSelector("#detail-4 .pair");
+  await p.waitForSelector(".focus .pair");
   check((await p.evaluate(() => location.hash)) === "#part=4", `${w}: opening a part puts it in the URL hash`);
-  await p.locator("#part-4").evaluate((el) => el.scrollIntoView({ block: "start" }));
   await snap(p, `5-open-${w}`);
   await p.getByRole("button", { name: "More detail" }).click();
   await p.waitForTimeout(500);
-  await p.locator("#detail-4 .deep").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await p.locator(".focus .deep").evaluate((el) => el.scrollIntoView({ block: "center" }));
   await snap(p, `5b-more-detail-${w}`);
-  await p.getByRole("button", { name: "Close", exact: true }).click();
+  await p.getByRole("button", { name: "All parts", exact: true }).click();
   await p.waitForTimeout(100);
   check((await p.evaluate(() => location.hash)) === "", `${w}: closing clears the hash`);
   await ctx.close();
@@ -83,8 +85,9 @@ for (const [w, viewport] of sizes) {
 
 // deep links and the other pages
 const views = [
-  ["6-no-change-open", "/#part=3"],
-  ["7-untestable-open", "/#part=7"],
+  ["6-no-change-open", "/runs/lumen-original-probes/#part=3"],
+  ["7-untestable-open", "/runs/lumen-original-probes/#part=7"],
+  ["7b-claude-run-open", "/#part=2"],
   ["8-saved-run", "/runs/lumen-original-probes/"],
   ["8b-saved-run-by-id", "/run/?id=lumen-original-probes"],
   ["9-stub-demo", "/run/?id=stub-demo"],
@@ -100,7 +103,7 @@ for (const [name, url] of views) {
     if (url.includes("#part")) {
       const n = url.match(/part=(\d+)/)[1];
       await p.waitForTimeout(400);
-      check(await p.locator(`#detail-${n}`).isVisible().catch(() => false), `${w}: ${url} opens part ${n} straight away`);
+      check(await p.locator(".focus .detail-in").isVisible().catch(() => false) && (await p.locator(".where .here").innerText()).startsWith(`Part ${n} of`), `${w}: ${url} opens part ${n} straight away`);
     }
     await snap(p, `${name}-${w}`);
     await ctx.close();
@@ -110,6 +113,7 @@ for (const [name, url] of views) {
 // a changed prompt with no model: said at once, in state 1
 {
   const { ctx, p } = await page({ width: 1440, height: 900 }, "/");
+  await p.getByRole("button", { name: "Test your own prompt" }).click();
   await p.locator("textarea#prompt").fill("You are a pirate.\n\nAnswer in rhymes.");
   check(await p.getByText("Without a model connected, only the example can be tested.").isVisible(), "state 1 says at once that only the example can be tested");
   await snap(p, "1b-changed-no-model-1440");

@@ -1,9 +1,12 @@
-import { Tool } from "@/components/spet/tool";
-import { EXAMPLE_ID } from "@/lib/parts";
+import { Home } from "@/components/spet/home";
+import { EXAMPLE_ID, HOME_RUN_ID } from "@/lib/parts";
 import { loadRun } from "@/lib/runs.server";
+import { buildView } from "@/lib/view.server";
 
-export default function Home() {
-  // Only what the first paint needs; the full bundle is fetched after paint.
+export default function Page() {
+  // The page carries only the overview (the prompt and one reading per part); a part's answers are fetched when it opens.
+  const view = buildView(HOME_RUN_ID);
+  // "Test your own prompt": only what its first paint needs; its example bundle is fetched when it is opened.
   const b = loadRun(EXAMPLE_ID);
   const example = {
     sections: b.sections.map(({ label, text }) => ({ label, text })),
@@ -13,5 +16,5 @@ export default function Home() {
     model: b.meta.model,
     created_at: b.meta.created_at,
   };
-  return <Tool mode="home" example={example} />;
+  return <Home view={view} example={example} />;
 }

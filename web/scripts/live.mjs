@@ -39,6 +39,8 @@ for (const [w, viewport] of [["1440", { width: 1440, height: 900 }], ["390", { w
   await p.goto(base + "/", { waitUntil: "networkidle" });
   await p.evaluate(() => document.fonts.ready);
 
+  // home opens on the recorded Claude prompt run; the live flow is behind "Test your own prompt"
+  await p.getByRole("button", { name: "Test your own prompt" }).click();
   // the unchanged example never calls the model
   calls.length = 0;
   await p.getByRole("button", { name: "Split into parts" }).click();
@@ -114,7 +116,6 @@ for (const [w, viewport] of [["1440", { width: 1440, height: 900 }], ["390", { w
   await p.locator(".row.result.found .text-btn").nth(1).click();
   await p.waitForSelector(".detail .pair");
   await p.waitForTimeout(500);
-  await p.locator(".row.open").evaluate((el) => el.scrollIntoView({ block: "start" }));
   await p.screenshot({ path: `${out}/live-5-open-${w}.png` });
 
   // the saved run opens on its own

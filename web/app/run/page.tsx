@@ -1,24 +1,7 @@
-"use client";
-
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { Tool } from "@/components/spet/tool";
-
-function RunById() {
-  const id = useSearchParams().get("id");
-  if (!id)
-    return (
-      <div className="head">
-        <h1>No run selected.</h1>
-      </div>
-    );
-  return <Tool key={id} mode="saved" id={id} />;
-}
+import { RunByQuery } from "@/components/spet/run-by-query";
+import { readoutIds } from "@/lib/view.server";
 
 export default function RunPage() {
-  return (
-    <Suspense>
-      <RunById />
-    </Suspense>
-  );
+  // which recorded runs have a readout is known at build time, so no request is made to find out
+  return <RunByQuery readouts={readoutIds()} />;
 }

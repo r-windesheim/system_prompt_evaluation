@@ -98,6 +98,8 @@ for (const [id, bundle] of Object.entries(variants)) {
       const text = await page.locator(`#detail-${i}`).innerText();
       if (!text.trim().length) check(false, `${id} ${w}: part ${i} opens to an explanation`);
       if (/no effect/i.test(text)) check(false, `${id} ${w}: part ${i} never says "no effect"`);
+      await page.getByRole("button", { name: "All parts", exact: true }).click();
+      await page.waitForSelector(`#part-${i} .text-btn`);
     }
     await ctx.close();
   }

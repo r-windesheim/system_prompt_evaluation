@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API, api, apiBundleUrl, hasApi, loadBundle, loadStatic, runPath, type RunStatus, type SectionDraft } from "@/lib/api";
@@ -11,7 +11,7 @@ import {
 import { indexRun } from "@/lib/run";
 import type { RunBundle } from "@/lib/types";
 import { Detail } from "./detail";
-import { ResultNote } from "./note";
+import { Shell, type ShellButton } from "./shell";
 
 export type ExampleInfo = {
   sections: SectionDraft[];
@@ -23,7 +23,8 @@ export type ExampleInfo = {
   created_at: string;
 };
 type Props =
-  | { mode: "home"; example: ExampleInfo }
+  /** `onBack`: return to the recorded run the home page opens on */
+  | { mode: "home"; example: ExampleInfo; onBack?: () => void }
   /** `recorded`: the run is in the static export, so load it from there and never from the API */
   | { mode: "saved"; id: string; seed?: SectionDraft[]; recorded?: boolean };
 
@@ -50,8 +51,6 @@ export function Tool(props: Props) {
   const [exBundle, setExBundle] = useState<RunBundle | null>(null);
   const [bundle, setBundle] = useState<RunBundle | null>(null);
   const [source, setSource] = useState<Source>(home ? "example" : "saved");
-  const [open, setOpen] = useState<number | null>(null);
-  const [deep, setDeep] = useState(false);
   const [step, setStep] = useState(-1);
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [model, setModel] = useState<Model>(hasApi ? "checking" : "no");
@@ -64,8 +63,6 @@ export function Tool(props: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [pendingPart, setPendingPart] = useState<number | null>(null);
-  const hashReady = useRef(false);
   const ta = useRef<HTMLTextAreaElement>(null);
 
   const run = useMemo(() => (bundle ? indexRun(bundle) : null), [bundle]);
@@ -115,40 +112,6 @@ export function Tool(props: Props) {
     };
   }, [savedId, recorded]);
 
-  // ---- the opened part lives in the URL hash ---------------------------------
-  useEffect(() => {
-    const m = window.location.hash.match(/part=(\d+)/);
-    if (m) setPendingPart(Number(m[1]) - 1);
-    else hashReady.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (pendingPart === null) return;
-    let b = bundle;
-    if (home) {
-      if (!exBundle || !exSplit) return;
-      b = exBundle;
-      setText(exText);
-      setSplit(exSplit);
-      setBundle(exBundle);
-      setSource("example");
-      setPhase("result");
-    } else if (!b) return;
-    const p = pendingPart;
-    if (p >= 0 && p < b!.sections.length) {
-      setOpen(p);
-      requestAnimationFrame(() => document.getElementById(`part-${p + 1}`)?.scrollIntoView({ block: "start" }));
-    }
-    setPendingPart(null);
-    hashReady.current = true;
-  }, [pendingPart, exBundle, bundle, home, exSplit, exText]);
-
-  useEffect(() => {
-    if (!hashReady.current) return;
-    const want = phase === "result" && open !== null ? `#part=${open + 1}` : "";
-    if (window.location.hash !== want) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + want);
-  }, [open, phase]);
-
   // ---- the textarea grows with its text ---------------------------------------
   useLayoutEffect(() => {
     const el = ta.current;
@@ -185,8 +148,6 @@ export function Tool(props: Props) {
 
   async function doTest() {
     setError(null);
-    setOpen(null);
-    setDeep(false);
     if (replay) {
       setSource("example");
       setStep(-1);
@@ -223,18 +184,13 @@ export function Tool(props: Props) {
     requestAnimationFrame(() => ta.current?.focus());
   };
   const startOver = () => {
-    setOpen(null);
-    setDeep(false);
     setStep(-1);
     setStatus(null);
     if (source === "live") window.history.replaceState(window.history.state, "", `${BASE}/`);
+    else window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
     setPhase("edit");
   };
   const toggleBreak = (i: number) => setSplit((s) => (s ? { ...s, breaks: s.breaks.map((v, j) => (j === i ? !v : v)) } : s));
-  const toggle = useCallback((i: number) => {
-    setOpen((o) => (o === i ? null : i));
-    setDeep(false);
-  }, []);
 
   // ---- running: replay the example, or follow the live run ----------------------
   useEffect(() => {
@@ -393,69 +349,6 @@ export function Tool(props: Props) {
         </div>,
       ];
     });
-  } else if (phase === "result" && (bundle || (props.mode === "saved" && props.seed))) {
-    const secs = bundle ? bundle.sections : (props.mode === "saved" ? props.seed ?? [] : []).map((s, i) => ({ ...s, id: i }));
-    rows = secs.map((s, i) => {
-      const isOpen = open === i;
-      const found = run ? run.note(s.id).kind === "found" : false;
-      const paras = s.text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-      return [
-        i > 0 && (
-          <div className="gaprow" key={`g${i}`}>
-            <Gap i={i} on editing={false} onToggle={toggleBreak} draw={false} />
-          </div>
-        ),
-        <div
-          key={`p${i}`}
-          id={`part-${i + 1}`}
-          className={`row ${run ? "result" : ""} ${found ? "found" : ""} ${isOpen ? "open" : ""}`}
-          onClick={(e) => {
-            if (!run || (e.target as Element).closest(".detail")) return;
-            toggle(i);
-          }}
-        >
-          <span className="num" aria-hidden="true">{i + 1}</span>
-          {run ? (
-            <button
-              type="button"
-              className="text text-btn"
-              aria-expanded={isOpen}
-              aria-controls={`detail-${i + 1}`}
-              aria-describedby={`note-${i + 1}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggle(i);
-              }}
-            >
-              <span className="sr-only">Part {i + 1}: </span>
-              {paras.map((p, j) => (
-                <span key={j} className="para prose" style={j ? { marginTop: 22 } : undefined}>{p}</span>
-              ))}
-            </button>
-          ) : (
-            <div className="text">
-              {paras.map((p, j) => (
-                <span key={j} className="para prose" style={j ? { marginTop: 22 } : undefined}>{p}</span>
-              ))}
-            </div>
-          )}
-          {run ? <ResultNote run={run} k={s.id} i={i} open={isOpen} id={`note-${i + 1}`} /> : <div className="note" />}
-          <AnimatePresence initial={false}>
-            {run && isOpen && (
-              <Detail
-                key="d"
-                run={run}
-                k={s.id}
-                id={`detail-${i + 1}`}
-                deep={deep}
-                onDeep={() => setDeep((d) => !d)}
-                onClose={() => setOpen(null)}
-              />
-            )}
-          </AnimatePresence>
-        </div>,
-      ];
-    });
   } else {
     rows = (
       <div className="row" aria-busy="true">
@@ -476,6 +369,9 @@ export function Tool(props: Props) {
         <button type="button" className="btn" onClick={doSplit} disabled={!text.trim() || busy}>
           {busy ? "Splitting…" : "Split into parts"}
         </button>
+        {props.mode === "home" && props.onBack && (
+          <button type="button" className="link" onClick={props.onBack}>Back to the Claude prompt</button>
+        )}
       </div>
     );
   } else if (phase === "parts") {
@@ -573,12 +469,46 @@ export function Tool(props: Props) {
             ? `Example result, recorded earlier with ${shortModel(m.model)} on ${dateOf(m.created_at)}.`
             : source === "live"
               ? `Run just now with ${shortModel(m.model)}. This page’s address now links to it.`
-              : `${m.title}, run with ${shortModel(m.model)} on ${dateOf(m.created_at)}.`}
+              : `${m.title.replace(/\s*·\s*/g, ", ")}, run with ${shortModel(m.model)} on ${dateOf(m.created_at)}.`}
           {m.fixture && " The model is a stand-in with planted behaviour, so the method can be checked against a known answer; it is not a measurement of a real model."}
         </p>
       </>
     );
   }
+
+  // ---- the result: one part at a time, in the same shell as a readout run -------------------------------------
+  const secs = phase === "result" ? (bundle ? bundle.sections : props.mode === "saved" ? (props.seed ?? []).map((x, i) => ({ ...x, id: i })) : []) : [];
+  const buttonFor = useCallback(
+    (k: number): ShellButton => {
+      if (!run || !secs[k]) return null;
+      const n = run.note(secs[k].id);
+      return { text: n.says, tone: n.kind === "found" ? "found" : n.kind === "untestable" ? "quiet" : "plain" };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [run, bundle],
+  );
+  const focusFor = useCallback((k: number) => (run && secs[k] ? <Detail key={k} run={run} k={secs[k].id} /> : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [run, bundle]);
+  if (phase === "result" && secs.length > 0)
+    return (
+      <>
+        <Shell
+          parts={secs}
+          ready={!!run}
+          button={buttonFor}
+          focus={focusFor}
+          head={
+            <>
+              <h1>Find out what each part of a system prompt actually changes.</h1>
+              <p className="lede" aria-live="polite">{run ? lede : "Loading the run…"}</p>
+            </>
+          }
+          below={below}
+        />
+        {loadErr && <p role="alert" className="alert">The run didn&rsquo;t load ({loadErr}). Reload the page to try again.</p>}
+      </>
+    );
 
   return (
     <>

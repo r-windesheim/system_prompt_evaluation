@@ -3,7 +3,10 @@
 
 import type { SectionDraft } from "./api";
 
-/** The run shown on the home page; its bundle is public/runs/<id>.json. */
+/** The run the home page opens on, already in its results (it has a readout). */
+export const HOME_RUN_ID = "sonnet35-july2024";
+
+/** The example behind "Test your own prompt" (replayed without a model); its bundle is public/runs/<id>.json. */
 export const EXAMPLE_ID = "lumen-original-probes";
 
 /** The original SPET probes: vague on purpose, so the system prompt has to fill the gap. The example run used these. */

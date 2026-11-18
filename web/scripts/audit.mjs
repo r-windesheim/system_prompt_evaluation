@@ -10,17 +10,22 @@ const browser = await chromium.launch({ headless: true });
 let fail = 0;
 let minor = 0;
 
-const split = (p) => p.getByRole("button", { name: "Split into parts" }).click();
+const own = (p) => p.getByRole("button", { name: "Test your own prompt" }).click();
+const split = async (p) => { await own(p); await p.getByRole("button", { name: "Split into parts" }).click(); };
+const LUMEN = "/runs/lumen-original-probes/";
 const pages = [
-  ["/ start", "/", null],
-  ["/ changed prompt", "/", (p) => p.locator("textarea#prompt").fill("You are a pirate.\n\nAnswer in rhymes.")],
+  ["/ Claude run", "/", null],
+  ["/#part=2 open + more detail", "/#part=2", (p) => p.getByRole("button", { name: "More detail" }).click()],
+  ["/#part=6 what it drew on", "/#part=6", (p) => p.getByRole("button", { name: "What it drew on" }).click()],
+  ["/ start", "/", own],
+  ["/ changed prompt", "/", async (p) => { await own(p); await p.locator("textarea#prompt").fill("You are a pirate.\n\nAnswer in rhymes."); }],
   ["/ parts", "/", async (p) => { await split(p); await p.getByRole("button", { name: "See the questions" }).click(); }],
   ["/ parts merged, no model", "/", async (p) => { await split(p); await p.locator("button[role=switch]").nth(1).click(); }],
   ["/ running", "/", async (p) => { await split(p); await p.getByRole("button", { name: /^Test/ }).click(); await p.waitForTimeout(1600); }],
   ["/ result", "/", async (p) => { await split(p); await p.getByRole("button", { name: /^Test/ }).click(); await p.waitForSelector(".row.result", { timeout: 15000 }); }],
-  ["/#part=4 open + more detail", "/#part=4", (p) => p.getByRole("button", { name: "More detail" }).click()],
-  ["/#part=3 no change", "/#part=3", (p) => p.getByRole("button", { name: "More detail" }).click()],
-  ["/#part=7 untestable", "/#part=7", (p) => p.getByRole("button", { name: "More detail" }).click()],
+  ["lumen #part=4 open + more detail", LUMEN + "#part=4", (p) => p.getByRole("button", { name: "More detail" }).click()],
+  ["lumen #part=3 no change", LUMEN + "#part=3", (p) => p.getByRole("button", { name: "More detail" }).click()],
+  ["lumen #part=7 untestable", LUMEN + "#part=7", (p) => p.getByRole("button", { name: "More detail" }).click()],
   ["saved run", "/runs/lumen-original-probes/", null],
   ["stub-demo", "/run/?id=stub-demo#part=6", null],
   ["runs", "/runs/", null],
@@ -31,7 +36,7 @@ for (const width of [1440, 390]) {
   for (const [label, path, act] of pages) {
     const page = await (await browser.newContext({ viewport: { width, height: width > 500 ? 900 : 844 } })).newPage();
     await page.goto(base + path, { waitUntil: "networkidle" });
-    if (/run/.test(path) || path.includes("#")) await page.waitForSelector(".row.result").catch(() => {});
+    if (/run/.test(path) || path.includes("#")) await page.waitForSelector(".row.result, .focus .detail-in").catch(() => {});
     if (act) await act(page);
     await page.waitForTimeout(700);
     const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
@@ -65,7 +70,7 @@ for (const width of [1440, 390]) {
   await page.locator("#part-4 .text-btn").click();
   await page.waitForTimeout(40);
   const b = await moving();
-  const h = await page.locator("#detail-4").evaluate((el) => el.getBoundingClientRect().height);
+  const h = await page.locator(".focus .detail-in").evaluate((el) => el.getBoundingClientRect().height);
   await page.getByRole("button", { name: "More detail" }).click();
   await page.waitForTimeout(40);
   const c = await moving();

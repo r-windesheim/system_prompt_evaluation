@@ -1,87 +1,110 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { HOME_RUN_ID } from "@/lib/parts";
+import { loadRun } from "@/lib/runs.server";
 import { REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Method" };
 
-const H = ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>;
-const P = ({ children }: { children: React.ReactNode }) => <p>{children}</p>;
+const SMALL = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const word = (n: number) => SMALL[n] ?? String(n);
+const num = (n: number) => n.toLocaleString("en");
+
+/** Every number on this page comes from the home run's bundle, at build time. */
+function facts() {
+  const b = loadRun(HOME_RUN_ID);
+  const audit = b.readout?.audit;
+  const intended = (ids: string[] = []) => ids.filter((id) => /\.i\d+$/.test(id)).length;
+  const rejected = intended(audit?.invalid);
+  const written = rejected + intended(audit?.valid);
+  const authoredParts = new Set((b.authored?.statements ?? []).map((s) => s.section)).size;
+  const parts = b.readout?.parts ?? [];
+  const oneCheck = parts.filter((p) => (p.checks?.length ?? 0) === 1).length;
+  const followed = parts.filter((p) => p.reading === "followed").map((p) => b.sections.find((s) => s.id === p.section)?.label ?? "");
+  return {
+    model: b.meta.model.split("/").pop() ?? b.meta.model,
+    nParts: b.sections.length,
+    nQ: b.meta.queries.length,
+    perPart: Math.round(b.meta.queries.length / b.sections.length),
+    nA: b.responses.length,
+    cQ: b.confirmation?.queries.length ?? 0,
+    cA: b.confirmation?.responses?.length ?? 0,
+    written,
+    rejected,
+    authoredParts,
+    oneCheck,
+    followed,
+  };
+}
 
 export default function Method() {
+  const f = facts();
   return (
     <div className="page col">
-      <h1>How SPET attributes a quirk</h1>
+      <h1>How it works</h1>
       <article className="article">
-      <P>
-        A system prompt is a list of instructions, and a model&apos;s habits come out of all of them at once. SPET asks a
-        narrower question that can be measured: if you take one section out and replay the exact same conversations,
-        what changes?
-      </P>
+        <p>
+          A system prompt is a list of instructions. SPET takes one part out at a time, asks the model the same questions
+          again, and compares the answers with the part and without it.
+        </p>
 
-      <H>1. Split, then leave one out</H>
-      <P>
-        The prompt is split into sections. For a prompt with <em>k</em> sections SPET builds <em>k</em> + 1
-        configurations: the full prompt, and the prompt with each section removed in turn.
-      </P>
+        <h2>Two questions per part</h2>
+        <p>
+          <strong>Does the model do what the part says?</strong> This is how often answers with the whole prompt do it:
+          mostly, sometimes or rarely.
+        </p>
+        <p>
+          <strong>Is the part the reason?</strong> Only if answers without the part do it measurably less, and a second
+          test confirms it. A model can do something without being told, so doing it is not proof that the part is why.
+        </p>
 
-      <H>2. Replay the same conversations</H>
-      <P>
-        Every configuration answers the same user messages the same number of times, so answers can be compared in
-        pairs: message 2, sample 5 with the full prompt against message 2, sample 5 without section 3. Each pair shares
-        a sampling seed for reproducibility. That doesn&apos;t make the two answers twins, because once the prompts
-        differ the sampling diverges. The seed goes in the request, never in the prompt text. An earlier version
-        appended a cache-busting tag to the user message, and the model dutifully answered the tag.
-      </P>
+        <h2>A first run, then a second test</h2>
+        <p>
+          The first run asks {num(f.nQ)} questions, {f.perPart} written for each of the {f.nParts} parts, and collects{" "}
+          {num(f.nA)} answers. It points to the parts worth testing again.
+        </p>
+        <p>
+          Those are tested once more, on {num(f.cQ)} new questions and {num(f.cA)} new answers, with the rule for what
+          counts fixed beforehand. Only a difference that shows up again there is called &ldquo;followed&rdquo;. In this run
+          that is {f.followed.length === 1 ? "one part" : `${word(f.followed.length)} parts`}: {f.followed.join(", ")}.
+        </p>
 
-      <H>3. Count, don&apos;t normalise</H>
-      <P>
-        Detectors mark spans in each response: apologies, hedges, list items, questions back to the user and so on.
-        The quantity compared is <strong>matches per response</strong>. Per-100-words rates looked natural but were
-        wrong: a section that makes answers longer dilutes every other quirk&apos;s rate, so it appears to
-        &ldquo;reduce&rdquo; hedging it never touched. The planted-instruction test caught this.
-      </P>
+        <h2>Who reads the answers</h2>
+        <p>
+          A judge reads each answer on its own, without knowing which prompt wrote it, and says whether a statement holds,
+          such as &ldquo;the answer says it cannot open the link&rdquo;. The judge is the same small model, {f.model}.
+        </p>
+        <p>
+          The judge also wrote the statements, so a larger model, Claude Opus, reviewed them: {f.rejected} of its{" "}
+          {f.written} were rejected, for joining two claims, for referring to things the judge never sees, or because its
+          verdicts did not hold up in a spot check. For {word(f.authoredParts)} parts, Claude Opus wrote new statements from
+          the part&rsquo;s text alone, without seeing any answers, before the judge used them.
+        </p>
 
-      <H>4. Paired effects with honest uncertainty</H>
-      <P>
-        For each quirk and section, the effect is the mean paired difference, with minus without. The interval is a
-        95% bootstrap over paired conversations. The p-value comes from a sign-flip permutation test (exact up to 16 pairs, 10,000 random flips above that). Because
-        one run tests every quirk against every section, p-values are corrected with Benjamini–Hochberg, and an effect
-        counts as significant only at q &lt; 0.05. Every section is reported, not just the largest.
-      </P>
+        <h2>What it drew on</h2>
+        <p>
+          A separate run recorded where the model looked in the prompt while reasoning about each question. It is shown as a
+          hint beside an example. It is not evidence that a part caused anything.
+        </p>
 
-      <H>5. Checked against known answers</H>
-      <P>
-        The test suite runs the full pipeline against a stub model whose behaviours are switched on by specific
-        sentences. The run must flag exactly those section–quirk pairs and nothing else, across five seeds. The
-        synthetic run on the front page is that setup.
-      </P>
-      <P>
-        Detector precision was audited on 262 hits sampled from real gpt-4o-mini responses and labelled by an independent LLM annotator: a separate Claude agent that never saw the detector code. A person has not
-        checked the labels. Three detectors were wrong every time and were rewritten. Rewritten detectors, and detectors
-        with too few hits, show as &ldquo;precision unmeasured&rdquo; until a fresh sample is labelled.
-      </P>
+        <h2>Known limits</h2>
+        <ul>
+          <li>
+            The judge often answers no where a statement does not apply to the question. Readings that rest on how often it
+            says yes, such as &ldquo;not followed&rdquo;, are less certain than &ldquo;followed&rdquo;.
+          </li>
+          <li>{cap(word(f.oneCheck))} of the {f.nParts} parts rest on a single check.</li>
+          <li>The results describe {f.model} on these questions. Claude itself may behave differently.</li>
+          <li>Taking out one part at a time misses parts that do the same job together.</li>
+        </ul>
 
-      <H>What it does not claim</H>
-      <ul>
-        <li>Underlined phrases are detector matches. They are not evidence that a particular section produced that phrase.</li>
-        <li>Leave-one-out misses interactions. If two sections each cause a habit on their own, removing either one changes little. Shapley values over subsets would capture that. The estimator exists, but running subset configurations isn&apos;t wired up yet.</li>
-        <li>Effects describe these user messages on this model. They may not transfer to other conversations.</li>
-      </ul>
-
-      <H>Related work</H>
-      <P>
-        Context ablation and attribution are established: Captum&apos;s LLM attribution (2023), ContextCite (2024) and
-        TokenSHAP (2024) attribute outputs to parts of the input. SPET&apos;s contribution is the combination:
-        section-level system-prompt ablation, a curated scorecard of stylistic quirks, paired statistics, and a viewer
-        that keeps observation and attribution apart.
-      </P>
-
-      <p className="quiet" style={{ marginTop: 40 }}>
-        Source, tests and the detector audit:{" "}
-        <a className="link" href={REPO_URL}>
-          github.com/r-windesheim/system_prompt_evaluation
-        </a>
-      </p>
+        <p className="quiet" style={{ marginTop: 40 }}>
+          <Link href="/" className="link">See the results</Link>. Source, tests and the audit:{" "}
+          <a className="link" href={REPO_URL}>github.com/r-windesheim/system_prompt_evaluation</a>
+        </p>
       </article>
     </div>
   );
 }
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
