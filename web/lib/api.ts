@@ -1,5 +1,5 @@
 // Client for `spet serve`. When NEXT_PUBLIC_SPET_API is unset (the hosted static
-// site), the analyse flow is unavailable and only recorded runs are shown.
+// site), only the example and recorded runs can be shown.
 export const API = (process.env.NEXT_PUBLIC_SPET_API ?? "").replace(/\/$/, "");
 export const hasApi = API.length > 0;
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -15,16 +15,6 @@ export type RunStatus = {
   configs?: string[];
   per_config?: Record<string, number>;
   per_config_total?: number;
-};
-export type RunListItem = {
-  id: string;
-  title: string;
-  model: string;
-  created_at: string;
-  fixture: boolean;
-  n_sections: number;
-  n_responses: number;
-  n_significant: number;
 };
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -56,9 +46,27 @@ export const api = {
     endpoint?: { base_url?: string; model?: string };
   }) => call<{ id: string; total: number }>("/api/runs", { method: "POST", body: JSON.stringify(body) }),
   status: (id: string) => call<RunStatus>(`/api/runs/${encodeURIComponent(id)}/status`),
-  list: () => call<{ runs: RunListItem[]; running: RunStatus[] }>("/api/runs"),
 };
 
-/** Where a run's bundle lives: the API when it's running locally, else the static export. */
-export const bundleUrl = (id: string) =>
-  hasApi ? `${API}/api/runs/${encodeURIComponent(id)}` : `${BASE}/runs/${encodeURIComponent(id)}.json`;
+export const staticBundleUrl = (id: string) => `${BASE}/runs/${encodeURIComponent(id)}.json`;
+/** Path of a run's own page, for links and for the address bar once a live run finishes. */
+export const runPath = (id: string) => `${BASE}/run/?id=${encodeURIComponent(id)}`;
+
+async function getJson<T>(url: string): Promise<T> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json() as Promise<T>;
+}
+
+export const apiBundleUrl = (id: string) => `${API}/api/runs/${encodeURIComponent(id)}`;
+
+/** A run's bundle: from the local API when there is one (it also holds runs made here), else the static export. */
+export async function loadBundle<T>(id: string): Promise<T> {
+  if (!hasApi) return getJson<T>(staticBundleUrl(id));
+  try {
+    return await getJson<T>(apiBundleUrl(id));
+  } catch {
+    return getJson<T>(staticBundleUrl(id));
+  }
+}
+export const loadStatic = <T,>(id: string) => getJson<T>(staticBundleUrl(id));

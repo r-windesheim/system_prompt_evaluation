@@ -3,15 +3,14 @@ import { REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Method" };
 
-const H = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="mt-12 text-[19px] font-semibold tracking-tight">{children}</h2>
-);
-const P = ({ children }: { children: React.ReactNode }) => <p className="mt-3">{children}</p>;
+const H = ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>;
+const P = ({ children }: { children: React.ReactNode }) => <p>{children}</p>;
 
 export default function Method() {
   return (
-    <article className="max-w-[66ch] pt-10 text-[15.5px] leading-[1.7]">
-      <h1 className="text-[34px] leading-tight font-semibold tracking-[-0.02em]">How SPET attributes a quirk</h1>
+    <div className="page col">
+      <h1>How SPET attributes a quirk</h1>
+      <article className="article">
       <P>
         A system prompt is a list of instructions, and a model&apos;s habits come out of all of them at once. SPET asks a
         narrower question that can be measured: if you take one section out and replay the exact same conversations,
@@ -62,7 +61,7 @@ export default function Method() {
       </P>
 
       <H>What it does not claim</H>
-      <ul className="mt-3 list-disc pl-5 marker:text-graphite">
+      <ul>
         <li>Underlined phrases are detector matches. They are not evidence that a particular section produced that phrase.</li>
         <li>Leave-one-out misses interactions. If two sections each cause a habit on their own, removing either one changes little. Shapley values over subsets would capture that. The estimator exists, but running subset configurations isn&apos;t wired up yet.</li>
         <li>Effects describe these user messages on this model. They may not transfer to other conversations.</li>
@@ -76,12 +75,13 @@ export default function Method() {
         that keeps observation and attribution apart.
       </P>
 
-      <p className="mt-12 text-[14px] text-graphite">
+      <p className="quiet" style={{ marginTop: 40 }}>
         Source, tests and the detector audit:{" "}
-        <a className="underline underline-offset-4" href={REPO_URL}>
+        <a className="link" href={REPO_URL}>
           github.com/r-windesheim/system_prompt_evaluation
         </a>
       </p>
-    </article>
+      </article>
+    </div>
   );
 }

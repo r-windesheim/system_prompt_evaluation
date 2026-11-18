@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { RunHeader } from "@/components/run-header";
-import { RunLoader } from "@/components/run-loader";
+import { Tool } from "@/components/spet/tool";
 import { loadRun, runIds } from "@/lib/runs.server";
 
 export const dynamicParams = false;
@@ -17,12 +16,5 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const b = loadRun(id);
-  return (
-    <div className="pt-8">
-      <RunHeader meta={b.meta} nSections={b.sections.length} nResponses={b.responses.length} />
-      <div className="mt-10">
-        <RunLoader id={id} sectionLabels={b.sections.map((s) => s.label)} />
-      </div>
-    </div>
-  );
+  return <Tool mode="saved" id={id} recorded seed={b.sections.map(({ label, text }) => ({ label, text }))} />;
 }

@@ -1,39 +1,27 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
-import Link from "next/link";
+import { Geist, Source_Serif_4 } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { hasApi } from "@/lib/api";
-import { REPO_URL } from "@/lib/site";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
-const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-instrument", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
+const serif = Source_Serif_4({ subsets: ["latin"], axes: ["opsz"], variable: "--font-serif-4", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "SPET: which part of your system prompt did that?", template: "%s · SPET" },
+  title: { default: "SPET: what each part of a system prompt changes", template: "%s · SPET" },
   description:
-    "Remove one section of a system prompt at a time, regenerate, and measure which stylistic quirks move, with confidence intervals.",
+    "Take each part of a system prompt out in turn, ask the model the same questions again, and see which habits change.",
 };
-
-
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
-      <body className="min-h-dvh">
+    <html lang="en" className={`${geist.variable} ${serif.variable}`}>
+      <body>
         <Providers>
-          <header className="mx-auto flex max-w-[1240px] items-baseline justify-between gap-6 px-6 pt-6 pb-4">
-            <Link href="/" className="text-[15px] font-semibold tracking-tight">
-              spet
-            </Link>
-            <nav className="flex flex-wrap justify-end gap-x-5 gap-y-1 text-[14px] text-graphite">
-              <Link href="/analyze/" className={`whitespace-nowrap ${hasApi ? "font-medium text-ink" : "hover:text-ink"}`}>Analyse a prompt</Link>
-              <Link href="/" className="hover:text-ink">Runs</Link>
-              <Link href="/method/" className="hover:text-ink">Method</Link>
-              <a href={REPO_URL} className="hover:text-ink">Source</a>
-            </nav>
-          </header>
-          <main className="mx-auto max-w-[1240px] px-6 pb-24">{children}</main>
+          <div className="stage">
+            <SiteHeader />
+            <main>{children}</main>
+          </div>
         </Providers>
       </body>
     </html>

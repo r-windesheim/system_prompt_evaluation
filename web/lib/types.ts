@@ -1,4 +1,5 @@
-// Mirrors spet/bundle.py (schema_version 1). docs/run-bundle.schema.json is the source of truth.
+// Mirrors spet/bundle.py (schema_version 1-5). docs/run-bundle.schema.json is the source of truth.
+// Fields added after v1 are optional here, because older bundles lack them.
 
 export type Meta = {
   id: string;
@@ -13,6 +14,13 @@ export type Meta = {
   fixture: boolean;
   notes: string;
   settings?: Record<string, string | number | null>;
+  /** v4: the parts (section ids) each question was written for; null = not given. A question may target none. */
+  query_targets?: number[][] | null;
+  /**
+   * v4: samples per question where it does not target the removed part (and in `full` where it targets no part).
+   * null = n_per_query everywhere. When set, n_per_query is the count for targeted pairs only.
+   */
+  n_per_query_untargeted?: number | null;
 };
 
 export type Section = { id: number; label: string; text: string; notes?: string[] };
@@ -56,14 +64,114 @@ export type Effect = {
   tested?: boolean;
   ci_query?: [number, number] | null;
   per_query?: number[];
+  /** v4: question index of each per_query entry (questions without a pair are absent). */
+  per_query_idx?: number[];
   mde?: number | null;
   flags?: Flag[];
 };
 
 export type Analysis = { n_tests: number; alpha: number; mde_alpha: number; warnings: string[] };
 
+// ---- discovery (v3+; spet/discovery.py, docs/discovery.md) -----------------------------------------
+
+export type PairExample = {
+  query_idx: number;
+  sample_idx: number;
+  with_config?: string;
+  without_config: string;
+  with_yes: boolean;
+};
+
+/** y = yes, n = no, a = does not apply (NA), u = unreadable or failed. */
+export type VerdictLetter = "y" | "n" | "a" | "u";
+
+export type Statement = {
+  id: string;
+  section: number;
+  text: string;
+  source: "intended" | "discovered";
+  classification?: "intended" | "side_effect" | null;
+  full_rate: number;
+  ablated_rate: number;
+  full_rate_ci?: [number, number] | null;
+  delta: number;
+  ci: [number, number];
+  ci_query?: [number, number] | null;
+  p: number;
+  q: number;
+  significant: boolean;
+  tested?: boolean;
+  n_pairs: number;
+  n_questions: number;
+  verified_on?: number[];
+  per_query?: number[];
+  /** v4: question index of each per_query entry. */
+  per_query_idx?: number[];
+  mde?: number | null;
+  n_unparseable?: number;
+  n_na?: number;
+  n_excluded_with?: number;
+  n_excluded_without?: number;
+  /** v4 */
+  n_excluded_echo?: number;
+  agreement?: number | null;
+  kappa?: number | null;
+  n_rejudged?: number;
+  flags?: string[];
+  examples?: PairExample[];
+  /** v5: the Benjamini-Hochberg family of q; absent or null = before v5, one family for the whole run. */
+  family?: "intended" | "discovered" | null;
+  /** v5: [query_idx, sample_idx, with-part verdict + without-part verdict], e.g. [3, 0, "yn"]. */
+  verdicts?: [number, number, string][];
+  /** v5: [query_idx, sample_idx, side ("w" with the part, "o" without), verdict under the second prompt]. */
+  rejudged?: [number, number, "w" | "o", string][];
+};
+
+export type PartReading = {
+  section: number;
+  adherence: "followed" | "partly_followed" | "redundant" | "not_followed" | "inconclusive" | "not_assessed";
+  confirmed?: string[];
+  side_effects?: string[];
+  note?: string;
+};
+
+export type ScreenPick = { section: number; query_idx: number; sample_idx: number; lift?: number | null; call?: number };
+
+/** v5: an attention screen ordered the proposer's pairs (it never enters a test). */
+export type ScreenUse = {
+  file: string;
+  sha256: string;
+  block: "reasoning" | "answer";
+  model?: string | null;
+  n_samples?: number | null;
+  fingerprint: string;
+  picked?: ScreenPick[];
+};
+
+export type Discovery = {
+  /** tested statements in all families together */
+  n_tests: number;
+  n_statements: number;
+  n_unreliable?: number;
+  alpha: number;
+  discovery_queries: number[];
+  holdout_queries: number[];
+  statements?: Statement[];
+  readings?: PartReading[];
+  calls?: Record<string, number>;
+  n_unparseable?: number;
+  n_errors?: number;
+  /** v4: [config, query_idx, sample_idx] of answers that recite their own system prompt. */
+  prompt_echoes?: [string, number, number][];
+  /** unit of the sign-flip test; absent in v3 bundles, which used "cell". */
+  test?: "cell" | "question";
+  /** v5: tested statements per Benjamini-Hochberg family. */
+  families?: Partial<Record<"intended" | "discovered", number>>;
+  screen?: ScreenUse | null;
+};
+
 export type RunBundle = {
-  schema_version: 1 | 2;
+  schema_version: 1 | 2 | 3 | 4 | 5;
   meta: Meta;
   sections: Section[];
   configs: Config[];
@@ -72,6 +180,7 @@ export type RunBundle = {
   effects: Effect[];
   analysis?: Analysis | null;
   shapley?: Record<string, Record<string, number>> | null;
+  discovery?: Discovery | null;
 };
 
 export type RunSummary = {

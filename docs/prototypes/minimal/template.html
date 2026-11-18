@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPET: what each part of a system prompt changes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #fbfbfa;
+    --sheet: #ffffff;
+    --ink: #1b1b1a;
+    --soft: #5f5f5c;
+    --faint: #8f8f8b;
+    --rule: #e7e6e2;
+    --rule-2: #d6d5d0;
+    --accent: #2847c9;
+    --accent-tint: #e9edfb;
+    --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --serif: "Source Serif 4", Georgia, serif;
+    --gutter: 28px;
+    --margin: 236px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  a { color: inherit; }
+
+  .stage { max-width: 1040px; margin: 0 auto; padding: 0 24px 96px; }
+  .col { width: 680px; max-width: 100%; }
+
+  .top { display: flex; justify-content: space-between; align-items: baseline; padding: 26px 0 0; font-size: 13.5px; color: var(--faint); }
+  .mark { color: var(--ink); font-weight: 600; letter-spacing: 0.01em; }
+  .top a { text-decoration: none; }
+  .top a:hover { color: var(--ink); }
+
+  h1 { font-size: 23px; line-height: 1.3; font-weight: 500; letter-spacing: -0.012em; margin: 52px 0 6px; }
+  .lede { color: var(--soft); margin: 0 0 26px; min-height: 1.55em; }
+
+  /* The document */
+  .sheet { position: relative; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 22px 30px 22px 18px; }
+  .progress { position: absolute; left: -1px; right: -1px; top: -1px; height: 2px; border-radius: 6px 6px 0 0; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .6s ease; }
+
+  .prose, textarea.prose { font: 16px/1.62 var(--serif); font-optical-sizing: auto; color: var(--ink); }
+  textarea.prose {
+    display: block; width: 100%; border: 0; outline: none; resize: none; background: transparent;
+    padding: 0 0 0 var(--gutter); margin: 0; white-space: pre-wrap; overflow: hidden;
+  }
+
+  .part { position: relative; display: grid; grid-template-columns: var(--gutter) 1fr; border-radius: 4px; }
+  .num { font-size: 12.5px; color: var(--faint); padding-top: 3px; font-variant-numeric: tabular-nums; }
+  .para { margin: 0; white-space: pre-wrap; transition: color .35s, opacity .35s; }
+  .para + .para { margin-top: 10px; }
+
+  .note { position: absolute; top: 2px; left: calc(100% + 30px + 34px); width: var(--margin); font-size: 14px; line-height: 1.4; }
+  .note .label { display: block; color: var(--faint); font-size: 12.5px; margin-bottom: 2px; }
+  .note .says { display: block; }
+  .note .also { display: block; color: var(--soft); font-size: 13px; margin-top: 2px; }
+  .says.effect { color: var(--accent); font-weight: 500; }
+  .says.none, .says.untested { color: var(--soft); }
+  .note .bar { display: block; width: 72px; height: 2px; background: var(--rule); margin-top: 7px; overflow: hidden; border-radius: 1px; }
+  .note .bar i { display: block; height: 100%; width: 40%; background: var(--accent); animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+
+  /* breaks between paragraphs */
+  .gap { position: relative; display: grid; grid-template-columns: var(--gutter) 1fr; align-items: center; width: 100%; height: 22px; text-align: left; }
+  .gap .line { grid-column: 2; height: 1px; background: transparent; }
+  .gap .hint { position: absolute; right: 0; top: 2px; background: var(--sheet); padding-left: 10px; line-height: 18px; font-size: 12.5px; color: var(--faint); opacity: 0; transition: opacity .15s; }
+  .gap.on .line { background: var(--rule-2); }
+  button.gap:hover .hint, button.gap:focus-visible .hint { opacity: 1; }
+  button.gap:not(.on):hover .line { background: repeating-linear-gradient(90deg, var(--rule-2) 0 5px, transparent 5px 10px); }
+  button.gap.on:hover .line { background: var(--ink); }
+  button.gap:focus-visible { outline: 2px solid var(--accent-tint); outline-offset: 2px; border-radius: 3px; }
+
+  /* running */
+  .part.out .para { color: var(--faint); opacity: .55; text-decoration: line-through; text-decoration-color: var(--rule-2); text-decoration-thickness: 1px; }
+  .part.done .num::after { content: ""; }
+
+  /* result */
+  body[data-state="result"] .part { cursor: pointer; }
+  @media (hover: hover) { body[data-state="result"] .part:not(.open):hover .says { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; } }
+  .part.effect .num { color: var(--accent); }
+  .part.open { cursor: default !important; }
+
+  .detail { grid-column: 2; margin: 14px 0 6px; font-family: var(--sans); cursor: default; }
+  .detail .sentence { font-size: 15.5px; margin: 0 0 18px; max-width: 34em; }
+  .asked { font-size: 13px; color: var(--soft); margin: 0 0 8px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .answer h3 { font-size: 12.5px; font-weight: 500; color: var(--soft); margin: 0 0 6px; display: flex; justify-content: space-between; }
+  .answer h3 span { font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .answer strong { font-weight: 500; }
+  .answer p { margin: 0; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; color: #33332f; border-left: 2px solid var(--rule); padding: 1px 0 1px 12px; }
+  .answer.with p { border-left-color: var(--accent); }
+  mark { background: var(--accent-tint); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .more { margin-top: 16px; font-size: 13.5px; color: var(--soft); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+  .more:hover { color: var(--ink); }
+  .deep { margin-top: 12px; font-size: 13.5px; color: var(--soft); max-width: 36em; }
+  .deep table { border-collapse: collapse; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+  .deep th, .deep td { text-align: left; padding: 4px 22px 4px 0; border-bottom: 1px solid var(--rule); font-weight: 400; }
+  .deep th { color: var(--faint); font-size: 12.5px; }
+  .deep td:first-child { color: var(--ink); }
+  .deep p { margin: 0 0 8px; }
+  .foot { display: flex; gap: 22px; margin-top: 16px; align-items: baseline; }
+  .foot .more { margin-top: 0; }
+  .close { font-size: 13.5px; color: var(--faint); }
+  .close:hover { color: var(--ink); }
+
+  /* actions under the document */
+  .actions { display: flex; align-items: center; gap: 22px; margin-top: 22px; min-height: 40px; }
+  .btn { background: var(--accent); color: #fff; border-radius: 6px; padding: 9px 18px; font-weight: 500; font-size: 15px; transition: background .15s; }
+  .btn:hover { background: #1f3aa8; }
+  .btn:focus-visible, .link:focus-visible, .part:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .link { color: var(--soft); text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+  .link:hover { color: var(--ink); }
+  .quiet { color: var(--faint); font-size: 14px; margin: 14px 0 0; max-width: 40em; }
+  .quiet .link { color: var(--faint); }
+  .qs { margin: 8px 0 0; padding: 0; list-style: none; color: var(--soft); font-size: 14px; }
+  .qs li { padding: 2px 0; }
+  .warn { color: var(--soft); font-size: 14px; }
+
+  .fade-in { animation: fade .45s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  @media (max-width: 1000px) {
+    .note { position: static; width: auto; margin: 4px 0 2px; grid-column: 2; }
+    .note .label { display: none; }
+  }
+  @media (max-width: 640px) {
+    .stage { padding: 0 16px 72px; }
+    h1 { font-size: 20px; margin-top: 34px; }
+    .sheet { padding: 16px 16px 16px 8px; }
+    :root { --gutter: 22px; }
+    .prose, textarea.prose { font-size: 15.5px; }
+    .pair { grid-template-columns: 1fr; gap: 16px; }
+
+  }
+</style>
+</head>
+<body data-state="start">
+<div class="stage">
+  <header class="top col">
+    <span class="mark">SPET</span>
+    <a href="https://windesheim.co">Richard Windesheim</a>
+  </header>
+  <main class="col">
+    <h1>Find out what each part of a system prompt actually changes.</h1>
+    <p class="lede" id="lede"></p>
+    <div class="sheet" id="sheet"></div>
+    <div class="actions" id="actions"></div>
+    <div id="below"></div>
+  </main>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+
+/* ---- wording, inlined from web/lib/words.ts ---- */
+const NOUN = { apology: "apologies", sympathy: "sympathy lines", list_item: "bullet points", parenthetical: "asides in brackets",
+  question: "questions back", exclamation: "exclamation marks", words: "words", lines: "lines", any_list: "answers with a list" };
+const SINGULAR = { apology: "apology", sympathy: "sympathy line", list_item: "bullet point", parenthetical: "aside in brackets",
+  question: "question back", exclamation: "exclamation mark" };
+const ALSO = { parenthetical: "asides" };
+const SMALL = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+const noun = (d) => NOUN[d] ?? d;
+function approxCount(x, d) {
+  if (x <= 0) return `no ${noun(d)}`;
+  if (x < 0.08) return `almost no ${noun(d)}`;
+  if (x < 0.6) { const n = Math.round(1 / x); return `about one ${SINGULAR[d]} per ${SMALL[n] ?? n} answers`; }
+  const n = Math.round(x);
+  return `about ${n === 1 ? "one" : n} ${n === 1 ? SINGULAR[d] : noun(d)} per answer`;
+}
+const FLAG_TEXT = {
+  in_lists: "The extra asides sit mostly inside bullet lists, so they may come from the formatting rather than from a habit of their own.",
+  length_shift: "This part also changes how long answers are, which moves most counts. Part of the effect may come from length.",
+  context_shift: "This part sets who the assistant is, so removing it changes what the answers are about, not just their style.",
+};
+const qText = (q) => (q < 0.001 ? "under 0.1%" : `${(q * 100).toFixed(q < 0.01 ? 1 : 0)}%`);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const list = (xs) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
+
+/* ---- what the margin says about each part ---- */
+function verdict(p) {
+  if (p.notes.length && !p.effects.length) return { kind: "untested", says: "could not be tested" };
+  if (!p.effects.length) return { kind: "none", says: "no change found" };
+  const habits = p.effects.filter((e) => e.kind === "habit" && e.delta > 0);
+  if (habits.length) {
+    const [first, ...rest] = habits;
+    return { kind: "effect", says: `adds ${noun(first.detector)}`, also: rest.length ? `and ${SMALL[rest.length]} other habits` : "", others: rest.map((e) => ALSO[e.detector] ?? noun(e.detector)) };
+  }
+  const w = p.effects.find((e) => e.detector === "words");
+  return { kind: "effect", says: w.delta < 0 ? "makes answers shorter" : "makes answers longer" };
+}
+
+function sentence(p) {
+  const v = verdict(p);
+  if (v.kind === "untested")
+    return "Even without this part, no answer came near 200 words (the longest was 116), so the limit never had anything to hold back. Questions that invite longer answers would test it.";
+  if (v.kind === "none")
+    return "SPET found no measurable difference between answers with and without this part.";
+  const e = p.effects.find((e) => e.kind === "habit" && e.delta > 0);
+  if (e) {
+    const without = e.ablated_mean <= 0 ? "none at all" : approxCount(e.ablated_mean, e.detector);
+    const others = verdict(p).others;
+    return `With this part, the model writes ${approxCount(e.full_mean, e.detector)}. Without it, ${without}.` + (others.length ? ` It also brings more ${list(others)}.` : "");
+  }
+  const w = p.effects.find((x) => x.detector === "words");
+  const r = (x) => Math.round(x / 5) * 5;
+  return `With this part, answers run about ${r(w.full_mean)} words. Without it, about ${r(w.ablated_mean)}.`;
+}
+
+function fmt(x, d) { return d === "words" ? Math.round(x) : x < 1 ? x.toFixed(2) : x.toFixed(1); }
+
+function deepHTML(p) {
+  const out = [];
+  const shown = p.effects.filter((e) => e.kind === "habit" || e.detector === "words");
+  if (shown.length) {
+    out.push(`<table><tr><th></th><th>with it</th><th>without</th></tr>${shown.map((e) =>
+      `<tr><td>${e.detector === "words" ? "Words per answer" : cap(noun(e.detector)) + " per answer"}</td><td>${fmt(e.full_mean, e.detector)}</td><td>${fmt(e.ablated_mean, e.detector)}</td></tr>`).join("")}</table>`);
+    const qmax = Math.max(...shown.map((e) => e.q));
+    out.push(`<p>Each figure is an average over ${shown[0].n_pairs} answers: ${DATA.queries.length} questions, asked ${DATA.n} times each, to ${DATA.model}. Only differences unlikely to be chance are listed; the false-finding rate for them is at most ${qText(qmax)}.</p>`);
+    const flags = [...new Set(shown.flatMap((e) => e.flags))].filter((f) => FLAG_TEXT[f]);
+    flags.forEach((f) => out.push(`<p>${FLAG_TEXT[f]}</p>`));
+  } else if (p.notes.length) {
+    out.push(`<p>${DATA.warnings[0]}</p>`);
+  } else {
+    out.push(`<p>SPET compared ${p.tested} habits, from apologies to answer length, across 40 answers with and 40 without this part. None moved by more than chance would explain. A small effect could still be hiding below what 40 answers can show.</p>`);
+    out.push(`<p>${DATA.warnings[0]}</p>`);
+  }
+  if (p.extra.apology && p.effects.some((e) => e.detector === "sympathy"))
+    out.push(`<p>It did not make the model apologise more. Apologies were ${fmt(p.extra.apology.full_mean)} per answer with it and ${fmt(p.extra.apology.ablated_mean)} without, a gap within chance. What it changes is sympathy (“sorry to hear”), not apology.</p>`);
+  if (p.extra.ends_question && !p.extra.ends_question.tested)
+    out.push(`<p>Its own aim could not be checked: no answer ended on a question, with or without it.</p>`);
+  return out.join("");
+}
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function marked(a) {
+  const t = a.text; let html = "", at = 0;
+  const spans = [...a.spans].sort((x, y) => x[0] - y[0]);
+  for (const [s, e] of spans) { if (s < at) continue; html += esc(t.slice(at, s)) + "<mark>" + esc(t.slice(s, e)) + "</mark>"; at = e; }
+  return (html + esc(t.slice(at))).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+/* ---- state ---- */
+const EXAMPLE = DATA.parts.map((p) => p.text).join("\n\n");
+const params = new URLSearchParams(location.search);
+const HOLD = params.has("hold") ? +params.get("hold") : null;
+const STEP = params.has("fast") ? 120 : 760;
+
+const S = { state: "start", text: EXAMPLE, atoms: [], breaks: [], step: -1, open: null, deep: false, showQs: false };
+
+const $ = (id) => document.getElementById(id);
+const atomsOf = (t) => t.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+function groups() {
+  const gs = [];
+  S.atoms.forEach((a, i) => { if (i === 0 || S.breaks[i - 1]) gs.push([i]); else gs[gs.length - 1].push(i); });
+  return gs;
+}
+const isExample = () => S.text.trim() === EXAMPLE && S.breaks.every(Boolean) && S.atoms.length === DATA.parts.length;
+function labelFor(g) {
+  if (isExample() || g.length === 1) { const p = DATA.parts.find((p) => p.text === S.atoms[g[0]]); if (p && g.length === 1) return p.label; }
+  const w = S.atoms[g[0]].split(/\s+/); return w.slice(0, 4).join(" ") + (w.length > 4 ? "…" : "");
+}
+
+function go(state) { S.state = state; document.body.dataset.state = state; render(); }
+
+function render() {
+  const st = S.state;
+  const lede = {
+    start: "Paste a system prompt, or try this example.",
+    parts: "Each part will be tested on its own. Click a line to merge two parts.",
+    running: S.step < 0 ? "Asking the questions with the whole prompt first." : `Testing part ${S.step + 1} of ${groups().length}: the same questions, with this part removed.`,
+    result: "Here is what each part changes. Click one to see the answers.",
+  }[st];
+  $("lede").textContent = lede;
+  const sheet = $("sheet"); const actions = $("actions"); const below = $("below");
+  below.innerHTML = "";
+
+  if (st === "start") {
+    sheet.innerHTML = `<textarea class="prose" id="ta" spellcheck="false" aria-label="System prompt"></textarea>`;
+    const ta = $("ta"); ta.value = S.text;
+    const fit = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+    ta.addEventListener("input", () => { S.text = ta.value; fit(); });
+    requestAnimationFrame(fit);
+    actions.innerHTML = `<button class="btn" id="split">Split into parts</button>`;
+    $("split").onclick = () => {
+      if (!S.text.trim()) return;
+      S.atoms = atomsOf(S.text); S.breaks = S.atoms.slice(1).map(() => true); go("parts");
+    };
+    return;
+  }
+
+  const gs = groups();
+  let html = `<div class="progress"><i id="prog"></i></div>`;
+  gs.forEach((g, gi) => {
+    if (gi > 0) html += gap(g[0] - 1, true);
+    const p = isExample() ? DATA.parts[gi] : null;
+    const v = p ? verdict(p) : null;
+    const cls = ["part"];
+    if (st === "running" && gi === S.step) cls.push("out");
+    if (st === "running" && gi < S.step) cls.push("done");
+    if (st === "result" && v.kind === "effect") cls.push("effect");
+    if (st === "result" && S.open === gi) cls.push("open");
+    const attrs = st === "result" ? ` tabindex="0" role="button" aria-expanded="${S.open === gi}"` : "";
+    html += `<div class="${cls.join(" ")}" data-part="${gi}"${attrs}><span class="num">${gi + 1}</span><div>`;
+    g.forEach((ai, k) => { if (k > 0) html += gap(ai - 1, false); html += `<p class="para prose">${esc(S.atoms[ai])}</p>`; });
+    html += `</div>${noteHTML(gi, g, p, v)}`;
+    if (st === "result" && S.open === gi) html += detailHTML(p);
+    html += `</div>`;
+  });
+  sheet.innerHTML = html;
+  if (st === "running") {
+    const total = gs.length + 1;
+    requestAnimationFrame(() => { $("prog").style.width = `${((S.step + 1.5) / total) * 100}%`; });
+  }
+
+  sheet.querySelectorAll("button.gap").forEach((b) => (b.onclick = () => { const i = +b.dataset.i; S.breaks[i] = !S.breaks[i]; render(); }));
+  if (st === "result") {
+    sheet.querySelectorAll(".part").forEach((el) => {
+      const gi = +el.dataset.part;
+      const open = (e) => { if (e.target.closest(".detail")) return; S.open = S.open === gi ? null : gi; S.deep = false; render(); };
+      el.onclick = open;
+      el.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); open(e); } };
+    });
+    const more = sheet.querySelector(".more"); if (more) more.onclick = () => { S.deep = !S.deep; render(); };
+    const close = sheet.querySelector(".close"); if (close) close.onclick = () => { S.open = null; render(); };
+  }
+
+  if (st === "parts") {
+    const ok = isExample();
+    actions.innerHTML = ok
+      ? `<button class="btn" id="test">Test ${gs.length} parts</button><button class="link" id="back">Edit the text</button>`
+      : `<button class="btn" id="test" disabled style="opacity:.4;cursor:default">Test ${gs.length} parts</button><button class="link" id="back">Edit the text</button>`;
+    below.innerHTML = ok
+      ? `<p class="quiet">Each part is removed in turn, and the model answers the same ${DATA.queries.length} questions, ${DATA.n} times each. <button class="link" id="qs">${S.showQs ? "Hide" : "See"} the questions</button></p>${S.showQs ? `<ul class="qs fade-in">${DATA.queries.map((q) => `<li>“${esc(q)}”</li>`).join("")}</ul>` : ""}`
+      : `<p class="quiet">This page has a saved result for the example’s ${DATA.parts.length} parts only. Testing anything else needs a model connected. <button class="link" id="restore">Restore the example</button></p>`;
+    $("back").onclick = () => go("start");
+    if (ok) { $("test").onclick = run; $("qs").onclick = () => { S.showQs = !S.showQs; render(); }; }
+    else $("restore").onclick = () => { S.text = EXAMPLE; S.atoms = atomsOf(EXAMPLE); S.breaks = S.atoms.slice(1).map(() => true); render(); };
+  } else if (st === "running") {
+    actions.innerHTML = "";
+  } else if (st === "result") {
+    actions.innerHTML = `<button class="link" id="again">Start over</button>`;
+    $("again").onclick = () => { S.open = null; S.step = -1; go("start"); };
+  }
+}
+
+function gap(i, between) {
+  const on = S.breaks[i];
+  if (S.state !== "parts") return `<div class="gap ${on ? "on" : ""}" aria-hidden="true"><span class="line"></span></div>`;
+  return `<button class="gap ${on ? "on" : ""}" data-i="${i}" role="switch" aria-checked="${on}" aria-label="Break before paragraph ${i + 2}"><span class="line"></span><span class="hint">${on ? "merge" : "split here"}</span></button>`;
+}
+
+function noteHTML(gi, g, p, v) {
+  const st = S.state;
+  const label = `<span class="label">${esc(labelFor(g))}</span>`;
+  if (st === "parts") return `<div class="note">${label}</div>`;
+  if (st === "running") {
+    if (gi === S.step) return `<div class="note"><span class="says none">removed, asking again</span><span class="bar"><i></i></span></div>`;
+    if (gi < S.step) return `<div class="note"><span class="says none" style="color:var(--faint)">tested</span></div>`;
+    return "";
+  }
+  return `<div class="note fade-in" style="animation-delay:${gi * 70}ms"><span class="says ${v.kind}">${v.says}</span>${v.also ? `<span class="also">${v.also}</span>` : ""}</div>`;
+}
+
+function detailHTML(p) {
+  let h = `<div class="detail fade-in"><p class="sentence">${sentence(p)}</p>`;
+  if (p.pair) {
+    const a = p.pair;
+    h += `<p class="asked">Asked “${esc(a.question)}”, one of its answers:</p><div class="pair">
+      <div class="answer with"><h3>With this part <span>${a.with.words} words</span></h3><p>${marked(a.with)}</p></div>
+      <div class="answer without"><h3>Without it <span>${a.without.words} words</span></h3><p>${marked(a.without)}</p></div></div>`;
+  }
+  h += `<div class="foot"><button class="more">${S.deep ? "Less detail" : "More detail"}</button><button class="close">Close</button></div>`;
+  if (S.deep) h += `<div class="deep fade-in">${deepHTML(p)}</div>`;
+  return h + `</div>`;
+}
+
+function run() {
+  S.step = -1; S.open = null; go("running");
+  document.body.dataset.testing = -1;
+  const n = groups().length;
+  const tick = () => {
+    if (HOLD !== null && S.step === HOLD) return;
+    S.step++;
+    if (S.step >= n) { delete document.body.dataset.testing; go("result"); return; }
+    document.body.dataset.testing = S.step; render();
+    setTimeout(tick, STEP);
+  };
+  setTimeout(tick, STEP);
+}
+
+render();
+</script>
+</body>
+</html>
