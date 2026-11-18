@@ -3,6 +3,7 @@
 // A run with a readout: per part, does the model do what it says, and (only for "followed") is the part the reason.
 // The overview comes with the page; a part's sentence, answers and numbers are fetched when it is opened.
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { renderAnswer } from "@/lib/markdown";
 import { BUTTON, type Pair, type PartFile, type Reading, type RunView } from "@/lib/view";
@@ -111,10 +112,7 @@ function PartView({ id, k, parts }: { id: string; k: number; parts: RunView["par
         <div data-k="drew" id={`drew-${k}`}>
           {f.drew.stoodOut ? (
             <>
-              <p className="caption">
-                Where the model looked while reasoning about this question, measured on separate samples of the same question.
-                Darker means more. It is not proof of cause.
-              </p>
+              <p className="caption">Where the model looked most while reasoning about this question, in separate samples; not proof of cause.</p>
               <ul className="drew">
                 {f.drew.rows.map((r) => (
                   <li key={r.k}>
@@ -131,10 +129,7 @@ function PartView({ id, k, parts }: { id: string; k: number; parts: RunView["par
               </ul>
             </>
           ) : (
-            <p className="caption">
-              Nothing stood out: while reasoning about this question, the model looked at no part much more than usual. Measured on
-              separate samples of the same question.
-            </p>
+            <p className="caption">Nothing stood out: no part drew much more of the model&rsquo;s attention than usual.</p>
           )}
         </div>
       )}
@@ -144,8 +139,8 @@ function PartView({ id, k, parts }: { id: string; k: number; parts: RunView["par
             <table>
               <thead>
                 <tr>
-                  <th scope="col">What the judge was asked</th>
-                  <th scope="col">With it</th>
+                  <th scope="col">Statement the judge read</th>
+                  <th scope="col">Holds with it</th>
                   <th scope="col">Without</th>
                 </tr>
               </thead>
@@ -153,8 +148,8 @@ function PartView({ id, k, parts }: { id: string; k: number; parts: RunView["par
                 {f.checks.map((c) => (
                   <tr key={c.id}>
                     <td>
-                      &ldquo;{c.statement}&rdquo;
-                      {c.notes.map((x) => <span key={x} className="flag">{x}</span>)}
+                      {c.statement}
+                      {c.opposite && <span className="flag">Opposite of what the part asks.</span>}
                     </td>
                     <td className="n">{c.withPct}</td>
                     <td className="n">{c.withoutPct}</td>
@@ -163,7 +158,9 @@ function PartView({ id, k, parts }: { id: string; k: number; parts: RunView["par
               </tbody>
             </table>
           )}
-          {f.deep.map((p) => <p key={p}>{p}</p>)}
+          {f.basis.map((x) => <p key={x} className="basis">{x}</p>)}
+          {f.hidden > 0 && <p className="basis">{f.hidden} more check{f.hidden === 1 ? "" : "s"} not shown.</p>}
+          <p className="basis"><Link href="/method/#measured" className="link">How this is measured</Link></p>
         </div>
       )}
     </div>
@@ -181,7 +178,6 @@ function PairView({ pair, whole, about = "one of its answers" }: { pair: Pair; w
           {s === "with" ? "With this part" : "Without it"}
           <span>{a.words.toLocaleString("en")} words{a.cut ? ", cut off" : ""}</span>
         </h3>
-        {pair.note?.side === s && <p className="unread">{pair.note.text}</p>}
         <div className={`body${a.words > LONG && !whole ? " clamped" : ""}`} dangerouslySetInnerHTML={{ __html: renderAnswer(a.text, [], null) }} />
       </section>
     );
@@ -189,12 +185,13 @@ function PairView({ pair, whole, about = "one of its answers" }: { pair: Pair; w
   return (
     <>
       <p className="asked" data-k="asked">
-        Asked &ldquo;{pair.question}&rdquo;{pair.from === "confirmation" ? " (a new question, from the second test)" : ""}, {about}:
+        Asked &ldquo;{pair.question}&rdquo;{pair.from === "confirmation" ? " (new question)" : ""}, {about}:
       </p>
       <div className="pair" data-k="pair">
         {side("with")}
         {side("without")}
       </div>
+      {pair.note && <p className="author-note" data-k="note">Author&rsquo;s note: {pair.note}</p>}
     </>
   );
 }

@@ -1,4 +1,4 @@
-// Mirrors spet/bundle.py (schema_version 1-8). docs/run-bundle.schema.json is the source of truth.
+// Mirrors spet/bundle.py (schema_version 1-9). docs/run-bundle.schema.json is the source of truth.
 // Fields added after v1 are optional here, because older bundles lack them.
 
 export type Meta = {
@@ -130,6 +130,8 @@ export type Statement = {
   polarity?: "positive" | "reverse";
   /** v8, authored: decided by an engine metric instead of the judge, e.g. "words <= 60"; null = judged. */
   measure?: string | null;
+  /** v9: a short verb phrase that continues "The model ..." (the compliant behaviour); null = none, show the text. */
+  label?: string | null;
 };
 
 export type PartReading = {
@@ -266,6 +268,10 @@ export type Check = {
   polarity?: "positive" | "reverse";
   /** v8: the share judged yes WITH the part, before any reversal */
   rate_with_raw?: number | null;
+  /** v9: the statement's label; null = none */
+  label?: string | null;
+  /** v9: an author's note shown beside this check's example, from the run's annotations file */
+  author_note?: string | null;
 };
 
 /** v7: an intended statement left out of the reading; reason starts "audit: " or "flag in the ... run: ". */
@@ -302,11 +308,16 @@ export type AuditRecord = {
 };
 
 /** v7: two facts per intended statement and one reading per part (no model calls). */
+/** v9: the annotations file the author notes came from. */
+export type AnnotationsRecord = { file: string; sha256: string; author?: string; date?: string };
+
 export type Readout = {
   created_at: string;
   rule: ReadoutRule;
   audit?: AuditRecord | null;
   parts?: PartReadout[];
+  /** v9 */
+  annotations?: AnnotationsRecord | null;
 };
 
 /** v8: author-written statements judged on the run's stored answers. Estimates only: not in any BH family, q = 1. */
@@ -326,7 +337,7 @@ export type Authored = {
 };
 
 export type RunBundle = {
-  schema_version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  schema_version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   meta: Meta;
   sections: Section[];
   configs: Config[];

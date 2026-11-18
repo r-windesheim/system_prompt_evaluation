@@ -192,8 +192,15 @@ def check_judge(judge, b: RunBundle) -> dict:
     screen did not record (None) are not compared. Returns what was checked."""
     s, js = b.meta.settings, getattr(judge, "settings", {}) or {}
     got = {"judge_model": getattr(judge, "model", None), "judge_endpoint_host": js.get("endpoint_host"),
-           "judge_max_tokens": js.get("max_tokens"), "judge_reasoning_effort": js.get("reasoning_effort"),
-           "discovery_prompts_version": prompts.version()}
+           "judge_max_tokens": js.get("max_tokens"), "judge_reasoning_effort": js.get("reasoning_effort")}
+    # the judge's prompts: v9 bundles record their own hash; older ones the hash of all discovery prompts, which is
+    # current either way (labels changed only the proposer prompts, not the judge's)
+    if s.get("judge_prompts_version") is not None:
+        got["judge_prompts_version"] = prompts.judge_version()
+    elif s.get("discovery_prompts_version") in (prompts.version(), prompts.version_before_labels()):
+        got["discovery_prompts_version"] = s.get("discovery_prompts_version")
+    else:
+        got["discovery_prompts_version"] = prompts.version()
     bad = {k: (got[k], s.get(k)) for k in got if s.get(k) is not None and got[k] != s.get(k)}
     if bad:
         raise ValueError("the judge differs from the screen's: " + "; ".join(f"{k} {g!r} vs {w!r}" for k, (g, w) in bad.items()))
@@ -382,7 +389,7 @@ async def confirm(b: RunBundle, spec: ConfirmSpec, provider, judge, *, rule: Sel
             mde=s["mde"], n_unparseable=r["unp"], n_na=r["na"], n_excluded_with=r["exw"],
             n_excluded_without=r["exwo"], n_excluded_echo=w["n_echo"], agreement=r["agreement"], kappa=r["kappa"],
             n_rejudged=r["n_rj"], flags=r["flags"], examples=r["examples"], family=st.source,
-            verdicts=r["judged"], rejudged=rj_store.get(i, []),
+            verdicts=r["judged"], rejudged=rj_store.get(i, []), label=st.label,
             screen_p=st.p, screen_q=st.q, screen_full_rate=st.full_rate, screen_ablated_rate=st.ablated_rate,
             screen_delta=st.delta, screen_n_questions=st.n_questions, confirmed=ok))
 
@@ -405,7 +412,7 @@ async def confirm(b: RunBundle, spec: ConfirmSpec, provider, judge, *, rule: Sel
         "temperature": b.meta.temperature, "judge_model": getattr(judge, "model", None),
         "judge_endpoint_host": js.get("endpoint_host"), "judge_max_tokens": js.get("max_tokens"),
         "judge_reasoning_effort": js.get("reasoning_effort"), "judge_temperature": 0.0,
-        "discovery_prompts_version": prompts.version(), "rejudge_per_class": opts.rejudge_per_class,
+        "discovery_prompts_version": prompts.version(), "judge_prompts_version": prompts.judge_version(), "rejudge_per_class": opts.rejudge_per_class,
         "min_agreement": opts.min_agreement, "min_kappa": opts.min_kappa, "echo_ngram": opts.echo_ngram,
         "echo_share": opts.echo_share, "test_rng_seed": spec.seed + 7, "max_question_overlap": MAX_OVERLAP,
     }

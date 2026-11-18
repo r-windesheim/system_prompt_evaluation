@@ -382,11 +382,13 @@ def cmd_readout(args) -> int:
     from . import readout as R
 
     b = bundle.load(args.bundle)
-    audit = rec = None
+    audit = rec = notes = nrec = None
     try:
         if args.audit:
             audit, rec = R.load_audit(args.audit, b)
-        out_b = R.readout(b, audit, rec)
+        if args.annotations:
+            notes, nrec = R.load_annotations(args.annotations, b)
+        out_b = R.readout(b, audit, rec, notes, nrec)
     except ValueError as e:
         raise SystemExit(f"readout: {e}")
     out = Path(args.out)
@@ -403,6 +405,48 @@ def cmd_readout(args) -> int:
                   f"{c.n_questions} q, {c.n_answers} answers, {c.data}  {c.text[:60]}", file=sys.stderr)
         for e in p.excluded:
             print(f"       {e.id:<7} left out: {e.reason[:100]}", file=sys.stderr)
+    return 0
+
+
+def cmd_label(args) -> int:
+    from . import confirm as C
+    from . import label as L
+
+    b = bundle.load(args.bundle)
+    if not b.readout:
+        raise SystemExit("label: the bundle has no readout; run `spet readout` first (labels are for its checks)")
+    ids = L.targets(b)
+    try:
+        if b.meta.provider == "stub":
+            pcfg = {"kind": "stub"}
+        else:
+            base = args.judge_base_url or os.environ.get("SPET_JUDGE_BASE_URL") or os.environ.get("SPET_BASE_URL")
+            if not base:
+                raise ValueError("no judge endpoint: give --judge-base-url or set SPET_JUDGE_BASE_URL")
+            pcfg = {"kind": "openai", "base_url": base, "model": b.meta.model}
+        judge = make_judge(pcfg, args)
+        if b.discovery and b.meta.provider != "stub":
+            js = C.check_judge(judge, b)
+            print("judge (matches the run's): " + ", ".join(f"{k}={v}" for k, v in js.items()), file=sys.stderr)
+    except ValueError as e:
+        raise SystemExit(f"label: {e}")
+    print(f"{len(ids)} statements in the readout; at most {2 * len(ids)} label calls"
+          + (f", capped at {args.max_calls}" if args.max_calls is not None else ""), file=sys.stderr)
+
+    async def go():
+        try:
+            return await L.label_bundle(b, judge, force=args.force, max_calls=args.max_calls)
+        finally:
+            if hasattr(judge, "aclose"):
+                await judge.aclose()
+
+    out_b, rep_ = asyncio.run(go())
+    out = Path(args.out)
+    bundle.dump(out_b, out)
+    print(f"wrote {out}: {rep_['calls']} label calls, {len(rep_['labels'])} labelled, {len(rep_['failed'])} failed, "
+          f"{len(rep_['skipped'])} over budget", file=sys.stderr)
+    for sid, lab in rep_["labels"].items():
+        print(f"  {sid:<7} {lab if lab else '(none: ' + rep_['failed'].get(sid, '') + ')'}", file=sys.stderr)
     return 0
 
 
@@ -501,6 +545,7 @@ def main(argv: list[str] | None = None) -> int:
     ro.add_argument("bundle", help="a bundle with a discovery block, with or without a confirmation")
     ro.add_argument("-o", "--out", required=True)
     ro.add_argument("--audit", help="audit YAML: statements marked `valid: false` are left out of the reading")
+    ro.add_argument("--annotations", help="annotations YAML: an author's note per check, shown beside its example")
     ro.set_defaults(fn=cmd_readout)
     au = sub.add_parser("authored", help="judge author-written statements on a finished bundle's stored answers")
     au.add_argument("bundle", help="a finished bundle with a discovery block (its judge settings must be matched)")
@@ -514,6 +559,16 @@ def main(argv: list[str] | None = None) -> int:
     au.add_argument("--keep-failed-calls", action="store_true",
                     help="write the result even if some judge calls failed (they count as unreadable)")
     au.set_defaults(fn=cmd_authored)
+
+    lb = sub.add_parser("label", help="write a short label for each statement the readout uses (one judge call each)")
+    lb.add_argument("bundle", help="a bundle with a readout")
+    lb.add_argument("-o", "--out", required=True)
+    lb.add_argument("--force", action="store_true", help="relabel statements that already have a label")
+    lb.add_argument("--max-calls", type=int, help="make at most this many label calls; the rest keep no label")
+    lb.add_argument("--judge-base-url")
+    lb.add_argument("--judge-model")
+    lb.add_argument("--stub-judge", action="store_true")
+    lb.set_defaults(fn=cmd_label)
 
     v = sub.add_parser("validate", help="validate bundle files")
     v.add_argument("paths", nargs="+")

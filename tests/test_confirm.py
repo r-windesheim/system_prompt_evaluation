@@ -224,11 +224,24 @@ def test_judge_must_match_the_screen(tmp_path):
         C.check_judge(StubProvider(respond, model="other"), b)
 
     def tamper(raw):
-        raw["meta"]["settings"].update(judge_max_tokens=10000, discovery_prompts_version="0ld")
+        raw["meta"]["settings"].update(judge_max_tokens=10000, judge_prompts_version="0ld")
     bp = tmp_path / "s.json"
     B.dump(_screen(tamper), bp)
-    with pytest.raises(SystemExit, match="judge_max_tokens.*discovery_prompts_version"):
+    with pytest.raises(SystemExit, match="judge_max_tokens.*judge_prompts_version"):
         main(["confirm", str(bp), str(_spec(tmp_path)), "-o", str(tmp_path / "v.json"), "--plan"])
+
+    # a bundle from before v9 records only the hash of all discovery prompts: the current one, or the one before
+    # labels (same judge prompts), passes; any other is refused
+    def old(version):
+        def f(raw):
+            raw["meta"]["settings"].pop("judge_prompts_version")
+            raw["meta"]["settings"]["discovery_prompts_version"] = version
+        return _screen(f)
+    from spet import prompts as P
+    for v in (P.version(), P.version_before_labels()):
+        C.check_judge(StubProvider(respond, model="stub-judge-v1"), old(v))
+    with pytest.raises(ValueError, match="discovery_prompts_version"):
+        C.check_judge(StubProvider(respond, model="stub-judge-v1"), old("0ld"))
 
 
 def test_cli_plan_budget_and_run(tmp_path):

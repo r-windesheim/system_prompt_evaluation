@@ -349,17 +349,25 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
     stmts: list[dict] = []
     for p, iraw, praws in zip(parts, intended_raw, proposed_raw):
         k = p.id
-        intended = prompts.dedupe(prompts.parse_statements(iraw, opts.max_intended * 2))[:opts.max_intended]
+        # each statement comes with its label from the same call (v9); a missing or bad label stays None
+        ilab = prompts.parse_labelled(iraw, opts.max_intended * 2)
+        labels = {t: lab for t, lab in ilab}
+        intended = prompts.dedupe([t for t, _ in ilab])[:opts.max_intended]
         if iraw is not None and not intended:
             warnings.append(f"no usable intended statements for part {k + 1} ({p.label}).")
-        found = [s for raw in praws for s in prompts.parse_statements(raw, opts.max_discovered * 2)]
+        plab = [x for raw in praws for x in prompts.parse_labelled(raw, opts.max_discovered * 2)]
+        for t, lab in plab:
+            labels.setdefault(t, lab)
+        found = [t for t, _ in plab]
         also = {i for i, t in enumerate(intended) if any(prompts.similar(t, s) for s in found)}
         discovered = prompts.dedupe(found, against=intended)[:opts.max_discovered]
         for i, t in enumerate(intended):
             fl = (["also_discovered"] if i in also else []) + ([] if targeted[k] else ["untargeted"])
-            stmts.append(dict(id=f"p{k}.i{i}", section=k, text=t, source="intended", qs=intended_qs(k), flags=fl))
+            stmts.append(dict(id=f"p{k}.i{i}", section=k, text=t, source="intended", qs=intended_qs(k), flags=fl,
+                              label=labels.get(t)))
         for i, t in enumerate(discovered):
-            stmts.append(dict(id=f"p{k}.d{i}", section=k, text=t, source="discovered", qs=other(k, hold_q), flags=[]))
+            stmts.append(dict(id=f"p{k}.d{i}", section=k, text=t, source="discovered", qs=other(k, hold_q), flags=[],
+                              label=labels.get(t)))
 
     # ---- 2. verification: one statement, one question, one answer ---------------------------
     jobs = []  # (statement index, config, q, s)
@@ -471,7 +479,7 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
             n_unparseable=r["unp"], n_na=r["na"],
             n_excluded_with=r["exw"], n_excluded_without=r["exwo"], n_excluded_echo=r["n_echo"],
             agreement=r["agreement"], kappa=r["kappa"], n_rejudged=r["n_rj"], flags=r["flags"], examples=r["examples"],
-            family=st["source"], verdicts=r["judged"], rejudged=rj_store.get(i, [])))
+            family=st["source"], verdicts=r["judged"], rejudged=rj_store.get(i, []), label=st.get("label")))
 
     # ---- 5. classify significant discovered statements relative to the instruction ----------
     by_id = {s.id: s for s in b.sections}
@@ -549,7 +557,7 @@ async def discover(b: RunBundle, judge, opts: DiscoveryOptions | None = None, *,
         "judge_model": getattr(judge, "model", None), "judge_provider": getattr(judge, "name", None),
         "judge_endpoint_host": js.get("endpoint_host"), "judge_max_tokens": js.get("max_tokens"),
         "judge_reasoning_effort": js.get("reasoning_effort"), "judge_temperature": 0.0,
-        "discovery_prompts_version": prompts.version(), "discovery_seed": seed,
+        "discovery_prompts_version": prompts.version(), "judge_prompts_version": prompts.judge_version(), "discovery_seed": seed,
         "discovery_max_intended": opts.max_intended, "discovery_max_discovered": opts.max_discovered,
         "discovery_proposal_calls": opts.proposal_calls, "discovery_pairs_per_call": opts.pairs_per_call,
         "discovery_rejudge_per_class": opts.rejudge_per_class, "discovery_min_agreement": opts.min_agreement,

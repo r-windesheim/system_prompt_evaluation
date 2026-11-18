@@ -324,6 +324,20 @@ When the judge model's intended statements for a part all fail the audit, a revi
 - **The audit** needs an `authored_statements:` section covering exactly the bundle's authored ids, in the same form as `statements:`.
 - `spet rescore`, `spet discover` and `spet confirm` keep the block; a new `spet authored` replaces it and drops the readout.
 
+## Labels and author notes
+
+A viewer needs a short name for each check. Since schema 9 a statement may carry a `label`: a verb phrase of at most eight words that continues "The model ..." and names the behaviour the part asks for (for a reverse-coded statement, the compliant one), e.g. "says it cannot open the link". Labels are for display only; they never enter a test or a reading.
+
+- **New runs:** the model that writes a statement writes its label in the same call (`INTENDED_SYSTEM`, `PROPOSE_SYSTEM`: one line per statement, `statement || label`). A label that breaks the rules is dropped, not repaired.
+- **Author-written statements** may carry an optional `label`, checked by the same rules.
+- **Older bundles:** `python -m spet label <bundle.json> -o <out.json> [--max-calls N] [--force]` asks the judge (its endpoint settings must match the run's, as for `spet authored`) for one label per statement the readout uses, at temperature 0. Only the statement is shown, never the instruction, so the label cannot drift to another part of the instruction. Then rerun `spet readout` so the checks carry the labels.
+- **The rules** (`prompts.label_problem`, mechanical, the same for every run): at most eight words; starts with a verb form ("says", "uses", "is", "does not", ...); never "the answer"; no quote of more than five words; no full stop. A label that fails is asked for once more with the reason; if it fails again the statement keeps no label and a viewer shows the statement text.
+- **Prompt versions.** Adding labels changed the proposer prompts, not the judge's. New runs record `judge_prompts_version` (the judge's prompts only), which is what `spet confirm` and `spet authored` compare; for older bundles the recorded `discovery_prompts_version` is accepted if it is the current hash or the hash before labels (`prompts.version_before_labels()`).
+
+**Author notes.** `spet readout --annotations <file.yaml>` reads `author`, `date` and `notes: {statement id: note}` (at most 200 characters each) and stores each note on its check as `author_note`, with the file's name and sha256 in `readout.annotations`. A viewer shows it beside the check's example, marked as a note. It is never a measurement. The July 2024 example's file is `examples/sonnet35-july2024-annotations.yaml`.
+
+The July 2024 bundle was labelled with `spet label` (57 judge calls in two passes: the first prompt showed the instruction and the model labelled the instruction instead of the check, so the prompt was changed for every run and the labels regenerated once).
+
 ## What a small judge (gpt-oss-20b) can and cannot be trusted with
 
 - **Fairly trustworthy:** concrete, surface-level statements. Examples: "contains an apology", "uses a numbered list", "ends with a question", "mentions a backup", "is written in French".

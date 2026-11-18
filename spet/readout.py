@@ -37,8 +37,8 @@ from pathlib import Path
 
 import yaml
 
-from .bundle import (SCHEMA_VERSION, AuditRecord, Check, ExcludedCheck, PartReadout, Readout, ReadoutRule, RunBundle,
-                     Statement)
+from .bundle import (SCHEMA_VERSION, AnnotationsRecord, AuditRecord, Check, ExcludedCheck, PartReadout, Readout,
+                     ReadoutRule, RunBundle, Statement)
 from .discovery import DiscoveryOptions
 
 MOSTLY = DiscoveryOptions().redundant_rate  # 0.8: the engine's existing "the behaviour is there" rate
@@ -137,13 +137,43 @@ def load_audit(path: str | Path, b: RunBundle) -> tuple[dict[str, tuple[bool, st
     return out, rec
 
 
+# ---- annotations: an author's notes on checks (v9) ------------------------------------------------------------
+
+NOTE_MAX_CHARS = 200
+
+
+def load_annotations(path: str | Path, b: RunBundle) -> tuple[dict[str, str], AnnotationsRecord]:
+    """Read an annotations YAML: ``author``, ``date`` and ``notes: {statement id: note}``. A note is shown beside a
+    check's example answers, marked as a note; it is never a measurement. Every id must be a statement of the bundle."""
+    path = Path(path)
+    data = path.read_bytes()
+    raw = yaml.safe_load(data) or {}
+    notes = raw.get("notes") or {}
+    if not isinstance(notes, dict):
+        raise ValueError(f"{path.name}: `notes` must map statement ids to text")
+    known = {s.id for s in b.discovery.statements} if b.discovery else set()
+    known |= {s.id for s in b.authored.statements} if b.authored else set()
+    unknown = set(notes) - known
+    if unknown:
+        raise ValueError(f"{path.name}: not statements of this bundle: {', '.join(sorted(unknown))}")
+    out = {}
+    for sid, text in notes.items():
+        t = " ".join(str(text or "").split())
+        if not t or len(t) > NOTE_MAX_CHARS:
+            raise ValueError(f"{path.name}: the note for {sid} must be 1 to {NOTE_MAX_CHARS} characters")
+        out[sid] = t
+    rec = AnnotationsRecord(file=path.name, sha256=hashlib.sha256(data).hexdigest(), author=str(raw.get("author", "")),
+                            date=str(raw.get("date", "")))
+    return out, rec
+
+
 # ---- the readout ------------------------------------------------------------------------------------------
 
 REVERSE_NOTE = "Reverse-coded: the statement says what the part asks the model not to do; the rate is 1 - the share judged yes."
 MEASURE_NOTE = "Decided by the engine's {m}, not by the judge."
 
 
-def _check(st: Statement, data: str, confirmed: bool) -> Check:
+def _check(st: Statement, data: str, confirmed: bool, label: str | None = None, author_note: str | None = None) -> Check:
     rate_w, rate_o, ci = st.full_rate, st.ablated_rate, st.full_rate_ci
     rev = st.polarity == "reverse"
     if rev:  # read compliance the right way round: the share of answers that do NOT do what the statement says
@@ -161,12 +191,16 @@ def _check(st: Statement, data: str, confirmed: bool) -> Check:
     return Check(id=st.id, text=st.text, data=data, rate_with=rate_w, rate_with_ci=ci,
                  rate_without=rate_o, n_questions=st.n_questions, n_answers=st.n_pairs,
                  does=does(rate_w, ci), cause=cause(confirmed, rate_w, rate_o), flags=list(st.flags),
-                 note=" ".join(notes), polarity=st.polarity, rate_with_raw=st.full_rate)
+                 note=" ".join(notes), polarity=st.polarity, rate_with_raw=st.full_rate,
+                 label=st.label or label, author_note=author_note)
 
 
 def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
-            audit_record: AuditRecord | None = None) -> RunBundle:
-    """Return a copy of ``b`` with a ``readout`` block. ``audit`` maps statement id -> (valid, reason)."""
+            audit_record: AuditRecord | None = None, annotations: dict[str, str] | None = None,
+            annotations_record: AnnotationsRecord | None = None) -> RunBundle:
+    """Return a copy of ``b`` with a ``readout`` block. ``audit`` maps statement id -> (valid, reason);
+    ``annotations`` maps statement id -> an author's note for that check (``load_annotations``)."""
+    annotations = annotations or {}
     if not b.discovery:
         raise ValueError("the bundle has no discovery block to read")
     cands = {c.id: c for c in b.confirmation.candidates if c.source == "intended"} if b.confirmation else {}
@@ -191,7 +225,8 @@ def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
                          "authored": "when judged as an authored statement"}[data]
                 excluded.append(ExcludedCheck(id=st.id, text=st.text, reason=f"flag {where}: " + ", ".join(bad)))
                 continue
-            checks.append(_check(use, data, bool(src is not None and src.confirmed)))
+            checks.append(_check(use, data, bool(src is not None and src.confirmed), label=st.label,
+                                 author_note=annotations.get(st.id)))
         reading = part_reading(checks)
         note = NOTES[reading]
         if not checks:
@@ -207,5 +242,5 @@ def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
     out = b.model_copy(deep=True)
     out.schema_version = SCHEMA_VERSION
     out.readout = Readout(created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"), rule=rule(),
-                          audit=audit_record, parts=out_parts)
+                          audit=audit_record, parts=out_parts, annotations=annotations_record)
     return RunBundle.model_validate(out.model_dump())

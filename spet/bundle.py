@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = 8  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
+SCHEMA_VERSION = 9  # 3: optional `discovery` block (spet/discovery.py, docs/discovery.md)
 # 4: question targets and per-target sample counts (meta), per_query_idx, prompt-echo exclusions (all optional)
 # 5: discovery q-values come from two Benjamini-Hochberg families (intended, discovered) instead of one; per-answer
 #    judge verdicts; the attention screen record. All new fields are optional, so v1-v4 bundles still load.
@@ -25,6 +25,9 @@ SCHEMA_VERSION = 8  # 3: optional `discovery` block (spet/discovery.py, docs/dis
 # 8: optional `authored` block: statements written by a reviewer from the instruction text, judged on the run's stored
 #    answers (spet/authored.py); `Statement.source` may be "authored", with `polarity` and `measure`; the readout's
 #    `Check` gains `data: "authored"`, `polarity` and `rate_with_raw`. Optional, so v1-v7 bundles still load.
+# 9: optional short `label` per statement and per readout check (a verb phrase that continues "The model ...", written
+#    by the model that wrote the statement, by an author, or by `spet label`); optional `author_note` per readout check
+#    and the `annotations` record it came from. Optional, so v1-v8 bundles still load.
 
 
 class _Strict(BaseModel):
@@ -186,6 +189,10 @@ class Statement(_Strict):
     polarity: Literal["positive", "reverse"] = "positive"
     # v8, authored statements: decided by an engine metric instead of the judge, e.g. "words <= 60"; None = judged
     measure: str | None = None
+    # v9: a short verb phrase that continues "The model ..." and names the behaviour the part asks for (for a
+    # reverse-coded statement, the compliant behaviour), e.g. "says it cannot open the link". None: no label; a viewer
+    # shows the statement text instead. Never used by any test or reading.
+    label: str | None = None
 
 
 Adherence = Literal["followed", "partly_followed", "redundant", "not_followed", "inconclusive", "not_assessed"]
@@ -335,6 +342,10 @@ class Check(_Strict):
     note: str = ""
     polarity: Literal["positive", "reverse"] = "positive"  # v8
     rate_with_raw: float | None = None  # v8: the share judged yes WITH the part, before any reversal
+    label: str | None = None       # v9: the statement's label (Statement.label), copied when the readout is built
+    # v9: an author's note shown beside this check's example answers, from the run's annotations file
+    # (Readout.annotations); a note, never a measurement
+    author_note: str | None = None
 
 
 class ExcludedCheck(_Strict):
@@ -375,12 +386,21 @@ class AuditRecord(_Strict):
     invalid: list[str] = []
 
 
+class AnnotationsRecord(_Strict):
+    """v9: the annotations file the readout's author notes came from."""
+    file: str
+    sha256: str
+    author: str = ""
+    date: str = ""
+
+
 class Readout(_Strict):
     """v7: two facts per intended statement and one reading per part (spet/readout.py; no model calls)."""
     created_at: str
     rule: ReadoutRule
     audit: AuditRecord | None = None
     parts: list[PartReadout] = []
+    annotations: AnnotationsRecord | None = None  # v9
 
 
 class Authored(_Strict):
@@ -403,7 +423,7 @@ class Authored(_Strict):
 
 
 class RunBundle(_Strict):
-    schema_version: Literal[1, 2, 3, 4, 5, 6, 7, 8] = SCHEMA_VERSION
+    schema_version: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9] = SCHEMA_VERSION
     meta: Meta
     sections: list[Section]
     configs: list[Config]

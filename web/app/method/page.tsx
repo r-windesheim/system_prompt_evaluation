@@ -44,55 +44,67 @@ export default function Method() {
       <h1>How it works</h1>
       <article className="article">
         <p>
-          A system prompt is a list of instructions. SPET takes one part out at a time, asks the model the same questions
-          again, and compares the answers with the part and without it.
+          SPET takes one part of a system prompt out at a time, asks the model the same questions again, and compares the
+          answers. For each part it asks two things: does the model do what the part says, and is the part the reason?
+        </p>
+        <p>
+          Only &ldquo;Yes, because of this part&rdquo; claims a cause. It needs a difference with and without the part that
+          a second test, on new questions, confirms. In this run that is {f.followed.length === 1 ? "one part" : `${word(f.followed.length)} parts`}:{" "}
+          {f.followed.join(", ")}.
         </p>
 
-        <h2>Two questions per part</h2>
+        <h2 id="measured">How this is measured</h2>
         <p>
-          <strong>Does the model do what the part says?</strong> This is how often answers with the whole prompt do it:
-          mostly, sometimes or rarely.
+          The first run asks {num(f.nQ)} questions, {f.perPart} written for each part, and collects {num(f.nA)} answers. A
+          judge reads each answer and says whether a statement about it holds. The share that does, with the part and
+          without it, gives the two numbers for a check.
         </p>
         <p>
-          <strong>Is the part the reason?</strong> Only if answers without the part do it measurably less, and a second
-          test confirms it. A model can do something without being told, so doing it is not proof that the part is why.
-        </p>
-
-        <h2>A first run, then a second test</h2>
-        <p>
-          The first run asks {num(f.nQ)} questions, {f.perPart} written for each of the {f.nParts} parts, and collects{" "}
-          {num(f.nA)} answers. It points to the parts worth testing again.
+          Parts whose difference looks real are tested once more, on {num(f.cQ)} new questions and {num(f.cA)} new
+          answers, with the rule for what counts fixed beforehand.
         </p>
         <p>
-          Those are tested once more, on {num(f.cQ)} new questions and {num(f.cA)} new answers, with the rule for what
-          counts fixed beforehand. Only a difference that shows up again there is called &ldquo;followed&rdquo;. In this run
-          that is {f.followed.length === 1 ? "one part" : `${word(f.followed.length)} parts`}: {f.followed.join(", ")}.
+          p is the chance of a difference at least this large if the part changed nothing. &ldquo;No measurable
+          difference&rdquo; means p was 0.05 or more. Each share also has a range, computed over questions, that says how
+          far it could move with other questions; it is kept in the data.
         </p>
 
-        <h2>Who reads the answers</h2>
+        <h2 id="judge">The judge</h2>
         <p>
-          A judge reads each answer on its own, without knowing which prompt wrote it, and says whether a statement holds,
-          such as &ldquo;the answer says it cannot open the link&rdquo;. The judge is the same small model, {f.model}.
-        </p>
-        <p>
-          The judge also wrote the statements, so a larger model, Claude Opus, reviewed them: {f.rejected} of its{" "}
-          {f.written} were rejected, for joining two claims, for referring to things the judge never sees, or because its
-          verdicts did not hold up in a spot check. For {word(f.authoredParts)} parts, Claude Opus wrote new statements from
-          the part&rsquo;s text alone, without seeing any answers, before the judge used them.
+          The judge is the same small model, {f.model}. It reads one answer at a time, without knowing which prompt wrote
+          it. Its known weakness: it often says no where a statement does not apply to the question. That makes
+          &ldquo;No&rdquo; and &ldquo;with or without this part&rdquo; less certain than &ldquo;Yes, because of this
+          part&rdquo;.
         </p>
 
-        <h2>What it drew on</h2>
+        <h2 id="checks">Why some checks are left out</h2>
         <p>
-          A separate run recorded where the model looked in the prompt while reasoning about each question. It is shown as a
-          hint beside an example. It is not evidence that a part caused anything.
+          The judge also wrote the statements, so a larger model, Claude Opus, reviewed them: {f.rejected} of {f.written}{" "}
+          were rejected, for joining two claims, for referring to things the judge never sees, or because the judge&rsquo;s
+          verdicts did not hold up in a spot check. For {word(f.authoredParts)} parts, Claude Opus wrote new statements
+          from the part&rsquo;s text alone, before any answer was judged with them. Checks the judge was unsteady on are
+          left out too, and checks that measure the same thing share one line.
+        </p>
+        <p>
+          Each check has a short name, written by the judge model from its statement and checked by fixed rules. More
+          detail shows the statement itself.
         </p>
 
-        <h2>Known limits</h2>
+        <h2 id="examples">The example answers</h2>
+        <p>
+          Each part shows one pair of answers, picked by a fixed rule: a typical pair for its first check, or for a
+          confirmed check a pair that shows the difference. It illustrates; it is not the evidence. A pair can show a
+          difference that the checks did not measure.
+        </p>
+
+        <h2 id="drew">What it drew on</h2>
+        <p>
+          A separate run recorded where the model looked in the prompt while reasoning about each question. It is a hint,
+          not evidence that a part caused anything.
+        </p>
+
+        <h2 id="limits">Known limits</h2>
         <ul>
-          <li>
-            The judge often answers no where a statement does not apply to the question. Readings that rest on how often it
-            says yes, such as &ldquo;not followed&rdquo;, are less certain than &ldquo;followed&rdquo;.
-          </li>
           <li>{cap(word(f.oneCheck))} of the {f.nParts} parts rest on a single check.</li>
           <li>The results describe {f.model} on these questions. Claude itself may behave differently.</li>
           <li>Taking out one part at a time misses parts that do the same job together.</li>

@@ -1,7 +1,6 @@
 import "server-only";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { CLAUSES, type ClauseCopy } from "./view-copy";
 import type { Check, PartReadout, Response, RunBundle, Statement } from "./types";
 import {
   cap, firstLine, pct, share, type Answer, type CheckDetail, type DrewRow, type Pair, type PartFile, type PartOverview,
@@ -45,7 +44,6 @@ function statementOf(b: RunBundle, c: Check): Statement | undefined {
 /** The verdict letter means "does what the part asks": a reverse-coded statement says the opposite. */
 const doesWhat = (letter: string, reverse: boolean) => (letter === "y") !== reverse;
 
-const copyOf = (id: string, c: Check): ClauseCopy => CLAUSES[id]?.[c.id] ?? { clause: c.text.replace(/^The answer\s+/i, "").replace(/\.$/, "") };
 
 /** The check that gives the part its example: a confirmed one if any, else the first. */
 const leadOf = (p: PartReadout): Check | undefined => p.checks?.find((c) => c.cause === "confirmed") ?? p.checks?.[0];
@@ -90,8 +88,6 @@ function pickPair(b: RunBundle, c: Check) {
 
 const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
 const answer = (r: Response): Answer => ({ text: r.text, words: words(r.text), cut: r.finish_reason === "length" });
-/** An answer that says it cannot open something, or asks for the text, is a decline, not a made-up answer. */
-const DECLINES = /\b(can(?:no|['’])t|unable|not able|don['’]t have (?:the ability|access)|no (?:way|ability) to|paste)\b/i;
 
 function responses(b: RunBundle, from: "main" | "confirmation") {
   const list = from === "main" ? b.responses : b.confirmation?.responses ?? [];
@@ -101,7 +97,7 @@ function responses(b: RunBundle, from: "main" | "confirmation") {
   return (removed: number | null, q: number, s: number) => m.get(`${name(removed)}|${q}|${s}`);
 }
 
-function pairFor(id: string, b: RunBundle, k: number, c: Check): { pair: Pair; q: number } | null {
+function pairFor(b: RunBundle, k: number, c: Check): { pair: Pair; q: number } | null {
   const pick = pickPair(b, c);
   if (!pick) return null;
   const from = c.data === "confirmation" ? "confirmation" : "main";
@@ -110,79 +106,77 @@ function pairFor(id: string, b: RunBundle, k: number, c: Check): { pair: Pair; q
   const z = get(k, pick.q, pick.s);
   if (!a || !z) return null;
   const question = from === "main" ? b.meta.queries[pick.q] : b.confirmation!.queries[pick.q].text;
-  const copy = copyOf(id, c);
-  let note: Pair["note"] = null;
-  if (copy.unread) {
-    const sides: ["with" | "without", Response, string][] = [["without", z, pick.v[1]], ["with", a, pick.v[0]]];
-    const hit = sides.find(([, r, v]) => !doesWhat(v, pick.reverse) && !DECLINES.test(r.text));
-    if (hit) note = { side: hit[0], text: copy.unread };
-  }
+  // an author's note on the check (the run's annotations file), shown beside the example as a note
+  const note = c.author_note ? c.author_note : null;
   return { pair: { question, from, with: answer(a), without: answer(z), note }, q: pick.q };
 }
 
-// ---- words for a part -----------------------------------------------------------------------------------------
+// ---- words for a part: templates from the reading and the numbers, nothing per run ------------------------------
 
-const DOES: Record<Check["does"], string> = { mostly: "mostly", sometimes: "sometimes", rarely: "rarely", unclear: "unclear" };
+/** What a check is called: the bundle's label, else the statement itself. */
+const labelOf = (c: Check) => cap(c.label?.trim() || c.text.replace(/\.$/, ""));
 
-function line(id: string, c: Check): string {
-  return `${cap(copyOf(id, c).clause)}: ${DOES[c.does]} (${share(c.rate_with)} of the answers with this part, ${share(c.rate_without)} without it).`;
+/** "almost all answers", "about a third of answers", "no answers". */
+function answers(p: number): string {
+  const w = share(p);
+  if (w === "none") return "no answers";
+  if (w === "almost none") return "almost no answers";
+  if (/^(all|almost all|most|a few|about (one|two|three) in)/.test(w)) return `${w} answers`;
+  return `${w} of answers`;
 }
 
-/** Removing the part changed nothing measurable: every check's paired by-question p is at least 0.05. */
-function noMeasurableChange(b: RunBundle, checks: Check[]): boolean | null {
-  const ps = checks.map((c) => statementOf(b, c)?.p);
-  if (!ps.length || ps.some((p) => typeof p !== "number")) return null;
-  return ps.every((p) => (p as number) >= 0.05);
+/** "Says it cannot open the link: almost all answers with it, about two thirds without." */
+function line(c: Check): string {
+  const w = share(c.rate_with);
+  const o = share(c.rate_without);
+  return w === o ? `${labelOf(c)}: ${w}, with or without it.` : `${labelOf(c)}: ${answers(c.rate_with)} with it, ${o} without.`;
 }
 
-function sentence(b: RunBundle, p: PartReadout): string {
-  const checks = p.checks ?? [];
-  const same = noMeasurableChange(b, checks);
-  const removed =
-    same === true
-      ? " Removing the part did not measurably change how often it does this."
-      : same === false
-        ? " Answers without the part differed, but that was not confirmed on new questions."
-        : "";
-  switch (p.reading as Reading) {
-    case "followed": {
-      const nq = checks.find((c) => c.cause === "confirmed")?.n_questions;
-      return `Yes, and this part is the reason: without it, the model does this less often, and a second test on ${nq ? `${nq} ` : ""}new questions confirmed the difference.`;
-    }
-    case "does_it":
-      return same === true
-        ? "Mostly, yes. But removing the part did not measurably change how often it does this, so the part is not shown to be the reason."
-        : `Mostly, yes, but the part is not shown to be the reason.${removed}`;
-    case "not_needed":
-      return `Yes, but it does this anyway: answers without the part do it too.${removed}`;
-    case "partly_followed":
-      return `Partly. It does some of what this part asks, or does it only some of the time.${removed}`;
-    case "not_followed":
-      return `No. Even with this part, the model rarely does this.${removed}`;
-    default:
-      return "Unclear. The checks for this part could not tell either way.";
-  }
-}
-
-const SOURCE: Record<Check["data"], string> = {
-  confirmation: "from the second test, on new questions",
-  screen: "from the main run, on the questions written for this part",
-  authored: "from the main run, with a statement written from the part’s text before any answer was read",
+/** Answers "does the model do what this part says?". Only "followed" (a confirmed check) names the part as the cause. */
+const SENTENCE: Record<Reading, string> = {
+  followed: "Yes, because of this part.",
+  does_it: "Mostly, but not clearly because of this part.",
+  not_needed: "Yes, with or without this part.",
+  partly_followed: "Partly.",
+  not_followed: "No.",
+  unclear: "Could not be checked.",
 };
+
 const fmtP = (p: number) => (p < 0.001 ? "below 0.001" : p < 0.01 ? p.toFixed(3) : p.toFixed(2));
 
-function checkDetail(id: string, b: RunBundle, c: Check): CheckDetail {
-  const s = statementOf(b, c);
-  const notes = [`${c.n_questions} questions, ${c.n_answers} answers on each side, ${SOURCE[c.data]}.`];
-  if (c.rate_with_ci) notes.push(`With this part, by question: ${pct(c.rate_with_ci[0])} to ${pct(c.rate_with_ci[1])}.`);
-  if (typeof s?.p === "number")
-    notes.push(`Difference with and without, tested by question: p = ${fmtP(s.p)}${c.cause === "confirmed" ? ", confirmed" : ""}.`);
-  if (s?.measure) notes.push("Counted by word count, not by the judge.");
-  if (c.polarity === "reverse") notes.push("The part asks for the opposite of this statement, so an answer counts where the judge said no.");
-  if ((c.flags ?? []).includes("rejudge_one_class"))
-    notes.push("The judge gave the same verdict to every answer it read twice, so whether it could say the opposite was not tested.");
-  if ((c.flags ?? []).includes("too_few_questions")) notes.push("Few of the questions applied.");
-  return { id: c.id, statement: c.text, line: line(id, c), withPct: pct(c.rate_with), withoutPct: pct(c.rate_without), notes, shown: true };
+/**
+ * A row of "More detail": the statement as the judge read it, and the share of answers where it holds, with and
+ * without the part. For a reverse-coded statement (the part asks for the opposite) that is the raw share judged yes,
+ * so the row reads true to its statement, and the row says it is the opposite.
+ */
+function checkDetail(c: Check): CheckDetail {
+  const rev = c.polarity === "reverse";
+  const w = rev ? 1 - c.rate_with : c.rate_with;
+  const o = rev ? 1 - c.rate_without : c.rate_without;
+  return { id: c.id, statement: c.text, line: line(c), withPct: pct(w), withoutPct: pct(o), opposite: rev, shown: true };
+}
+
+/**
+ * One short line per distinct basis of a part's checks (run, questions, answers per side): the size, then whether
+ * the difference with and without the part was confirmed on new questions.
+ */
+function basis(b: RunBundle, checks: Check[]): string[] {
+  const groups = new Map<string, Check[]>();
+  for (const c of checks) {
+    const key = `${c.data === "confirmation" ? "c" : "m"}|${c.n_questions}|${c.n_answers}`;
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  return [...groups.values()].map((g) => {
+    const size = `${g[0].n_questions} questions, ${g[0].n_answers} answers per side.`;
+    const conf = g.find((c) => c.cause === "confirmed");
+    if (conf) {
+      const p = statementOf(b, conf)?.p;
+      return `${size} Confirmed on new questions${typeof p === "number" ? `, p = ${fmtP(p)}` : ""}.`;
+    }
+    const ps = g.map((c) => statementOf(b, c)?.p);
+    if (ps.every((p) => typeof p === "number" && p >= 0.05)) return `${size} No measurable difference.`;
+    return `${size} A difference, not confirmed on new questions.`;
+  });
 }
 
 /** Per answer (question, sample, arm), whether it does what the part asks; only readable verdicts. */
@@ -216,14 +210,13 @@ const FOLD_MIN_CLASS = 3;
  * Every check of a part, in order. A check that measures the same thing as an earlier one (their per-answer verdicts
  * agree on at least 95% of the answers both were judged on, and the earlier check has at least three answers of each
  * verdict, so a check that is always or never met never folds) gets no line of its own under the sentence; "More
- * detail" still lists it and says which statement it agreed with.
+ * detail" still lists it in its table.
  */
-function checkDetails(id: string, b: RunBundle, checks: Check[]): CheckDetail[] {
-  const ORD = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"];
+function checkDetails(b: RunBundle, checks: Check[]): CheckDetail[] {
   const maps = checks.map((c) => doesMap(b, c));
   const leads: number[] = [];
   return checks.map((c, i) => {
-    const d = checkDetail(id, b, c);
+    const d = checkDetail(c);
     const lead = leads.find((j) => {
       const vals = [...maps[j].values()];
       const yes = vals.filter(Boolean).length;
@@ -232,47 +225,12 @@ function checkDetails(id: string, b: RunBundle, checks: Check[]): CheckDetail[] 
       return ag.n > 0 && ag.share >= FOLD_AGREE;
     });
     if (lead === undefined) leads.push(i);
-    else {
-      const ag = agreement(maps[lead], maps[i]);
-      d.shown = false;
-      d.notes.push(
-        `This check and the ${ORD[lead] ?? `number ${lead + 1}`} statement in this table agreed on ${ag.share === 1 ? "every" : "nearly every"} answer (${pct(ag.share)} of ${ag.n}), so they share one line under the sentence.`,
-      );
-    }
+    else d.shown = false;
     return d;
   });
 }
 
-function deep(b: RunBundle, p: PartReadout): string[] {
-  const checks = p.checks ?? [];
-  const out: string[] = [];
-  const judged = checks.filter((c) => !statementOf(b, c)?.measure);
-  if (judged.length)
-    out.push(
-      `A judge, the same small model (${String(b.meta.settings?.judge_model ?? b.meta.model).split("/").pop()}), read each answer on its own, without knowing which prompt wrote it, and said whether each statement holds. ` +
-        "It often answers no where a statement does not apply to the question.",
-    );
-  else if (checks.length) out.push("These checks are word counts, so no judge was involved.");
-  const conf = checks.find((c) => c.cause === "confirmed");
-  if (conf)
-    out.push(`The difference was seen in the main run first, then tested again on ${conf.n_questions} new questions whose answers the first run never saw.`);
-  if (p.reading === "not_followed" || p.reading === "not_needed")
-    out.push("This reading rests on how often the judge says yes, not on a difference between the two sides, so it is less certain than “followed”.");
-  if (checks.length === 1) out.push("The reading rests on one check.");
-  const n = p.excluded?.length ?? 0;
-  if (n)
-    out.push(
-      `${cap(n === 1 ? "one other statement" : `${n} other statements`)} written for this part ${n === 1 ? "was" : "were"} left out: a review found ${n === 1 ? "it" : "them"} not matching the part, or the judge unsteady on ${n === 1 ? "it" : "them"}.`,
-    );
-  return out;
-}
-
 // ---- the overview and one part's file ---------------------------------------------------------------------------
-
-export const LEDES: Record<string, string> = {
-  "sonnet35-july2024":
-    "The system prompt Anthropic published for Claude 3.5 Sonnet in July 2024, tested on a different, small open model, gpt-oss-20b. Each button says whether the model does what that part asks.",
-};
 
 const partOf = (b: RunBundle, k: number): PartReadout =>
   b.readout?.parts?.find((p) => p.section === k) ?? { section: k, reading: "unclear", adherence: "not_assessed", adherence_basis: "screen" };
@@ -286,7 +244,7 @@ export function buildView(id: string): RunView {
     id,
     title: b.meta.title,
     model: b.meta.model,
-    lede: LEDES[id] ?? `${b.meta.title}. Each button says whether the model does what that part asks.`,
+    lede: `${b.meta.title}. Each button says whether the model does what that part of the prompt asks.`,
     size:
       `${n(b.responses.length)} answers to ${n(b.meta.queries.length)} questions` +
       (nConf ? `, and ${n(nConf)} more to ${n(nConfQ)} new questions in a second test.` : "."),
@@ -309,8 +267,8 @@ function sideOf(b: RunBundle, k: number, ids: string[]): PartFile["side"] {
   const cand = b.confirmation?.candidates?.find((c) => c.id === sid && c.confirmed);
   const st: Statement | undefined = cand ?? b.discovery?.statements?.find((s) => s.id === sid);
   if (!st) return null;
-  const clause = st.text.replace(/^The answer\s+/i, "").replace(/\.$/, "");
-  const sentence = `On questions about other things, it ${clause} in ${share(st.full_rate)} of the answers, against ${share(st.ablated_rate)} without this part.`;
+  const name = cap(st.label?.trim() || st.text.replace(/\.$/, ""));
+  const sentence = `${name}, on other questions: ${answers(st.full_rate)} with it, ${share(st.ablated_rate)} without.`;
   const from = cand ? "confirmation" : "main";
   const v = (st.verdicts ?? []).find(([, , x]) => x === "yn") ?? (st.verdicts ?? []).find(([, , x]) => /^[yn][yn]$/.test(x));
   const get = responses(b, from);
@@ -324,7 +282,8 @@ export function buildPart(id: string, k: number): PartFile {
   const b = bundle(id);
   const p = partOf(b, k);
   const lead = leadOf(p);
-  const ex = lead ? pairFor(id, b, k, lead) : null;
+  const checks = checkDetails(b, p.checks ?? []);
+  const ex = lead ? pairFor(b, k, lead) : null;
   let drew: PartFile["drew"] = null;
   const lift = ex && ex.pair.from === "main" ? screen(id)?.lift[String(ex.q)] : undefined;
   if (ex && lift) {
@@ -343,9 +302,10 @@ export function buildPart(id: string, k: number): PartFile {
   }
   return {
     k,
-    sentence: sentence(b, p),
-    checks: checkDetails(id, b, p.checks ?? []),
-    deep: deep(b, p),
+    sentence: SENTENCE[p.reading as Reading] ?? SENTENCE.unclear,
+    checks,
+    basis: basis(b, p.checks ?? []),
+    hidden: p.excluded?.length ?? 0,
     example: ex?.pair ?? null,
     drew,
     side: sideOf(b, k, p.side_effects ?? []),

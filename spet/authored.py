@@ -47,6 +47,7 @@ class Item:
     polarity: str = "positive"
     measure: dict | None = None      # {"metric": "words", "max": 60} or {"metric": "words", "min": 150}
     queries: list[int] | None = None  # None: the part's targeted questions (all questions if it has none)
+    label: str | None = None          # v9: optional; must follow the label rules (prompts.label_problem)
 
 
 @dataclass
@@ -69,7 +70,8 @@ def holds(m: dict, text: str) -> bool:
 
 def load(path: str | Path, b: RunBundle) -> AuthoredSpec:
     """Read and check a statement file: ``reviewer``, ``date`` and ``statements: [{id, section, text, polarity,
-    measure?, queries?}]``. ``section`` is a label or a 0-based id of a part the run removed."""
+    measure?, queries?, label?}]``. A ``label`` names the behaviour the part asks for (for a reverse statement, the
+    compliant one) and must follow the label rules. ``section`` is a label or a 0-based id of a part the run removed."""
     path = Path(path)
     data = path.read_bytes()
     raw = yaml.safe_load(data) or {}
@@ -108,7 +110,14 @@ def load(path: str | Path, b: RunBundle) -> AuthoredSpec:
             if not isinstance(qs, list) or not qs or not set(qs) <= mine or len(set(qs)) != len(qs):
                 raise ValueError(f"{where}: queries must be distinct questions the part is checked on")
             qs = sorted(qs)
-        items.append(Item(id=sid, section=k, text=str(r["text"]).strip(), polarity=pol, measure=m, queries=qs))
+        label = r.get("label")
+        if label is not None:
+            label = prompts.clean_label(str(label))
+            why = prompts.label_problem(label)
+            if why:
+                raise ValueError(f"{where}: label {label!r} {why}")
+        items.append(Item(id=sid, section=k, text=str(r["text"]).strip(), polarity=pol, measure=m, queries=qs,
+                          label=label))
     return AuthoredSpec(file=path.name, sha256=hashlib.sha256(data).hexdigest(), reviewer=str(raw.get("reviewer", "")),
                         date=str(raw.get("date", "")), items=items)
 
@@ -267,7 +276,7 @@ async def judge_authored(b: RunBundle, spec: AuthoredSpec, judge, opts: Discover
                       for q, s, wy in lead[:opts.n_examples]],
             family=None, polarity=it.polarity, measure=measure_text(it.measure) if it.measure else None,
             verdicts=[(q, s, _LETTER[verdict[(i, "full", q, s)]] + _LETTER[verdict[(i, wo, q, s)]]) for q, s in cells],
-            rejudged=rj_store.get(i, [])))
+            rejudged=rj_store.get(i, []), label=it.label))
 
     warnings = []
     if n_unp:
@@ -285,7 +294,7 @@ async def judge_authored(b: RunBundle, spec: AuthoredSpec, judge, opts: Discover
         "judge_model": getattr(judge, "model", None), "judge_provider": getattr(judge, "name", None),
         "judge_endpoint_host": js.get("endpoint_host"), "judge_max_tokens": js.get("max_tokens"),
         "judge_reasoning_effort": js.get("reasoning_effort"), "judge_temperature": 0.0,
-        "discovery_prompts_version": prompts.version(), "rejudge_per_class": opts.rejudge_per_class,
+        "discovery_prompts_version": prompts.version(), "judge_prompts_version": prompts.judge_version(), "rejudge_per_class": opts.rejudge_per_class,
         "min_agreement": opts.min_agreement, "min_kappa": opts.min_kappa, "min_pairs": opts.min_pairs,
         "echo_ngram": opts.echo_ngram, "echo_share": opts.echo_share, "rejudge_seed": seed,
         "test_rng_seed": seed + 11, "detector_version": detectors.detector_version(),

@@ -18,13 +18,14 @@ export type CheckDetail = {
   id: string;
   /** the statement the judge read, verbatim */
   statement: string;
-  /** "Says it cannot open the link and asks for the text: mostly (almost all of the answers with this part, ...)." */
+  /** "{Label}: {share} with it, {share} without.", from the bundle's label (else the statement) and the numbers */
   line: string;
+  /** share of answers where the statement, as the judge read it, holds */
   withPct: string;
   withoutPct: string;
-  /** small print under the statement in "More detail" */
-  notes: string[];
-  /** false: same numbers as an earlier check of the part, so its line is folded into that one under the sentence */
+  /** the part asks for the opposite of this statement (reverse-coded) */
+  opposite: boolean;
+  /** false: the same measurement as an earlier check of the part, so its line is folded into that one */
   shown: boolean;
 };
 
@@ -56,8 +57,8 @@ export type Pair = {
   from: "main" | "confirmation";
   with: Answer;
   without: Answer;
-  /** a plain note beside one answer, e.g. that it describes a page the model never read */
-  note: { side: "with" | "without"; text: string } | null;
+  /** an author's note on the check (the run's annotations), shown beside the pair as a note */
+  note: string | null;
 };
 
 export type DrewRow = { k: number; label: string; first: string; lift: number; tint: 1 | 2 | 3 };
@@ -68,8 +69,10 @@ export type PartFile = {
   sentence: string;
   /** one line per check under the sentence, and its numbers under "More detail" */
   checks: CheckDetail[];
-  /** paragraphs under the table in "More detail" */
-  deep: string[];
+  /** "More detail": one short line per distinct basis ("13 questions, 78 answers per side. Confirmed ...") */
+  basis: string[];
+  /** checks of the part left out of the reading (audit, judge flags), so not in the table */
+  hidden: number;
   example: Pair | null;
   /** null: the example's question is not in the attention screen, so "What it drew on" is hidden */
   drew: { question: string; rows: DrewRow[]; stoodOut: boolean } | null;

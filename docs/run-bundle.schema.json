@@ -32,6 +32,36 @@
       "title": "Analysis",
       "type": "object"
     },
+    "AnnotationsRecord": {
+      "additionalProperties": false,
+      "description": "v9: the annotations file the readout's author notes came from.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "author": {
+          "default": "",
+          "title": "Author",
+          "type": "string"
+        },
+        "date": {
+          "default": "",
+          "title": "Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "sha256"
+      ],
+      "title": "AnnotationsRecord",
+      "type": "object"
+    },
     "AuditRecord": {
       "additionalProperties": false,
       "description": "v7: the human or AI audit of the intended statements that the readout honoured.",
@@ -505,6 +535,18 @@
           "default": null,
           "title": "Measure"
         },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
         "screen_p": {
           "maximum": 1,
           "minimum": 0,
@@ -674,6 +716,30 @@
           ],
           "default": null,
           "title": "Rate With Raw"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "author_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Note"
         }
       },
       "required": [
@@ -1712,6 +1778,17 @@
           },
           "title": "Parts",
           "type": "array"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnotationsRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -2303,6 +2380,18 @@
           ],
           "default": null,
           "title": "Measure"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
         }
       },
       "required": [
@@ -2327,7 +2416,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": 8,
+      "default": 9,
       "enum": [
         1,
         2,
@@ -2336,7 +2425,8 @@
         5,
         6,
         7,
-        8
+        8,
+        9
       ],
       "title": "Schema Version",
       "type": "integer"

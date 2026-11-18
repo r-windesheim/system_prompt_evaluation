@@ -8,6 +8,7 @@ ground-truth attribution is known exactly.
 from __future__ import annotations
 
 import random
+import re
 import zlib
 
 FILLER = (
@@ -150,7 +151,8 @@ def _feature(statement: str) -> str | None:
 def _is_judge_prompt(system: str) -> bool:
     from . import prompts as P
     return any(system.startswith(t.split("\n")[0]) for t in
-               (P.INTENDED_SYSTEM, P.PROPOSE_SYSTEM, P.JUDGE_SYSTEM, P.JUDGE_ALT_SYSTEM, P.CLASSIFY_SYSTEM))
+               (P.INTENDED_SYSTEM, P.PROPOSE_SYSTEM, P.JUDGE_SYSTEM, P.JUDGE_ALT_SYSTEM, P.CLASSIFY_SYSTEM,
+                P.LABEL_SYSTEM))
 
 
 def _between(text: str, start: str, end: str) -> str:
@@ -178,6 +180,12 @@ def judge_respond(system: str, user: str, seed: int) -> str:
         lines += ["The answer mentions a pricing plan.", "The answer reminds the user to make a backup copy.",
                   "Answer A is longer than answer B."]
         return "Here are the differences:\n" + "\n".join(f"- {s}" for s in lines)
+    if first == P.LABEL_SYSTEM.split("\n")[0]:
+        # the statement's own words after "The answer", cut to the word limit; a conditional statement ("If ...")
+        # gives a label that breaks the rules, so the fallback path is exercised too
+        statement = _between(user, "Check: ", "\n").strip().rstrip(".")
+        words = re.sub(r"^the answer\s+", "", statement, flags=re.I).split()
+        return " ".join(words[:P.LABEL_MAX_WORDS])
     if first == P.CLASSIFY_SYSTEM.split("\n")[0]:
         instr = _between(user, "Instruction:\n", "\n\nObserved change").lower()
         statement = user.rsplit("\n", 1)[-1]

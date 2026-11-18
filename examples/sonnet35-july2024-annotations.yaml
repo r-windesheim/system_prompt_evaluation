@@ -1,0 +1,7 @@
+# Author's notes on checks of the July 2024 example (spet readout --annotations). A note is shown beside the check's
+# example answers, marked as a note. It is never a measurement and never enters a test or a reading.
+author: Richard Windesheim
+date: '2026-11-18'
+notes:
+  # gpt-oss-20b on vLLM has no browsing tool, so an answer that summarises a linked page did not read it
+  p1.i1: The model cannot open links, so this summary is made up.

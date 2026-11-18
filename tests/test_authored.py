@@ -80,7 +80,7 @@ def test_judged_like_discovery_but_outside_its_families(screen, tmp_path):
     assert s1.verified_on == CODE_QS and s1.n_pairs == ref.n_pairs and s1.n_rejudged > 0
     # estimates only: no family, no significance, q fixed at 1, p kept for information
     assert all(s.source == "authored" and s.family is None and not s.significant and s.q == 1.0 for s in a.statements)
-    assert 0 <= s1.p <= 1 and out.discovery == screen.discovery and out.schema_version == B.SCHEMA_VERSION == 8
+    assert 0 <= s1.p <= 1 and out.discovery == screen.discovery and out.schema_version == B.SCHEMA_VERSION == 9
     assert C.select(out) == C.select(screen)  # never a confirmation candidate
     assert a.settings["judge_model"] == "stub-judge" and a.sha256 == A.load(_file(tmp_path), screen).sha256
     assert a.calls["judge"] == 2 * (s1.n_pairs + st["p3.a0"].n_pairs) and a.calls["rejudge"] <= 40
