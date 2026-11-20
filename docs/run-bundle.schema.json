@@ -34,7 +34,7 @@
     },
     "AnnotationsRecord": {
       "additionalProperties": false,
-      "description": "v9: the annotations file the readout's author notes came from.",
+      "description": "v9: the annotations file the readout's author notes, label overrides and run description came from.",
       "properties": {
         "file": {
           "title": "File",
@@ -53,6 +53,26 @@
           "default": "",
           "title": "Date",
           "type": "string"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Labels",
+          "type": "object"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
         }
       },
       "required": [
@@ -740,6 +760,19 @@
           ],
           "default": null,
           "title": "Author Note"
+        },
+        "label_source": {
+          "anyOf": [
+            {
+              "const": "author",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label Source"
         }
       },
       "required": [

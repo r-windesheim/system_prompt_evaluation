@@ -40,6 +40,7 @@ import yaml
 from .bundle import (SCHEMA_VERSION, AnnotationsRecord, AuditRecord, Check, ExcludedCheck, PartReadout, Readout,
                      ReadoutRule, RunBundle, Statement)
 from .discovery import DiscoveryOptions
+from .prompts import label_problem
 
 MOSTLY = DiscoveryOptions().redundant_rate  # 0.8: the engine's existing "the behaviour is there" rate
 RARELY = 0.2
@@ -140,20 +141,26 @@ def load_audit(path: str | Path, b: RunBundle) -> tuple[dict[str, tuple[bool, st
 # ---- annotations: an author's notes on checks (v9) ------------------------------------------------------------
 
 NOTE_MAX_CHARS = 200
+DESCRIPTION_MAX_CHARS = 300
 
 
 def load_annotations(path: str | Path, b: RunBundle) -> tuple[dict[str, str], AnnotationsRecord]:
-    """Read an annotations YAML: ``author``, ``date`` and ``notes: {statement id: note}``. A note is shown beside a
-    check's example answers, marked as a note; it is never a measurement. Every id must be a statement of the bundle."""
+    """Read an annotations YAML: ``author``, ``date``, ``notes: {statement id: note}``, ``labels: {statement id:
+    label}`` and ``description``. A note is shown beside a check's example answers, marked as a note; it is never a
+    measurement. A label replaces the generated one on that check (``Check.label_source`` "author") and follows the
+    same rules (``prompts.label_problem``). The description is one line on what the run is, shown under the headline.
+    Every id must be a statement of the bundle. Labels and description are kept in the returned record."""
     path = Path(path)
     data = path.read_bytes()
     raw = yaml.safe_load(data) or {}
     notes = raw.get("notes") or {}
-    if not isinstance(notes, dict):
-        raise ValueError(f"{path.name}: `notes` must map statement ids to text")
+    labels = raw.get("labels") or {}
+    for key, m in (("notes", notes), ("labels", labels)):
+        if not isinstance(m, dict):
+            raise ValueError(f"{path.name}: `{key}` must map statement ids to text")
     known = {s.id for s in b.discovery.statements} if b.discovery else set()
     known |= {s.id for s in b.authored.statements} if b.authored else set()
-    unknown = set(notes) - known
+    unknown = (set(notes) | set(labels)) - known
     if unknown:
         raise ValueError(f"{path.name}: not statements of this bundle: {', '.join(sorted(unknown))}")
     out = {}
@@ -162,8 +169,20 @@ def load_annotations(path: str | Path, b: RunBundle) -> tuple[dict[str, str], An
         if not t or len(t) > NOTE_MAX_CHARS:
             raise ValueError(f"{path.name}: the note for {sid} must be 1 to {NOTE_MAX_CHARS} characters")
         out[sid] = t
+    lab = {}
+    for sid, text in labels.items():
+        t = " ".join(str(text or "").split())
+        why = label_problem(t)
+        if why:
+            raise ValueError(f"{path.name}: the label for {sid} breaks the label rules: {why}")
+        lab[sid] = t
+    desc = raw.get("description")
+    if desc is not None:
+        desc = " ".join(str(desc).split())
+        if not desc or len(desc) > DESCRIPTION_MAX_CHARS:
+            raise ValueError(f"{path.name}: the description must be 1 to {DESCRIPTION_MAX_CHARS} characters")
     rec = AnnotationsRecord(file=path.name, sha256=hashlib.sha256(data).hexdigest(), author=str(raw.get("author", "")),
-                            date=str(raw.get("date", "")))
+                            date=str(raw.get("date", "")), labels=lab, description=desc)
     return out, rec
 
 
@@ -199,8 +218,10 @@ def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
             audit_record: AuditRecord | None = None, annotations: dict[str, str] | None = None,
             annotations_record: AnnotationsRecord | None = None) -> RunBundle:
     """Return a copy of ``b`` with a ``readout`` block. ``audit`` maps statement id -> (valid, reason);
-    ``annotations`` maps statement id -> an author's note for that check (``load_annotations``)."""
+    ``annotations`` maps statement id -> an author's note for that check (``load_annotations``); the labels in
+    ``annotations_record`` replace the generated ones on their checks."""
     annotations = annotations or {}
+    author_labels = annotations_record.labels if annotations_record else {}
     if not b.discovery:
         raise ValueError("the bundle has no discovery block to read")
     cands = {c.id: c for c in b.confirmation.candidates if c.source == "intended"} if b.confirmation else {}
@@ -225,8 +246,11 @@ def readout(b: RunBundle, audit: dict[str, tuple[bool, str]] | None = None,
                          "authored": "when judged as an authored statement"}[data]
                 excluded.append(ExcludedCheck(id=st.id, text=st.text, reason=f"flag {where}: " + ", ".join(bad)))
                 continue
-            checks.append(_check(use, data, bool(src is not None and src.confirmed), label=st.label,
-                                 author_note=annotations.get(st.id)))
+            c = _check(use, data, bool(src is not None and src.confirmed), label=st.label,
+                       author_note=annotations.get(st.id))
+            if st.id in author_labels:  # last, so it wins over the statement's and the candidate's label
+                c.label, c.label_source = author_labels[st.id], "author"
+            checks.append(c)
         reading = part_reading(checks)
         note = NOTES[reading]
         if not checks:

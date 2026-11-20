@@ -272,6 +272,8 @@ export type Check = {
   label?: string | null;
   /** v9: an author's note shown beside this check's example, from the run's annotations file */
   author_note?: string | null;
+  /** v9: null = `label` is the statement's (generated); "author" = an override from the run's annotations file */
+  label_source?: "author" | null;
 };
 
 /** v7: an intended statement left out of the reading; reason starts "audit: " or "flag in the ... run: ". */
@@ -308,8 +310,17 @@ export type AuditRecord = {
 };
 
 /** v7: two facts per intended statement and one reading per part (no model calls). */
-/** v9: the annotations file the author notes came from. */
-export type AnnotationsRecord = { file: string; sha256: string; author?: string; date?: string };
+/** v9: the annotations file the author notes, label overrides and run description came from. */
+export type AnnotationsRecord = {
+  file: string;
+  sha256: string;
+  author?: string;
+  date?: string;
+  /** statement id -> the author's label, which replaces the generated one on its check */
+  labels?: Record<string, string>;
+  /** one sentence on what the run is, shown under the headline in place of the title */
+  description?: string | null;
+};
 
 export type Readout = {
   created_at: string;

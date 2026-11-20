@@ -2,7 +2,7 @@
 // (nothing is written to public/runs). Usage: node scripts/edge-cases.mjs <outDir> [baseUrl]
 //   v1        schema v1: no kind/tested/flags/per_query/ci_query/mde/notes/analysis, renamed config ids
 //   nofind    nothing significant anywhere
-//   negative  parts that reduce a habit ("cuts …")
+//   negative  parts that reduce a habit ("Fewer questions", "Less sympathy")
 //   big       12 parts, one of them several paragraphs long, 2 questions, 3 samples
 import { chromium } from "playwright";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -87,7 +87,7 @@ for (const [id, bundle] of Object.entries(variants)) {
     const overlap = boxes.some((b, i) => i > 0 && b[0] < boxes[i - 1][1] - 1);
     check(!overlap, `${id} ${w}: margin notes do not overlap`);
     if (id === "edge-nofind") check((await page.locator(".says.found").count()) === 0, `${id} ${w}: nothing is stated as a finding`);
-    if (id === "edge-negative") check((await page.getByText("cuts", { exact: false }).count()) > 0, `${id} ${w}: a reduction reads "cuts …"`);
+    if (id === "edge-negative") check((await page.getByText(/\b(fewer|less)\b/i).count()) > 0, `${id} ${w}: a reduction reads "Fewer …" or "Less …"`);
     await page.screenshot({ path: `${out}/${id}-${w}.png`, fullPage: true });
     // every part opens, including ones with nothing to show
     for (let i = 1; i <= n; i++) {

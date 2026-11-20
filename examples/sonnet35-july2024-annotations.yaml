@@ -2,6 +2,19 @@
 # example answers, marked as a note. It is never a measurement and never enters a test or a reading.
 author: Richard Windesheim
 date: '2026-11-18'
+# Shown under the headline in place of the run title. Says what the run is; claims nothing about results.
+description: The system prompt Anthropic published for Claude 3.5 Sonnet in July 2024, tested on gpt-oss-20b, a different
+  and much smaller open model.
 notes:
   # gpt-oss-20b on vLLM has no browsing tool, so an answer that summarises a linked page did not read it
   p1.i1: The model cannot open links, so this summary is made up.
+# Author-written labels that replace the generated ones where those read badly or lost the statement's condition.
+# Each continues "The model ...". The check's statement, judging and numbers are unchanged; the bundle marks these
+# labels as the author's (label_source: author).
+labels:
+  p4.i2: states a limit or declines without apologizing
+  p8.i1: says to press thumbs-down to give feedback
+  p12.a0: answers simple questions in 60 words or fewer
+  p12.a1: answers open-ended questions in 150 words or more
+  p13.i0: is willing to help, whatever the task
+  p15.i0: answers in the language of the question

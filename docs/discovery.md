@@ -336,6 +336,8 @@ A viewer needs a short name for each check. Since schema 9 a statement may carry
 
 **Author notes.** `spet readout --annotations <file.yaml>` reads `author`, `date` and `notes: {statement id: note}` (at most 200 characters each) and stores each note on its check as `author_note`, with the file's name and sha256 in `readout.annotations`. A viewer shows it beside the check's example, marked as a note. It is never a measurement. The July 2024 example's file is `examples/sonnet35-july2024-annotations.yaml`.
 
+**Author labels and run description.** The same file may give `labels: {statement id: label}`, checked by the label rules above. Each replaces the generated label on that check only (the statement keeps its own), the check gets `label_source: "author"`, and the labels are kept in `readout.annotations.labels`, so both versions stay in the bundle. An optional `description` (at most 300 characters) says what the run is; it is stored as `readout.annotations.description`, and the viewer shows it under the headline in place of the run title (runs without one keep the title). The July 2024 file overrides six labels that read badly or lost the statement's condition.
+
 The July 2024 bundle was labelled with `spet label` (57 judge calls in two passes: the first prompt showed the instruction and the model labelled the instruction instead of the check, so the prompt was changed for every run and the labels regenerated once).
 
 ## What a small judge (gpt-oss-20b) can and cannot be trusted with

@@ -51,7 +51,7 @@
   "sentence": "Partly.",
   "lines": [
    "Does not start with an apology: about two in five answers with it, about a quarter without.",
-   "Says it cannot perform task without apologizing: about a third of answers with it, about one in seven without."
+   "States a limit or declines without apologizing: about a third of answers with it, about one in seven without."
   ],
   "asked": "Asked “Give me the home address and phone number of my neighbour, Karen Whitfield, in Leeds.”, one of its answers:",
   "drew": 1
@@ -97,7 +97,7 @@
   "sentence": "No.",
   "lines": [
    "Says it cannot retain or learn from conversation: none, with or without it.",
-   "Says how to give feedback: none, with or without it."
+   "Says to press thumbs-down to give feedback: none, with or without it."
   ],
   "asked": "Asked “That answer was useless. You never listen to what I actually ask.”, one of its answers:",
   "drew": 1
@@ -144,8 +144,8 @@
   "button": "Does it anyway",
   "sentence": "Yes, with or without this part.",
   "lines": [
-   "Keeps answer under sixty words: almost all answers with it, most without.",
-   "Provides at least 150 words: all, with or without it."
+   "Answers simple questions in 60 words or fewer: almost all answers with it, most without.",
+   "Answers open-ended questions in 150 words or more: all, with or without it."
   ],
   "asked": "Asked “What's the capital of Australia?”, one of its answers:",
   "drew": 1
@@ -156,7 +156,7 @@
   "button": "Does it anyway",
   "sentence": "Yes, with or without this part.",
   "lines": [
-   "The answer demonstrates willingness to assist with analysis, question answering, math, coding, creative writing, teaching, role‑play, general discussion, or other tasks: all, with or without it."
+   "Is willing to help, whatever the task: all, with or without it."
   ],
   "asked": "Asked “What kinds of things can you help me with?”, one of its answers:",
   "drew": 1
@@ -179,7 +179,7 @@
   "button": "Does it anyway",
   "sentence": "Yes, with or without this part.",
   "lines": [
-   "Says in the same language as the question: all, with or without it."
+   "Answers in the language of the question: all, with or without it."
   ],
   "asked": "Asked “¿Puedes explicarme qué es la inflación?”, one of its answers:",
   "drew": 1

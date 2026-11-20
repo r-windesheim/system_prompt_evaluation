@@ -114,6 +114,66 @@ def test_annotations_and_cli(tmp_path):
         main(["readout", str(lab), "-o", str(dst), "--annotations", str(notes)])
 
 
+def test_annotations_labels_and_description(tmp_path):
+    _, d = _trun()
+    src, dst, notes = tmp_path / "b.json", tmp_path / "o.json", tmp_path / "n.yaml"
+    b = R.readout(d)
+    B.dump(b, src)
+    ids = [c.id for p in b.readout.parts for c in p.checks]
+    sid = ids[0]
+    desc = "A  prompt tested on a stand-in model."
+    notes.write_text(yaml.safe_dump({"author": "a", "description": desc,
+                                     "labels": {sid: "  says   what the author wrote"}}))
+    assert main(["readout", str(src), "-o", str(dst), "--annotations", str(notes)]) == 0
+    out = B.load(dst)
+    checks = {c.id: c for p in out.readout.parts for c in p.checks}
+    assert checks[sid].label == "says what the author wrote" and checks[sid].label_source == "author"
+    assert all(c.label_source is None for k, c in checks.items() if k != sid)
+    assert all(c.author_note is None for c in checks.values())
+    rec = out.readout.annotations
+    assert rec.labels == {sid: "says what the author wrote"}
+    assert rec.description == "A prompt tested on a stand-in model."
+    # the statement keeps its own label; only the check shows the author's
+    st = {s.id: s for s in out.discovery.statements}
+    assert st[sid].label == {s.id: s for s in b.discovery.statements}[sid].label
+    # the rest of the readout is the same as without annotations
+    plain = {c.id: c for p in b.readout.parts for c in p.checks}
+    for k, c in checks.items():
+        assert (c.rate_with, c.does, c.cause, c.text) == (plain[k].rate_with, plain[k].does, plain[k].cause, plain[k].text)
+        if k != sid:
+            assert c.label == plain[k].label
+
+
+@pytest.mark.parametrize("raw, match", [
+    ({"labels": {"p9.i9": "says x"}}, "not statements of this bundle"),
+    ({"labels": {"SID": "the answer is short"}}, "breaks the label rules"),
+    ({"labels": {"SID": "says one two three four five six seven eight"}}, "breaks the label rules"),
+    ({"labels": ["says x"]}, "`labels` must map"),
+    ({"description": "   "}, "description must be"),
+    ({"description": "x" * 301}, "description must be"),
+])
+def test_annotations_rejects(tmp_path, raw, match):
+    _, d = _trun()
+    b = R.readout(d)
+    sid = next(c.id for p in b.readout.parts for c in p.checks)
+    raw = json.loads(json.dumps(raw).replace("SID", sid))
+    f = tmp_path / "n.yaml"
+    f.write_text(yaml.safe_dump(raw))
+    with pytest.raises(ValueError, match=match):
+        R.load_annotations(f, b)
+
+
+def test_annotations_without_labels_or_description(tmp_path):
+    _, d = _trun()
+    b = R.readout(d)
+    f = tmp_path / "n.yaml"
+    f.write_text(yaml.safe_dump({"author": "a"}))
+    notes, rec = R.load_annotations(f, b)
+    assert notes == {} and rec.labels == {} and rec.description is None
+    out = R.readout(b, annotations=notes, annotations_record=rec)
+    assert all(c.label_source is None for p in out.readout.parts for c in p.checks)
+
+
 def test_v8_bundles_load_without_labels():
     b = _readout_bundle()
     raw = json.loads(b.model_dump_json())
@@ -129,6 +189,18 @@ def test_v8_bundles_load_without_labels():
     assert old.schema_version == 8 and all(s.label is None for s in old.discovery.statements)
 
 
+def test_v9_bundles_load_without_label_source_or_description():
+    b = _readout_bundle()
+    raw = json.loads(b.model_dump_json())
+    for p in raw["readout"]["parts"]:
+        for c in p["checks"]:
+            c.pop("label_source", None)
+    raw["readout"]["annotations"] = {"file": "n.yaml", "sha256": "0" * 64, "author": "a", "date": "2026-11-18"}
+    old = B.RunBundle.model_validate(raw)
+    assert old.readout.annotations.labels == {} and old.readout.annotations.description is None
+    assert all(c.label_source is None for p in old.readout.parts for c in p.checks)
+
+
 def test_authored_file_label(tmp_path):
     from spet import authored as A
     _, d = _trun()
@@ -141,3 +213,16 @@ def test_authored_file_label(tmp_path):
         {"id": "x.a0", "section": part.id, "text": "The answer apologises.", "label": "the answer apologises"}]}))
     with pytest.raises(ValueError, match="label"):
         A.load(f, d)
+
+
+def test_example_annotations_match_the_committed_run():
+    """The example's annotations file names statements of the committed run, and its labels follow the rules."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    run = root / "web" / "public" / "runs" / "sonnet35-july2024.json"
+    b = B.load(run)
+    notes, rec = R.load_annotations(root / "examples" / "sonnet35-july2024-annotations.yaml", b)
+    assert set(rec.labels) == {"p4.i2", "p8.i1", "p12.a0", "p12.a1", "p13.i0", "p15.i0"}
+    assert rec.description and "gpt-oss-20b" in rec.description
+    shown = {c.id: c for p in b.readout.parts for c in p.checks}
+    assert all(shown[k].label == v and shown[k].label_source == "author" for k, v in rec.labels.items())

@@ -27,7 +27,9 @@ SCHEMA_VERSION = 9  # 3: optional `discovery` block (spet/discovery.py, docs/dis
 #    `Check` gains `data: "authored"`, `polarity` and `rate_with_raw`. Optional, so v1-v7 bundles still load.
 # 9: optional short `label` per statement and per readout check (a verb phrase that continues "The model ...", written
 #    by the model that wrote the statement, by an author, or by `spet label`); optional `author_note` per readout check
-#    and the `annotations` record it came from. Optional, so v1-v8 bundles still load.
+#    and the `annotations` record it came from. Optional, so v1-v8 bundles still load. Later, still v9 (optional): the
+#    annotations file may override a check's label (`Check.label_source` "author", the labels kept in the record) and
+#    give a run `description` the viewer shows under the headline.
 
 
 class _Strict(BaseModel):
@@ -346,6 +348,9 @@ class Check(_Strict):
     # v9: an author's note shown beside this check's example answers, from the run's annotations file
     # (Readout.annotations); a note, never a measurement
     author_note: str | None = None
+    # v9: None = `label` is the statement's (written by a model or `spet label`); "author" = an override from the run's
+    # annotations file (Readout.annotations.labels)
+    label_source: Literal["author"] | None = None
 
 
 class ExcludedCheck(_Strict):
@@ -387,11 +392,13 @@ class AuditRecord(_Strict):
 
 
 class AnnotationsRecord(_Strict):
-    """v9: the annotations file the readout's author notes came from."""
+    """v9: the annotations file the readout's author notes, label overrides and run description came from."""
     file: str
     sha256: str
     author: str = ""
     date: str = ""
+    labels: dict[str, str] = {}    # statement id -> the author's label, which replaces the generated one on its check
+    description: str | None = None  # one sentence on what the run is, shown under the headline in place of the title
 
 
 class Readout(_Strict):

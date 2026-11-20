@@ -244,7 +244,8 @@ export function buildView(id: string): RunView {
     id,
     title: b.meta.title,
     model: b.meta.model,
-    lede: `${b.meta.title}. Each button says whether the model does what that part of the prompt asks.`,
+    // the author's description of the run (annotations file) if there is one, else the title
+    lede: `${(b.readout?.annotations?.description?.trim() || b.meta.title).replace(/\.$/, "")}. Each button says whether the model does what that part of the prompt asks.`,
     size:
       `${n(b.responses.length)} answers to ${n(b.meta.queries.length)} questions` +
       (nConf ? `, and ${n(nConf)} more to ${n(nConfQ)} new questions in a second test.` : "."),

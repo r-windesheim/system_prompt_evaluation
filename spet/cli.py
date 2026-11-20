@@ -545,7 +545,7 @@ def main(argv: list[str] | None = None) -> int:
     ro.add_argument("bundle", help="a bundle with a discovery block, with or without a confirmation")
     ro.add_argument("-o", "--out", required=True)
     ro.add_argument("--audit", help="audit YAML: statements marked `valid: false` are left out of the reading")
-    ro.add_argument("--annotations", help="annotations YAML: an author's note per check, shown beside its example")
+    ro.add_argument("--annotations", help="annotations YAML: author notes and label overrides per check, and a run description")
     ro.set_defaults(fn=cmd_readout)
     au = sub.add_parser("authored", help="judge author-written statements on a finished bundle's stored answers")
     au.add_argument("bundle", help="a finished bundle with a discovery block (its judge settings must be matched)")
