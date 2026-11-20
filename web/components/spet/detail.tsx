@@ -25,11 +25,11 @@ export function Detail({ run, k }: { run: Run; k: number }) {
           <p className="asked" data-k="asked">Asked &ldquo;{run.meta.queries[ex.q]}&rdquo;, one of its answers:</p>
           <div className="pair" data-k="pair">
             <section className="answer with" aria-label="With this part">
-              <h3>With this part <span>{wordCount(a.text)} words</span></h3>
+              <h3>With this part <span>{wordCount(a.text)} {wordCount(a.text) === 1 ? "word" : "words"}</span></h3>
               <div className="body" dangerouslySetInnerHTML={{ __html: renderAnswer(a.text, a.spans, hl) }} />
             </section>
             <section className="answer without" aria-label="Without it">
-              <h3>Without it <span>{wordCount(z.text)} words</span></h3>
+              <h3>Without it <span>{wordCount(z.text)} {wordCount(z.text) === 1 ? "word" : "words"}</span></h3>
               <div className="body" dangerouslySetInnerHTML={{ __html: renderAnswer(z.text, z.spans, hl) }} />
             </section>
           </div>

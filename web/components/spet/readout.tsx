@@ -176,7 +176,7 @@ function PairView({ pair, whole, about = "one of its answers" }: { pair: Pair; w
       <section className={`answer ${s}`} aria-label={s === "with" ? "With this part" : "Without it"}>
         <h3>
           {s === "with" ? "With this part" : "Without it"}
-          <span>{a.words.toLocaleString("en")} words{a.cut ? ", cut off" : ""}</span>
+          <span>{a.words.toLocaleString("en")} {a.words === 1 ? "word" : "words"}{a.cut ? ", cut off" : ""}</span>
         </h3>
         <div className={`body${a.words > LONG && !whole ? " clamped" : ""}`} dangerouslySetInnerHTML={{ __html: renderAnswer(a.text, [], null) }} />
       </section>
